@@ -11,15 +11,15 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     API_V1_STR: str = "/api/v1"
 
-    # Database
+    # Database (Docker container service: postgres)
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://astra_user:astra_secret_password@localhost:5432/astra_db"
+        default="postgresql+asyncpg://astra_user:astra_secret_password@postgres:5432/astra_db"
     )
 
-    # Redis & Celery
-    REDIS_URL: str = Field(default="redis://localhost:6379/0")
-    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/1")
+    # Redis & Celery (Docker container service: redis)
+    REDIS_URL: str = Field(default="redis://redis:6379/0")
+    CELERY_BROKER_URL: str = Field(default="redis://redis:6379/0")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://redis:6379/1")
 
     # Security & JWT
     JWT_SECRET: str = Field(
