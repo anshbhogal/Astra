@@ -169,7 +169,7 @@ class DiscoveredEndpoint(Base):
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     line_number: Mapped[int] = mapped_column(default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default_utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, nullable=False
     )
 
     analysis: Mapped["ProjectAnalysis"] = relationship("ProjectAnalysis", back_populates="endpoints")
