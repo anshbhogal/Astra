@@ -35,7 +35,7 @@ async def test_trigger_project_analysis_flow(client: AsyncClient, dev_headers: d
     assert "items" in res_ep.json()
 
     # 5. Get Knowledge Graph
-    res_graph = await client.get(f"/api/v1/projects/{project_id}/graph", headers=headers_dev := dev_headers)
+    res_graph = await client.get(f"/api/v1/projects/{project_id}/graph", headers=dev_headers)
     assert res_graph.status_code == 200
     assert "nodes" in res_graph.json()
     assert "edges" in res_graph.json()
