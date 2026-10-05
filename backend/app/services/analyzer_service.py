@@ -48,7 +48,7 @@ async def trigger_project_analysis(
 
     # Dispatch Celery background task
     try:
-        from workers.tasks.analyzer_tasks import run_project_analysis_task
+        from app.tasks.analyzer_tasks import run_project_analysis_task
         run_project_analysis_task.delay(str(analysis.id))
     except Exception as e:
         # Fallback to direct synchronous execution or log error if celery runner fails
