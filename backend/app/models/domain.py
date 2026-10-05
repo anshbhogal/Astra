@@ -140,7 +140,7 @@ class ProjectAnalysis(Base):
         DateTime(timezone=True), default=utc_now, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), defaultutc_now, onupdate=utc_now, nullable=False
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
     project: Mapped["Project"] = relationship("Project", back_populates="analyses")
