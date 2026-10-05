@@ -29,6 +29,9 @@ class EndpointExtractor:
 
         return discovered_endpoints
 
+    def extract(self, functions: List[FunctionInfo], framework: str = "PYTHON_FASTAPI") -> List[APIEndpoint]:
+        return self.extract_endpoints(functions, framework)
+
     def _parse_decorator(self, decorator_str: str, func: FunctionInfo, framework: str) -> List[APIEndpoint]:
         endpoints: List[APIEndpoint] = []
 
