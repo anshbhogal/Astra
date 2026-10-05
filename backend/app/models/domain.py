@@ -81,6 +81,98 @@ class Project(Base):
     )
 
     owner: Mapped["User"] = relationship("User", back_populates="projects")
+    analyses: Mapped[List["ProjectAnalysis"]] = relationship(
+        "ProjectAnalysis", back_populates="project", cascade="all, delete-orphan"
+    )
+
+
+class AnalysisStatus(str, Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_WARNINGS = "COMPLETED_WITH_WARNINGS"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class AnalysisStage(str, Enum):
+    CLONING = "CLONING"
+    SCANNING = "SCANNING"
+    AST_PARSING = "AST_PARSING"
+    GRAPH_BUILDING = "GRAPH_BUILDING"
+    PERSISTING = "PERSISTING"
+    FINISHED = "FINISHED"
+
+
+class ProjectAnalysis(Base):
+    __tablename__ = "project_analyses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[AnalysisStatus] = mapped_column(
+        SQLEnum(AnalysisStatus), default=AnalysisStatus.QUEUED, nullable=False
+    )
+    current_stage: Mapped[AnalysisStage] = mapped_column(
+        SQLEnum(AnalysisStage), default=AnalysisStage.CLONING, nullable=False
+    )
+    progress_percent: Mapped[int] = mapped_column(default=0, nullable=False)
+    repository_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    branch: Mapped[str] = mapped_column(String(100), default="main", nullable=False)
+    commit_sha: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    detected_language: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    detected_framework: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    framework_confidence: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    scanned_files_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    parsed_files_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    endpoint_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    graph_node_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    graph_edge_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    knowledge_graph: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    analyzer_version: Mapped[str] = mapped_column(String(50), default="2.0.0", nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), defaultutc_now, onupdate=utc_now, nullable=False
+    )
+
+    project: Mapped["Project"] = relationship("Project", back_populates="analyses")
+    endpoints: Mapped[List["DiscoveredEndpoint"]] = relationship(
+        "DiscoveredEndpoint", back_populates="analysis", cascade="all, delete-orphan"
+    )
+
+
+class DiscoveredEndpoint(Base):
+    __tablename__ = "discovered_endpoints"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project_analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    method: Mapped[str] = mapped_column(String(20), nullable=False)
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+    function_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    parameters: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    request_model: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    response_model: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    framework: Mapped[str] = mapped_column(String(50), nullable=False)
+    confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    line_number: Mapped[int] = mapped_column(default=1, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default_utc_now, nullable=False
+    )
+
+    analysis: Mapped["ProjectAnalysis"] = relationship("ProjectAnalysis", back_populates="endpoints")
 
 
 class AuditLog(Base):

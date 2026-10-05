@@ -52,6 +52,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./engine:/app/engine
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,6 +80,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-super_secure_astra_jwt_secret_key_change_in_production_2026}
     volumes:
       - ./backend:/app
+      - ./engine:/app/engine
     depends_on:
       backend:
         condition: service_healthy

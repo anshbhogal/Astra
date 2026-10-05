@@ -25,12 +25,17 @@ class UserRegister(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
     @field_validator("email", mode="before")
-    def normalize_email(cls, v: str) -> str:
-        return v.strip().lower() if isinstance(v, str) else v
+    def normalize_email_or_username(cls, v: str) -> str:
+        if isinstance(v, str):
+            v_clean = v.strip().lower()
+            if v_clean in ["admin", "dev", "tester", "viewer"]:
+                return f"{v_clean}@astra.local"
+            return v_clean
+        return v
 
 
 class UserResponse(BaseModel):

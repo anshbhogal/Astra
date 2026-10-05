@@ -19,6 +19,26 @@ export const Login: React.FC = () => {
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
+  const extractErrorMessage = (detail: any): string => {
+    if (!detail) return 'An error occurred during authentication.';
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail
+        .map((d: any) => {
+          if (typeof d === 'string') return d;
+          if (typeof d === 'object' && d !== null) {
+            return d.msg || d.message || JSON.stringify(d);
+          }
+          return String(d);
+        })
+        .join(', ');
+    }
+    if (typeof detail === 'object' && detail !== null) {
+      return detail.message || detail.msg || JSON.stringify(detail);
+    }
+    return String(detail);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -27,7 +47,7 @@ export const Login: React.FC = () => {
     try {
       if (isRegister) {
         // Register Flow
-        const regRes = await api.post('/auth/register', {
+        await api.post('/auth/register', {
           email,
           password,
           full_name: fullName,
@@ -44,7 +64,7 @@ export const Login: React.FC = () => {
       }
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'An error occurred during authentication.');
+      setError(extractErrorMessage(err.response?.data?.detail));
     } finally {
       setLoading(false);
     }
@@ -86,10 +106,47 @@ export const Login: React.FC = () => {
           </button>
         </div>
 
+        {/* Quick Test Credential Presets */}
+        {!isRegister && (
+          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quick Test Credentials</p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => { setEmail('admin@astra.local'); setPassword('Password123!'); }}
+                className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[11px] font-semibold hover:bg-rose-500/20 transition-colors"
+              >
+                Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('dev@astra.local'); setPassword('Password123!'); }}
+                className="px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[11px] font-semibold hover:bg-indigo-500/20 transition-colors"
+              >
+                Developer
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('tester@astra.local'); setPassword('Password123!'); }}
+                className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-semibold hover:bg-amber-500/20 transition-colors"
+              >
+                Tester
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEmail('viewer@astra.local'); setPassword('Password123!'); }}
+                className="px-2.5 py-1 rounded-lg bg-slate-500/10 text-slate-400 border border-slate-500/20 text-[11px] font-semibold hover:bg-slate-500/20 transition-colors"
+              >
+                Viewer
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error Notification */}
         {error && (
           <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-medium">
-            {error}
+            {typeof error === 'string' ? error : JSON.stringify(error)}
           </div>
         )}
 
