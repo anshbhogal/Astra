@@ -38,6 +38,8 @@ class FunctionVisitor(ast.NodeVisitor):
         for dec in func_node.decorator_list:
             try:
                 dec_str = ast.unparse(dec)
+                if not dec_str.startswith("@"):
+                    dec_str = f"@{dec_str}"
                 decorators.append(dec_str)
             except Exception:
                 pass
