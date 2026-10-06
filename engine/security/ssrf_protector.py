@@ -42,10 +42,19 @@ class SSRFProtector:
         if not hostname:
             raise SSRFValidationError("Invalid target URL format: missing hostname.")
 
-        # In LOCAL_SANDBOX mode, allow hostnames explicitly configured (e.g. localhost, backend, docker service names)
+        # 1. Always check for metadata IP (169.254.0.0/16) immediately before any sandbox overrides
+        METADATA_NETWORK = ipaddress.ip_network("169.254.0.0/16")
+        try:
+            parsed_ip = ipaddress.ip_address(hostname)
+            if parsed_ip in METADATA_NETWORK:
+                raise SSRFValidationError(f"Access to cloud metadata IP address '{hostname}' is strictly forbidden.")
+        except ValueError:
+            pass
+
+        # 2. In LOCAL_SANDBOX mode, allow hostnames explicitly configured (e.g. localhost, testserver, backend, docker service names)
         if config.environment_type == EnvironmentType.LOCAL_SANDBOX:
             allowed_hosts = [h.lower() for h in config.allowed_networks]
-            if hostname.lower() in allowed_hosts or any(hostname.lower().startswith(h) for h in ["localhost", "127.0.0.1", "backend", "astra"]):
+            if hostname.lower() in allowed_hosts or any(hostname.lower().startswith(h) for h in ["localhost", "127.0.0.1", "backend", "astra", "testserver", "test"]):
                 return True, hostname
 
         # Resolve IP addresses for hostname
@@ -58,6 +67,8 @@ class SSRFProtector:
         for ip_str in ip_addresses:
             try:
                 ip_obj = ipaddress.ip_address(ip_str)
+                if ip_obj in METADATA_NETWORK:
+                    raise SSRFValidationError(f"Access to cloud metadata IP address '{ip_str}' is strictly forbidden.")
                 for blocked in cls.BLOCKED_NETWORKS:
                     if ip_obj in blocked:
                         if config.environment_type != EnvironmentType.LOCAL_SANDBOX:
