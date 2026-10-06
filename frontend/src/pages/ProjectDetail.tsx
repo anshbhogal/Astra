@@ -16,7 +16,9 @@ import {
   RefreshCw,
   Layers,
   Network,
-  FileCode
+  FileCode,
+  Zap,
+  ChevronRight
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -69,6 +71,25 @@ interface DiscoveredEndpoint {
   line_number: number;
 }
 
+interface TestSuite {
+  id: string;
+  name: string;
+  total_cases: number;
+  version: string;
+  created_at: string;
+}
+
+interface TestRun {
+  id: string;
+  status: string;
+  total_tests: number;
+  passed_tests: number;
+  failed_tests: number;
+  error_tests: number;
+  duration_ms: number;
+  created_at: string;
+}
+
 interface KnowledgeGraph {
   nodes: Array<{ id: string; label: string; type: string; properties: any }>;
   edges: Array<{ source: string; target: string; type: string; properties: any }>;
@@ -79,16 +100,22 @@ export const ProjectDetail: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [endpoints, setEndpoints] = useState<DiscoveredEndpoint[]>([]);
+  const [suites, setSuites] = useState<TestSuite[]>([]);
+  const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [generatingSuite, setGeneratingSuite] = useState(false);
+  const [dispatchingRun, setDispatchingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'graph' | 'testruns'>('overview');
 
   useEffect(() => {
     fetchProjectDetail();
     fetchLatestAnalysis();
+    fetchTestSuites();
+    fetchTestRuns();
   }, [id]);
 
   useEffect(() => {
@@ -121,9 +148,7 @@ export const ProjectDetail: React.FC = () => {
         fetchEndpoints();
         fetchGraph();
       }
-    } catch (err) {
-      // No analysis run yet
-    }
+    } catch (err) {}
   };
 
   const fetchEndpoints = async () => {
@@ -140,6 +165,20 @@ export const ProjectDetail: React.FC = () => {
     } catch (err) {}
   };
 
+  const fetchTestSuites = async () => {
+    try {
+      const res = await api.get(`/projects/${id}/test-suites`);
+      setSuites(res.data.items || []);
+    } catch (err) {}
+  };
+
+  const fetchTestRuns = async () => {
+    try {
+      const res = await api.get(`/projects/${id}/test-runs`);
+      setTestRuns(res.data.items || []);
+    } catch (err) {}
+  };
+
   const triggerAnalysis = async () => {
     setAnalyzing(true);
     try {
@@ -149,6 +188,39 @@ export const ProjectDetail: React.FC = () => {
       alert(err.response?.data?.detail || 'Failed to start repository analysis.');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const generateTestSuite = async () => {
+    setGeneratingSuite(true);
+    try {
+      const res = await api.post(`/projects/${id}/test-suites/generate`, {
+        name: `Synthetic Suite v${suites.length + 1}`
+      });
+      fetchTestSuites();
+      alert(`Successfully generated synthetic test suite '${res.data.name}' with ${res.data.total_cases} test cases!`);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to generate test suite. Ensure repository is analyzed first.');
+    } finally {
+      setGeneratingSuite(false);
+    }
+  };
+
+  const dispatchRun = async (suiteId: string) => {
+    setDispatchingRun(true);
+    try {
+      const res = await api.post(`/projects/${id}/test-runs`, {
+        suite_id: suiteId,
+        target_base_url: 'http://localhost:8000',
+        environment_type: 'LOCAL_SANDBOX',
+        health_check_path: '/health'
+      });
+      fetchTestRuns();
+      setActiveTab('testruns');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to dispatch test run.');
+    } finally {
+      setDispatchingRun(false);
     }
   };
 
@@ -260,47 +332,6 @@ export const ProjectDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Analysis Status Banner */}
-      {analysis && (
-        <div className="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              {analysis.status === 'COMPLETED' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-              {analysis.status === 'RUNNING' && <RefreshCw className="w-5 h-5 text-indigo-400 animate-spin" />}
-              {analysis.status === 'FAILED' && <AlertTriangle className="w-5 h-5 text-rose-400" />}
-              <div>
-                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                  Static Analysis Snapshot #{analysis.id.substring(0, 8)}
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold border ${
-                    analysis.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                    analysis.status === 'RUNNING' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                  }`}>
-                    {analysis.status}
-                  </span>
-                </h4>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Stage: <span className="text-slate-200 font-semibold font-mono">{analysis.current_stage}</span> ({analysis.progress_percent}%)
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 text-xs font-mono text-slate-400">
-              <div><span className="text-slate-500">Files:</span> {analysis.scanned_files_count}</div>
-              <div><span className="text-slate-500">Endpoints:</span> {analysis.endpoint_count}</div>
-              <div><span className="text-slate-500">Graph Nodes:</span> {analysis.graph_node_count}</div>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-            <div
-              className="bg-indigo-500 h-full transition-all duration-500 ease-out"
-              style={{ width: `${analysis.progress_percent}%` }}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Tabs Navigation */}
       <div className="flex border-b border-slate-800 gap-6 text-sm font-medium text-slate-400">
         <button
@@ -333,23 +364,17 @@ export const ProjectDetail: React.FC = () => {
             activeTab === 'testruns' ? 'text-indigo-400 font-bold border-b-2 border-indigo-500' : 'hover:text-slate-200'
           }`}
         >
-          <Activity className="w-4 h-4" /> Test Executions
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 font-mono">Phase 3</span>
+          <Activity className="w-4 h-4" /> Test Executions ({testRuns.length})
         </button>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-          <h3 className="text-base font-bold text-white">Project Infrastructure & Static Intelligence</h3>
+          <h3 className="text-base font-bold text-white">Project Infrastructure & Execution Platform</h3>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Astra static analyzer parses source code using deterministic Python AST parsers without executing target application code.
+            Astra executes synthetic HTTP test cases deterministically against target applications with full SSRF protection and secret redaction.
           </p>
-
-          <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 font-mono text-xs text-slate-300">
-            <p className="text-indigo-400 font-semibold">// Repository & Analysis Metadata</p>
-            <pre className="overflow-x-auto">{JSON.stringify({ project, latest_analysis: analysis }, null, 2)}</pre>
-          </div>
         </div>
       )}
 
@@ -359,9 +384,6 @@ export const ProjectDetail: React.FC = () => {
             <div className="glass-card rounded-2xl p-8 text-center space-y-3 border border-slate-800">
               <Cpu className="w-10 h-10 text-indigo-400 mx-auto" />
               <h3 className="text-base font-bold text-white">No Endpoints Discovered Yet</h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Click "Analyze Repository" to run the static code parser and discover API routes automatically.
-              </p>
             </div>
           ) : (
             <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden">
@@ -371,7 +393,6 @@ export const ProjectDetail: React.FC = () => {
                     <th className="px-4 py-3">Method</th>
                     <th className="px-4 py-3">Path</th>
                     <th className="px-4 py-3">Handler Function</th>
-                    <th className="px-4 py-3">Parameters</th>
                     <th className="px-4 py-3">Source Location</th>
                   </tr>
                 </thead>
@@ -385,9 +406,6 @@ export const ProjectDetail: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-white font-semibold">{ep.path}</td>
                       <td className="px-4 py-3 text-indigo-400">{ep.function_name}()</td>
-                      <td className="px-4 py-3 text-slate-400 max-w-xs truncate">
-                        {ep.parameters.map(p => p.name).join(', ') || 'None'}
-                      </td>
                       <td className="px-4 py-3 text-slate-400 flex items-center gap-1">
                         <FileCode className="w-3.5 h-3.5 text-slate-500" />
                         {ep.file_path}:{ep.line_number}
@@ -407,13 +425,9 @@ export const ProjectDetail: React.FC = () => {
             <div className="glass-card rounded-2xl p-8 text-center space-y-3 border border-slate-800">
               <Network className="w-10 h-10 text-indigo-400 mx-auto" />
               <h3 className="text-base font-bold text-white">Knowledge Graph Not Available</h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Run repository analysis to generate the directed Project Knowledge Graph (PKG).
-              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Nodes List Card */}
               <div className="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
                 <h4 className="text-sm font-bold text-white flex items-center justify-between">
                   <span>Graph Nodes</span>
@@ -433,39 +447,103 @@ export const ProjectDetail: React.FC = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Edges List Card */}
-              <div className="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
-                <h4 className="text-sm font-bold text-white flex items-center justify-between">
-                  <span>Graph Relationships (Edges)</span>
-                  <span className="text-xs font-mono text-emerald-400">{graph.edges.length} edges</span>
-                </h4>
-                <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                  {graph.edges.map((edge, idx) => (
-                    <div key={idx} className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono space-y-1">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-indigo-400">{edge.source}</span>
-                        <span className="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400 text-[10px] font-bold">
-                          {edge.type}
-                        </span>
-                        <span className="text-indigo-400">{edge.target}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
         </div>
       )}
 
       {activeTab === 'testruns' && (
-        <div className="glass-card rounded-2xl p-8 text-center space-y-3 border border-slate-800">
-          <Activity className="w-10 h-10 text-emerald-400 mx-auto" />
-          <h3 className="text-base font-bold text-white">Test Execution Engine (Phase 3 Placeholder)</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            Deterministic HTTPX test execution, assertion evaluating, and failure logging will be implemented in Phase 3.
-          </p>
+        <div className="space-y-6">
+          {/* Controls Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-white">Test Suites & Execution Telemetry</h3>
+              <p className="text-xs text-slate-400">Generate synthetic test specifications and execute async HTTP test runs.</p>
+            </div>
+
+            <button
+              onClick={generateTestSuite}
+              disabled={generatingSuite || endpoints.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 text-xs font-bold text-white transition-all shadow-lg shadow-emerald-600/20 shrink-0"
+            >
+              <Zap className="w-4 h-4 fill-current" /> Generate Synthetic Suite
+            </button>
+          </div>
+
+          {/* Generated Test Suites */}
+          <div className="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+            <h4 className="text-sm font-bold text-white">Generated Test Suites ({suites.length})</h4>
+            {suites.length === 0 ? (
+              <p className="text-xs text-slate-500">No test suites generated yet. Click "Generate Synthetic Suite" above.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {suites.map(s => (
+                  <div key={s.id} className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs font-mono">
+                    <div className="space-y-1">
+                      <span className="text-slate-200 font-bold block">{s.name}</span>
+                      <span className="text-slate-500 text-[10px] block">{s.total_cases} test cases • v{s.version}</span>
+                    </div>
+                    <button
+                      onClick={() => dispatchRun(s.id)}
+                      disabled={dispatchingRun}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition-all flex items-center gap-1"
+                    >
+                      <Play className="w-3 h-3 fill-current" /> Run Suite
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Past Execution Runs Table */}
+          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden space-y-3 p-5">
+            <h4 className="text-sm font-bold text-white">Execution History ({testRuns.length})</h4>
+            {testRuns.length === 0 ? (
+              <p className="text-xs text-slate-500">No test runs executed yet.</p>
+            ) : (
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
+                  <tr>
+                    <th className="px-4 py-3">Run ID</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Tests Passed / Total</th>
+                    <th className="px-4 py-3">Duration</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  {testRuns.map(run => (
+                    <tr key={run.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3 font-bold text-white">#{run.id.substring(0, 8)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded font-bold border ${
+                          run.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          run.status === 'FAILED' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                        }`}>
+                          {run.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300 font-bold">
+                        <span className="text-emerald-400">{run.passed_tests}</span> / {run.total_tests}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">{run.duration_ms.toFixed(0)} ms</td>
+                      <td className="px-4 py-3 text-slate-500">{new Date(run.created_at).toLocaleTimeString()}</td>
+                      <td className="px-4 py-3">
+                        <Link
+                          to={`/projects/${project.id}/test-runs/${run.id}`}
+                          className="inline-flex items-center gap-1 text-indigo-400 hover:underline font-bold"
+                        >
+                          View Results <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -6,6 +6,7 @@ import { Login } from './pages/Login';
 import { DashboardOverview } from './pages/DashboardOverview';
 import { ProjectsList } from './pages/ProjectsList';
 import { ProjectDetail } from './pages/ProjectDetail';
+import { TestRunDetail } from './pages/TestRunDetail';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuthStore();
@@ -46,6 +47,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ProjectDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/test-runs/:runId"
+          element={
+            <ProtectedRoute>
+              <TestRunDetail />
             </ProtectedRoute>
           }
         />
