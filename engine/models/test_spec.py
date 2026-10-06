@@ -53,13 +53,14 @@ class AssertionRule:
         }
 
     @classmethod
-    from_dict = classmethod(lambda cls, d: cls(
-        type=AssertionType(d["type"]) if isinstance(d["type"], str) else d["type"],
-        expected=d.get("expected"),
-        path=d.get("path"),
-        operator=d.get("operator", "equals"),
-        message=d.get("message")
-    ))
+    def from_dict(cls, d: Dict[str, Any]) -> "AssertionRule":
+        return cls(
+            type=AssertionType(d["type"]) if isinstance(d["type"], str) else d["type"],
+            expected=d.get("expected"),
+            path=d.get("path"),
+            operator=d.get("operator", "equals"),
+            message=d.get("message")
+        )
 
 
 @dataclass
