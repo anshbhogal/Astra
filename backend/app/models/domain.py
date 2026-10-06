@@ -199,3 +199,163 @@ class AuditLog(Base):
     )
 
     actor: Mapped[Optional["User"]] = relationship("User", back_populates="audit_logs")
+
+
+class TestRunStatus(str, Enum):
+    PENDING = "PENDING"
+    STARTING = "STARTING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    TIMED_OUT = "TIMED_OUT"
+    CANCELLED = "CANCELLED"
+    ENVIRONMENT_ERROR = "ENVIRONMENT_ERROR"
+
+
+class TestOutcome(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    ERROR = "ERROR"
+    TIMEOUT = "TIMEOUT"
+    SKIP = "SKIP"
+
+
+class TestType(str, Enum):
+    HAPPY_PATH = "HAPPY_PATH"
+    MISSING_REQUIRED = "MISSING_REQUIRED"
+    INVALID_TYPE = "INVALID_TYPE"
+    UNAUTHORIZED = "UNAUTHORIZED"
+    INVALID_FORMAT = "INVALID_FORMAT"
+    EMPTY_VALUE = "EMPTY_VALUE"
+    NULL_VALUE = "NULL_VALUE"
+    BOUNDARY = "BOUNDARY"
+    METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
+    NOT_FOUND = "NOT_FOUND"
+
+
+class TestSuite(Base):
+    __tablename__ = "test_suites"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    analysis_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project_analyses.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    total_cases: Mapped[int] = mapped_column(default=0, nullable=False)
+    version: Mapped[str] = mapped_column(String(50), default="1.0.0", nullable=False)
+    is_immutable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    )
+
+    project: Mapped["Project"] = relationship("Project", back_populates="test_suites")
+    analysis: Mapped[Optional["ProjectAnalysis"]] = relationship("ProjectAnalysis")
+    test_cases: Mapped[List["TestCase"]] = relationship("TestCase", back_populates="test_suite", cascade="all, delete-orphan")
+    test_runs: Mapped[List["TestRun"]] = relationship("TestRun", back_populates="test_suite", cascade="all, delete-orphan")
+
+
+class TestCase(Base):
+    __tablename__ = "test_cases"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    suite_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_suites.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("discovered_endpoints.id", ondelete="SET NULL"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    test_type: Mapped[TestType] = mapped_column(
+        SQLEnum(TestType), default=TestType.HAPPY_PATH, nullable=False
+    )
+    execution_order: Mapped[int] = mapped_column(default=1, nullable=False)
+    specification: Mapped[dict] = mapped_column(JSON, nullable=False)
+    depends_on: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    test_suite: Mapped["TestSuite"] = relationship("TestSuite", back_populates="test_cases")
+    endpoint: Mapped[Optional["DiscoveredEndpoint"]] = relationship("DiscoveredEndpoint")
+
+
+class TestRun(Base):
+    __tablename__ = "test_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    suite_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_suites.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[TestRunStatus] = mapped_column(
+        SQLEnum(TestRunStatus), default=TestRunStatus.PENDING, nullable=False
+    )
+    total_tests: Mapped[int] = mapped_column(default=0, nullable=False)
+    passed_tests: Mapped[int] = mapped_column(default=0, nullable=False)
+    failed_tests: Mapped[int] = mapped_column(default=0, nullable=False)
+    error_tests: Mapped[int] = mapped_column(default=0, nullable=False)
+    duration_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    target_environment: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    triggered_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    project: Mapped["Project"] = relationship("Project", back_populates="test_runs")
+    test_suite: Mapped["TestSuite"] = relationship("TestSuite", back_populates="test_runs")
+    results: Mapped[List["TestResult"]] = relationship("TestResult", back_populates="test_run", cascade="all, delete-orphan")
+
+
+class TestResult(Base):
+    __tablename__ = "test_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    test_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    test_case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint: Mapped[str] = mapped_column(String(500), nullable=False)
+    method: Mapped[str] = mapped_column(String(20), nullable=False)
+    test_type: Mapped[TestType] = mapped_column(
+        SQLEnum(TestType), default=TestType.HAPPY_PATH, nullable=False
+    )
+    outcome: Mapped[TestOutcome] = mapped_column(
+        SQLEnum(TestOutcome), nullable=False
+    )
+    status_code: Mapped[Optional[int]] = mapped_column(nullable=True)
+    request_data: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    response_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    response_body_truncated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    execution_time_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    assertion_failures: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    test_run: Mapped["TestRun"] = relationship("TestRun", back_populates="results")
+    test_case: Mapped["TestCase"] = relationship("TestCase")
