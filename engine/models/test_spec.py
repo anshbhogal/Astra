@@ -16,6 +16,14 @@ class TestType(str, Enum):
     NOT_FOUND = "NOT_FOUND"
 
 
+class TestOutcome(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    ERROR = "ERROR"
+    TIMEOUT = "TIMEOUT"
+    SKIP = "SKIP"
+
+
 class StatusSource(str, Enum):
     STATIC_RULE = "STATIC_RULE"
     OPENAPI = "OPENAPI"
