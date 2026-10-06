@@ -5,7 +5,7 @@ from typing import List, Tuple
 from engine.models.target_env import TargetEnvironmentConfig, EnvironmentType
 
 
-class SSRFValidationError(ValueError):
+class SSRFValidationError(Exception):
     """Raised when a target URL fails SSRF security validation."""
     pass
 
