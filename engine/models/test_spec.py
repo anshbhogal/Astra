@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional
 
 
 class TestType(str, Enum):
+    __test__ = False
     HAPPY_PATH = "HAPPY_PATH"
     MISSING_REQUIRED = "MISSING_REQUIRED"
     INVALID_TYPE = "INVALID_TYPE"
@@ -17,6 +18,7 @@ class TestType(str, Enum):
 
 
 class TestOutcome(str, Enum):
+    __test__ = False
     PASS = "PASS"
     FAIL = "FAIL"
     ERROR = "ERROR"
