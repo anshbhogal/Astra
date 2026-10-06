@@ -1,6 +1,6 @@
 import time
 import httpx
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from engine.models.test_spec import TestSpecification, TestOutcome
 from engine.models.target_env import TargetEnvironmentConfig
 from engine.security.ssrf_protector import SSRFProtector, SSRFValidationError
