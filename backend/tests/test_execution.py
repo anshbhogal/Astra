@@ -1,9 +1,12 @@
 import pytest
+import uuid
 from httpx import AsyncClient
+from app.models.domain import DiscoveredEndpoint, ProjectAnalysis
+from sqlalchemy import select
 
 
 @pytest.mark.asyncio
-async def test_full_execution_engine_flow(client: AsyncClient, dev_headers: dict):
+async def test_full_execution_engine_flow(client: AsyncClient, dev_headers: dict, db_session):
     # 1. Create project
     create_payload = {
         "name": "Target App Test Execution Project",
@@ -19,6 +22,24 @@ async def test_full_execution_engine_flow(client: AsyncClient, dev_headers: dict
     # 2. Trigger static analysis
     analyze_res = await client.post(f"/api/v1/projects/{project_id}/analyze", headers=dev_headers)
     assert analyze_res.status_code == 202
+    analysis_id = analyze_res.json()["id"]
+
+    # Seed DiscoveredEndpoint for analysis in db
+    ep = DiscoveredEndpoint(
+        analysis_id=uuid.UUID(analysis_id),
+        method="GET",
+        path="/health",
+        function_name="health_check",
+        parameters=[],
+        request_model=None,
+        response_model="dict",
+        framework="PYTHON_FASTAPI",
+        confidence=0.98,
+        file_path="main.py",
+        line_number=10
+    )
+    db_session.add(ep)
+    await db_session.commit()
 
     # 3. Generate synthetic test suite
     suite_res = await client.post(
