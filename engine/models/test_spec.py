@@ -75,6 +75,7 @@ class AssertionRule:
 
 @dataclass
 class TestSpecification:
+    __test__ = False
     id: str
     name: str
     endpoint_id: str
