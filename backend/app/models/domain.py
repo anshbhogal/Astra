@@ -84,6 +84,12 @@ class Project(Base):
     analyses: Mapped[List["ProjectAnalysis"]] = relationship(
         "ProjectAnalysis", back_populates="project", cascade="all, delete-orphan"
     )
+    test_suites: Mapped[List["TestSuite"]] = relationship(
+        "TestSuite", back_populates="project", cascade="all, delete-orphan"
+    )
+    test_runs: Mapped[List["TestRun"]] = relationship(
+        "TestRun", back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class AnalysisStatus(str, Enum):
