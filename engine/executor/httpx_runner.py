@@ -12,7 +12,7 @@ class HTTPXTestRunner:
     """Async HTTP test runner executing TestSpecification instances against target environments."""
 
     @classmethod
-    async def run_spec(cls, spec: TestSpecification, config: TargetEnvironmentConfig) -> Dict[str, Any]:
+    async def run_spec(cls, spec: TestSpecification, config: TargetEnvironmentConfig, custom_client: Optional[httpx.AsyncClient] = None) -> Dict[str, Any]:
         # Substitute path parameters in endpoint path
         target_path = spec.path
         for k, v in spec.path_params.items():
@@ -46,9 +46,12 @@ class HTTPXTestRunner:
 
         start_time = time.perf_counter()
 
-        async with httpx.AsyncClient(verify=config.verify_ssl) as client:
+        client_ctx = custom_client if custom_client else httpx.AsyncClient(verify=config.verify_ssl)
+        should_close = custom_client is None
+
+        try:
             try:
-                res = await client.request(
+                res = await client_ctx.request(
                     method=spec.method,
                     url=url,
                     headers=req_headers,
@@ -115,6 +118,9 @@ class HTTPXTestRunner:
                     "assertion_failures": [],
                     "error_message": f"Network/HTTP Execution Error: {str(exc)}"
                 }
+        finally:
+            if should_close:
+                await client_ctx.aclose()
 
     @classmethod
     def _build_redacted_request_telemetry(cls, url: str, spec: TestSpecification, raw_headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
