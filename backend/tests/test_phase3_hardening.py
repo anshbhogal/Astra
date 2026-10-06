@@ -21,7 +21,7 @@ from engine.models.test_spec import (
 )
 from engine.models.target_env import TargetEnvironmentConfig, EnvironmentType
 from engine.executor.httpx_runner import HTTPXTestRunner
-from engine.executor.health_checker import TargetHealthChecker
+from engine.executor.health_checker import HealthChecker
 from engine.security.ssrf_protector import SSRFProtector, SSRFValidationError
 from engine.security.redactor import TelemetryRedactor
 from tests.fixtures.sample_target_app import app as target_fastapi_app
@@ -35,11 +35,10 @@ def target_transport():
 @pytest.fixture
 def target_env_config():
     return TargetEnvironmentConfig(
-        target_base_url="http://testserver",
+        base_url="http://testserver",
         environment_type=EnvironmentType.LOCAL_SANDBOX,
         timeout_seconds=5.0,
         custom_headers={"X-Test-Suite": "Astra-Hardening"},
-        is_local_sandbox=True,
     )
 
 
@@ -77,10 +76,11 @@ async def test_e2e_execution_against_fastapi_fixture(target_transport, target_en
             path="/items",
             method="POST",
             test_type=TestType.HAPPY_PATH,
+            expected_status=[201],
             body={"name": "Hardened Gadget"},
             assertions=[
                 AssertionRule(type=AssertionType.STATUS_CODE, expected=201),
-                AssertionRule(type=AssertionType.JSON_PATH, path="$.name", expected="Hardened Gadget"),
+                AssertionRule(type=AssertionType.JSON_PATH, path="name", expected="Hardened Gadget"),
             ],
         )
 
@@ -97,6 +97,7 @@ async def test_e2e_execution_against_fastapi_fixture(target_transport, target_en
             path="/items",
             method="POST",
             test_type=TestType.MISSING_REQUIRED,
+            expected_status=[201],
             body={},  # missing 'name'
             assertions=[
                 AssertionRule(type=AssertionType.STATUS_CODE, expected=201),
@@ -118,13 +119,18 @@ async def test_negative_path_matrix(target_transport, target_env_config):
     - Assertion failure (FAIL)
     """
     # Path A: Unreachable target host/port -> ENVIRONMENT_ERROR
-    unreachable_checker = TargetHealthChecker()
-    is_live, err_msg = await unreachable_checker.check_liveness("http://127.0.0.1:59999/health", timeout=1.0)
+    unreachable_config = TargetEnvironmentConfig(
+        base_url="http://127.0.0.1:59999",
+        health_check_path="/health",
+        timeout_seconds=1.0,
+        environment_type=EnvironmentType.LOCAL_SANDBOX,
+    )
+    is_live, err_msg = await HealthChecker.check_health(unreachable_config)
     assert not is_live
-    assert "Unreachable" in err_msg or "refused" in err_msg.lower() or "connect" in err_msg.lower()
+    assert "unreachable" in err_msg.lower() or "refused" in err_msg.lower() or "connect" in err_msg.lower()
 
     # Path B: Timeout handling -> TIMEOUT
-    async with AsyncClient(transport=target_transport, base_url="http://testserver") as client:
+    async with AsyncClient(transport=target_transport, base_url="http://testserver", timeout=0.2) as short_client:
         spec_slow = TestSpecification(
             id="spec-slow-001",
             name="GET /slow Timeout Test",
@@ -136,7 +142,7 @@ async def test_negative_path_matrix(target_transport, target_env_config):
             assertions=[AssertionRule(type=AssertionType.STATUS_CODE, expected=200)],
         )
 
-        res_slow = await HTTPXTestRunner.run_spec(spec_slow, target_env_config, custom_client=client)
+        res_slow = await HTTPXTestRunner.run_spec(spec_slow, target_env_config, custom_client=short_client)
         assert res_slow["outcome"] == TestOutcome.TIMEOUT.value
         assert "timed out" in res_slow["error_message"].lower()
 
@@ -165,7 +171,7 @@ async def test_ssrf_security_boundary_extended():
     """
     strict_config = TargetEnvironmentConfig(
         base_url="http://example.com",
-        is_local_sandbox=False,
+        environment_type=EnvironmentType.EXTERNAL,
     )
 
     forbidden_urls = [
@@ -187,7 +193,7 @@ async def test_ssrf_security_boundary_extended():
     # Mode 2: Local Sandbox Mode (is_local_sandbox=True)
     sandbox_config = TargetEnvironmentConfig(
         base_url="http://localhost:8000",
-        is_local_sandbox=True,
+        environment_type=EnvironmentType.LOCAL_SANDBOX,
     )
 
     # Local sandbox allows localhost/127.0.0.1 for local dev target apps
