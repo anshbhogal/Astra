@@ -36,7 +36,7 @@ class TelemetryRedactor:
         if isinstance(data, dict):
             redacted_dict = {}
             for k, v in data.items():
-                if k.lower() in cls.SENSITIVE_FIELD_KEYWORDS or any(kw in k.lower() for kw in ["password", "token", "secret", "key"]):
+                if k.lower() in cls.SENSITIVE_FIELD_KEYWORDS or any(kw in k.lower() for kw in ["password", "secret", "access_token", "refresh_token", "auth_token"]):
                     redacted_dict[k] = "[REDACTED]"
                 else:
                     redacted_dict[k] = cls.redact_json_payload(v)
