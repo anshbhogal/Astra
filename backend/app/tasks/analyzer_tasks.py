@@ -43,13 +43,13 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
             if not analysis:
                 return
 
-        try:
-            # Stage 1: CLONING
-            analysis.status = AnalysisStatus.RUNNING
-            analysis.current_stage = AnalysisStage.CLONING
-            analysis.progress_percent = 10
-            analysis.started_at = utc_now()
-            await db.commit()
+            try:
+                # Stage 1: CLONING
+                analysis.status = AnalysisStatus.RUNNING
+                analysis.current_stage = AnalysisStage.CLONING
+                analysis.progress_percent = 10
+                analysis.started_at = utc_now()
+                await db.commit()
 
             cloner = GitRepoCloner()
             clone_res = cloner.clone(repository_url=analysis.repository_url, destination_dir=repo_dir, branch=analysis.branch)
