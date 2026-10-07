@@ -37,10 +37,15 @@ class GitRepoCloner:
         if branch:
             clone_kwargs["branch"] = branch
 
+        clone_env = os.environ.copy()
+        clone_env["GIT_TERMINAL_PROMPT"] = "0"
+        clone_env["GIT_SSL_NO_VERIFY"] = "true"
+
         try:
             repo = git.Repo.clone_from(
                 url=repository_url,
                 to_path=str(destination_path),
+                env=clone_env,
                 **clone_kwargs
             )
         except Exception as exc:
