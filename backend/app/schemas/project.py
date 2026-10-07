@@ -17,8 +17,8 @@ class ProjectCreate(BaseModel):
     @field_validator("repository_url")
     def validate_repo_url(cls, v: str) -> str:
         v_str = str(v).strip()
-        if not (v_str.startswith("http://") or v_str.startswith("https://") or v_str.startswith("git@")):
-            raise ValueError("Repository URL must begin with http://, https://, or git@")
+        if not (v_str.startswith("http://") or v_str.startswith("https://") or v_str.startswith("git@") or v_str.startswith("file://") or v_str.startswith("/")):
+            raise ValueError("Repository URL must begin with http://, https://, git@, file://, or absolute path /")
         return v_str
 
 
