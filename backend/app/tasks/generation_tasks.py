@@ -23,16 +23,23 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 
+from app.core.config import settings
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
 async def execute_generation_job_pipeline(job_id_str: str) -> None:
     job_id = uuid.UUID(job_id_str)
 
-    async with AsyncSessionLocal() as db:
-        stmt = select(GenerationJob).where(GenerationJob.id == job_id)
-        result = await db.execute(stmt)
-        job = result.scalar_one_or_none()
+    task_engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    TaskSessionLocal = async_sessionmaker(bind=task_engine, class_=AsyncSession, expire_on_commit=False)
 
-        if not job:
-            return
+    try:
+        async with TaskSessionLocal() as db:
+            stmt = select(GenerationJob).where(GenerationJob.id == job_id)
+            result = await db.execute(stmt)
+            job = result.scalar_one_or_none()
+
+            if not job:
+                return
 
         try:
             job.status = GenerationJobStatus.RUNNING
@@ -116,6 +123,8 @@ async def execute_generation_job_pipeline(job_id_str: str) -> None:
             job.error_message = f"Generation Pipeline Failure: {str(exc)}"
             job.completed_at = utc_now()
             await db.commit()
+    finally:
+        await task_engine.dispose()
 
 
 @celery_app.task(name="tasks.run_advanced_suite_generation_task")

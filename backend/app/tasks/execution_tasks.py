@@ -21,16 +21,23 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 
+from app.core.config import settings
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
 async def execute_test_run_pipeline(test_run_id_str: str) -> None:
     test_run_id = uuid.UUID(test_run_id_str)
 
-    async with async_session_factory() as db:
-        stmt = select(TestRun).where(TestRun.id == test_run_id)
-        result = await db.execute(stmt)
-        run = result.scalar_one_or_none()
+    task_engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    TaskSessionLocal = async_sessionmaker(bind=task_engine, class_=AsyncSession, expire_on_commit=False)
 
-        if not run:
-            return
+    try:
+        async with TaskSessionLocal() as db:
+            stmt = select(TestRun).where(TestRun.id == test_run_id)
+            result = await db.execute(stmt)
+            run = result.scalar_one_or_none()
+
+            if not run:
+                return
 
         try:
             # Stage 1: STARTING
@@ -140,6 +147,8 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
             run.error_message = str(e)
             run.completed_at = utc_now()
             await db.commit()
+    finally:
+        await task_engine.dispose()
 
 
 @celery_app.task(name="tasks.run_test_suite_execution_task")

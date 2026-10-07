@@ -23,18 +23,25 @@ def utc_now():
     return datetime.now(timezone.utc)
 
 
+from app.core.config import settings
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+
 async def execute_analysis_pipeline(analysis_id_str: str) -> None:
     analysis_id = uuid.UUID(analysis_id_str)
     workspace_dir = f"/app/workspaces/{analysis_id}"
     repo_dir = os.path.join(workspace_dir, "repository")
 
-    async with async_session_factory() as db:
-        stmt = select(ProjectAnalysis).where(ProjectAnalysis.id == analysis_id)
-        result = await db.execute(stmt)
-        analysis = result.scalar_one_or_none()
+    task_engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    TaskSessionLocal = async_sessionmaker(bind=task_engine, class_=AsyncSession, expire_on_commit=False)
 
-        if not analysis:
-            return
+    try:
+        async with TaskSessionLocal() as db:
+            stmt = select(ProjectAnalysis).where(ProjectAnalysis.id == analysis_id)
+            result = await db.execute(stmt)
+            analysis = result.scalar_one_or_none()
+
+            if not analysis:
+                return
 
         try:
             # Stage 1: CLONING
@@ -135,10 +142,10 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
             analysis.error_message = str(e)
             analysis.completed_at = utc_now()
             await db.commit()
-        finally:
-            # Cleanup sandbox directory safely
-            if os.path.exists(workspace_dir):
-                shutil.rmtree(workspace_dir, ignore_errors=True)
+    finally:
+        if os.path.exists(workspace_dir):
+            shutil.rmtree(workspace_dir, ignore_errors=True)
+        await task_engine.dispose()
 
 
 @celery_app.task(name="tasks.run_project_analysis_task")
