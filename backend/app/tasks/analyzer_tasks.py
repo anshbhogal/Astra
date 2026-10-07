@@ -59,8 +59,8 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
                 analysis.progress_percent = 30
                 await db.commit()
 
-                scanner = FileScanner(repo_dir)
-                source_files = scanner.scan()
+                scanner = FileScanner()
+                source_files = scanner.scan(repo_dir)
                 analysis.scanned_files_count = len(source_files)
 
                 lang_detector = LanguageDetector()
