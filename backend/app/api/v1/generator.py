@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db.session import get_db
-from app.core.security import get_current_active_user, require_developer_role
-from app.models.domain import User, Project, ProjectAnalysis, GenerationJob, GenerationJobStatus
+from app.core.security import get_current_user
+from app.core.rbac import require_roles
+from app.models.domain import User, UserRole, Project, ProjectAnalysis, GenerationJob, GenerationJobStatus
 from app.schemas.generator import (
     AdvancedSuiteGenerationRequest,
     GenerationJobResponse,
@@ -30,7 +31,7 @@ async def dispatch_advanced_suite_generation(
     project_id: uuid.UUID,
     req: AdvancedSuiteGenerationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_developer_role)
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
     """
     Triggers an asynchronous advanced rule-based test suite generation job.
@@ -119,7 +120,7 @@ async def dispatch_advanced_suite_generation(
 async def get_generation_job_details(
     job_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Retrieves status and report of a generation job."""
     stmt = select(GenerationJob).where(GenerationJob.id == job_id)
@@ -150,7 +151,7 @@ async def get_generation_job_details(
 async def cancel_generation_job(
     job_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_developer_role)
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
     """Cancels a pending or running generation job."""
     stmt = select(GenerationJob).where(GenerationJob.id == job_id)
