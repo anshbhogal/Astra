@@ -17,10 +17,11 @@ import {
   Layers,
   Network,
   FileCode,
-  Zap,
+  Sliders,
   ChevronRight
 } from 'lucide-react';
 import { api } from '../services/api';
+import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
 
 interface Project {
   id: string;
@@ -103,6 +104,7 @@ export const ProjectDetail: React.FC = () => {
   const [suites, setSuites] = useState<TestSuite[]>([]);
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -290,6 +292,14 @@ export const ProjectDetail: React.FC = () => {
                   <Play className="w-3.5 h-3.5 fill-current" /> Analyze Repository
                 </>
               )}
+            </button>
+
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              disabled={!analysis || endpoints.length === 0}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 hover:border-indigo-500/40 text-xs font-semibold text-indigo-300 transition-colors shrink-0 disabled:opacity-50"
+            >
+              <Sliders className="w-3.5 h-3.5 text-indigo-400" /> Advanced Suite Generator
             </button>
 
             <a
@@ -545,6 +555,19 @@ export const ProjectDetail: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+      {/* Advanced Test Suite Generation Drawer */}
+      {id && (
+        <TestGenerationDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          projectId={id}
+          endpointCount={endpoints.length}
+          onSuiteGenerated={() => {
+            fetchTestSuites();
+            fetchTestRuns();
+          }}
+        />
       )}
     </div>
   );
