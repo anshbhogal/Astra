@@ -53,6 +53,7 @@ services:
     volumes:
       - ./backend:/app
       - ./engine:/app/engine
+      - ./scratch:/app/scratch
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,6 +82,7 @@ services:
     volumes:
       - ./backend:/app
       - ./engine:/app/engine
+      - ./scratch:/app/scratch
     depends_on:
       backend:
         condition: service_healthy
