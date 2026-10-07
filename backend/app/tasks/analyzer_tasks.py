@@ -51,10 +51,10 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
                 analysis.started_at = utc_now()
                 await db.commit()
 
-            cloner = GitRepoCloner()
-            clone_res = cloner.clone(repository_url=analysis.repository_url, destination_dir=repo_dir, branch=analysis.branch)
-            analysis.commit_sha = clone_res.commit_sha
-            analysis.branch = clone_res.branch
+                cloner = GitRepoCloner()
+                clone_res = cloner.clone(repository_url=analysis.repository_url, destination_dir=repo_dir, branch=analysis.branch)
+                analysis.commit_sha = clone_res.commit_sha
+                analysis.branch = clone_res.branch
 
             # Stage 2: SCANNING
             analysis.current_stage = AnalysisStage.SCANNING
