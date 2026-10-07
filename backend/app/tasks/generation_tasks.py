@@ -41,9 +41,9 @@ async def execute_generation_job_pipeline(job_id_str: str) -> None:
             if not job:
                 return
 
-        try:
-            job.status = GenerationJobStatus.RUNNING
-            await db.commit()
+            try:
+                job.status = GenerationJobStatus.RUNNING
+                await db.commit()
 
             # 1. Fetch analysis & endpoints
             stmt_analysis = (
