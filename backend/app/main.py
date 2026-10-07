@@ -46,6 +46,7 @@ app.add_middleware(
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])
+@app.get(f"{settings.API_V1_STR}/health", status_code=status.HTTP_200_OK, tags=["Health"])
 async def health_check():
     """Basic process liveness probe."""
     return {
@@ -57,6 +58,7 @@ async def health_check():
 
 
 @app.get("/health/ready", status_code=status.HTTP_200_OK, tags=["Health"])
+@app.get(f"{settings.API_V1_STR}/health/ready", status_code=status.HTTP_200_OK, tags=["Health"])
 async def readiness_check():
     """Readiness probe checking PostgreSQL database and Redis connectivity."""
     db_status = False
