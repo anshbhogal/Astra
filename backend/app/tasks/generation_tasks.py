@@ -66,8 +66,12 @@ async def execute_generation_job_pipeline(job_id_str: str) -> None:
             endpoints = (await db.execute(stmt_eps)).scalars().all()
 
             if not endpoints:
+                func_count = getattr(analysis, "graph_node_count", 0) or 0
                 job.status = GenerationJobStatus.FAILED
-                job.error_message = "No DiscoveredEndpoints found in project analysis."
+                job.error_message = (
+                    f"No REST API endpoints discovered in project analysis "
+                    f"({func_count} AST code nodes parsed). API test suite generation requires HTTP endpoints."
+                )
                 job.completed_at = utc_now()
                 await db.commit()
                 return
