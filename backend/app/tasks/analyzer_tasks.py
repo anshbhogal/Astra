@@ -85,7 +85,7 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
                     if sf.language == "Python":
                         parsed_file = python_parser.parse(sf)
                         parsed_count += 1
-                        all_functions.extend(parsed_file.functions)
+                        all_functions.extend(parsed_file)
 
                 analysis.parsed_files_count = parsed_count
 
