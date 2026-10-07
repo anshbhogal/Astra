@@ -1,4 +1,5 @@
 import ast
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from engine.analyzer.parsers.base import BaseASTParser
 from engine.analyzer.models.function import FunctionInfo
@@ -136,6 +137,14 @@ class FunctionVisitor(ast.NodeVisitor):
 
 class PythonASTParser(BaseASTParser):
     """Deterministic Python AST Parser using built-in ast module."""
+
+    def parse(self, source_file: Any) -> List[FunctionInfo]:
+        """Convenience method accepting a SourceFile model."""
+        try:
+            content = Path(source_file.path).read_text(encoding="utf-8", errors="ignore")
+            return self.parse_file(source_file.path, content)
+        except Exception:
+            return []
 
     def parse_file(self, file_path: str, file_content: str) -> List[FunctionInfo]:
         try:
