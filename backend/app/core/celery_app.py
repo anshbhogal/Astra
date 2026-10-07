@@ -14,6 +14,11 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     result_expires=3600,
+    imports=[
+        "app.tasks.analyzer_tasks",
+        "app.tasks.execution_tasks",
+        "app.tasks.generation_tasks",
+    ]
 )
 
 
