@@ -393,17 +393,50 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 
 ---
 
-## 11. Immediate Next Steps (Phase 4 Launch)
+### 📌 Log Entry 011 — Phase 4: Advanced Rule-Based Test & Data Generation Engine Implementation & Verification
+- **Timestamp**: October 7, 2026 — Phase 4 Completion
+- **User Prompt**: "proceed with the plan , after every change in the code commit it to the github repo" (Approved Plan: `phase_04_implementation_plan.md`)
+- **Actions Executed**:
+  1. Built Normalized Schema Inferencer with Property-Level Provenance: [`engine/schema/models.py`](file:///d:/Astra/engine/schema/models.py) (`InferredValue[T]`, `FieldType`, `FieldConstraint`, `NormalizedFieldSchema`) and [`engine/schema/type_inferencer.py`](file:///d:/Astra/engine/schema/type_inferencer.py) carrying explicit `source` and `confidence` metadata.
+  2. Implemented Intermediate Scenario Representation (IR): [`engine/generator/models.py`](file:///d:/Astra/engine/generator/models.py) (`TestScenario`, `ParameterMutation`, `TestType`, `StatusSource`, `SecurityOutcome`, `MutationReason`) decoupling scenario logic from execution synthesis.
+  3. Developed EP + BVA Data Generators:
+     - Numeric: [`engine/generator/data_generators/numeric.py`](file:///d:/Astra/engine/generator/data_generators/numeric.py) (inclusive/exclusive min/max boundaries, off-by-one offsets).
+     - String & Unicode: [`engine/generator/data_generators/string.py`](file:///d:/Astra/engine/generator/data_generators/string.py) (min/max length BVA, empty string, overflow, UTF-8 unicode).
+     - Format: [`engine/generator/data_generators/format.py`](file:///d:/Astra/engine/generator/data_generators/format.py) (UUID, Email, ISO8601 Date, Enum options).
+     - Collections: [`engine/generator/data_generators/collections.py`](file:///d:/Astra/engine/generator/data_generators/collections.py) (Arrays: min/max items, item types; Objects: recursive nested property mutations).
+     - Location Mutators: [`engine/generator/data_generators/location_mutators.py`](file:///d:/Astra/engine/generator/data_generators/location_mutators.py) (Path, Query, Header, Body, unsupported HTTP Method 405).
+     - Opt-In Security Probes: [`engine/generator/data_generators/security.py`](file:///d:/Astra/engine/generator/data_generators/security.py) (Non-crashing SQLi, XSS, Path Traversal, Command Injection safety tokens).
+  4. Built N-Wise Combinatorial Engine & Deduplication Pipeline:
+     - Combinatorial Synthesizer: [`engine/generator/combinatorial.py`](file:///d:/Astra/engine/generator/combinatorial.py) (N-wise IPOG algorithm for strength 1, 2, 3).
+     - Multi-Part Deduplicator: [`engine/generator/deduplicator.py`](file:///d:/Astra/engine/generator/deduplicator.py) (Multi-part SHA256 request payload fingerprinting).
+     - Budget Prioritizer: [`engine/generator/prioritizer.py`](file:///d:/Astra/engine/generator/prioritizer.py) (Rule-based budget priority queue).
+     - Strategy Presets & Hashing: [`engine/generator/strategy.py`](file:///d:/Astra/engine/generator/strategy.py) (Deterministic seed & configuration hash).
+     - Advanced Suite Generator: [`engine/generator/advanced_suite_generator.py`](file:///d:/Astra/engine/generator/advanced_suite_generator.py) (Full pipeline orchestrator embedding provenance).
+  5. Implemented `GenerationJob` Schema & Async Celery Tasks:
+     - ORM Model: `GenerationJob` added to [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py).
+     - Migration: Created & applied Alembic migration `0004_generation_job_schema.py`.
+     - Celery Task & REST APIs: [`workers/tasks/generation_tasks.py`](file:///d:/Astra/workers/tasks/generation_tasks.py) & [`backend/app/api/v1/generator.py`](file:///d:/Astra/backend/app/api/v1/generator.py) (`POST /projects/{id}/test-suites/generate-advanced`, `GET /generation-jobs/{id}`, `POST /generation-jobs/{id}/cancel`).
+  6. Built Dedicated Hardening Target App Fixture & Unit/Integration Tests:
+     - Target App Fixture: [`backend/tests/fixtures/sample_phase4_target_app.py`](file:///d:/Astra/backend/tests/fixtures/sample_phase4_target_app.py).
+     - Test Suite: Added [`engine/tests/test_schema_inferencer.py`](file:///d:/Astra/engine/tests/test_schema_inferencer.py), [`engine/tests/test_boundary_generators.py`](file:///d:/Astra/engine/tests/test_boundary_generators.py), [`engine/tests/test_combinatorial.py`](file:///d:/Astra/engine/tests/test_combinatorial.py), [`engine/tests/test_deduplicator.py`](file:///d:/Astra/engine/tests/test_deduplicator.py), [`backend/tests/test_advanced_generator.py`](file:///d:/Astra/backend/tests/test_advanced_generator.py).
+  7. Built React UI Components: Created [`frontend/src/components/TestGenerationDrawer.tsx`](file:///d:/Astra/frontend/src/components/TestGenerationDrawer.tsx) and [`frontend/src/components/TestProvenanceModal.tsx`](file:///d:/Astra/frontend/src/components/TestProvenanceModal.tsx), integrated into [`frontend/src/pages/ProjectDetail.tsx`](file:///d:/Astra/frontend/src/pages/ProjectDetail.tsx).
+  8. Executed containerized Pytest test suite inside Docker container (`docker compose exec backend python -m pytest tests/ engine/tests/ -v`).
+  9. Verified **54 passed out of 54 tests (100% Pass Rate)** across all unit, integration, and generator suites in 4.68s.
 
-With Phase 3 and Phase 3.5 Hardening complete, verified against real target apps, and confirmed 100% green across 46 tests, ASTRA is ready for **Phase 4: Advanced Rule-Based Test & Data Generation Engine**.
+---
 
-### Master Roadmap Realignment:
+## 12. Immediate Next Steps (Phase 5 Launch)
+
+With Phase 4 (Advanced Rule-Based Test & Data Generation Engine) fully implemented, containerized, migrated, committed to Git across 5 incremental commits, and verified with 100% test pass rate, ASTRA is ready for **Phase 5: Requirement Intelligence & AI Payload Exploration**.
+
+### Master Roadmap Progress:
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
 - **Phase 3.5 ✅**: E2E Target Fixture Hardening & Security Boundary Verification
-- **Phase 4 🚀**: Advanced Rule-Based Test & Data Generation Engine (boundary values, combinatorial payloads, type schemas, edge cases)
-- **Phase 5 🔮**: Requirement Intelligence & AI Payloads (NLP requirement parsing + LLM boundary exploration)
+- **Phase 4 ✅**: Advanced Rule-Based Test & Data Generation Engine (EP+BVA, N-wise combinatorial, location mutators, opt-in security probes, deduplication, Celery async jobs)
+- **Phase 5 🚀**: Requirement Intelligence & AI Payloads (NLP requirement specification parsing + LLM boundary exploration)
 - **Phase 6 🔮**: Failure & Root-Cause Analysis Engine (stack trace parsing, diff isolation, failure classification)
-- **Phase 7 🔮**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline (test selection, self-healing patch synthesis)
+- **Phase 7 🔮**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline
+
 
 
 
