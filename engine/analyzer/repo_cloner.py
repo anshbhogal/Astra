@@ -51,7 +51,14 @@ class GitRepoCloner:
         except Exception as exc:
             # Clean up partial directory on clone failure
             shutil.rmtree(destination_path, ignore_errors=True)
-            raise RuntimeError(f"Git clone failed for '{repository_url}': {str(exc)}") from exc
+            err_str = str(exc)
+            if "could not read Username" in err_str or "terminal prompts disabled" in err_str or "Authentication failed" in err_str:
+                raise RuntimeError(
+                    f"Repository '{repository_url}' is private or requires authentication. "
+                    "Please provide a GitHub Personal Access Token in the URL format: "
+                    "https://<token>@github.com/username/repository.git"
+                ) from exc
+            raise RuntimeError(f"Git clone failed for '{repository_url}': {err_str}") from exc
 
         # Verify size limit
         total_size_bytes = sum(f.stat().st_size for f in destination_path.rglob('*') if f.is_file())
