@@ -64,11 +64,11 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
                 analysis.scanned_files_count = len(source_files)
 
                 lang_detector = LanguageDetector()
-                detected_lang = lang_detector.detect(source_files)
+                detected_lang, _ = lang_detector.detect_primary_language(source_files)
                 analysis.detected_language = detected_lang
 
                 framework_detector = FrameworkDetector()
-                f_result = framework_detector.detect(repo_dir, source_files)
+                f_result = framework_detector.detect(repo_dir, source_files, detected_lang)
                 analysis.detected_framework = f_result.framework
                 analysis.framework_confidence = f_result.confidence
 
