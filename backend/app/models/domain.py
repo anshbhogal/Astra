@@ -359,3 +359,47 @@ class TestResult(Base):
 
     test_run: Mapped["TestRun"] = relationship("TestRun", back_populates="results")
     test_case: Mapped["TestCase"] = relationship("TestCase")
+
+
+class GenerationJobStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class GenerationJob(Base):
+    __tablename__ = "generation_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    analysis_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("project_analyses.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[GenerationJobStatus] = mapped_column(
+        SQLEnum(GenerationJobStatus), default=GenerationJobStatus.PENDING, nullable=False
+    )
+    configuration: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    configuration_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    seed: Mapped[int] = mapped_column(default=42, nullable=False)
+    total_candidates: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_generated: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_deduplicated: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_truncated: Mapped[int] = mapped_column(default=0, nullable=False)
+    generation_report: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    project: Mapped["Project"] = relationship("Project")
+    analysis: Mapped[Optional["ProjectAnalysis"]] = relationship("ProjectAnalysis")
+
