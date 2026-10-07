@@ -9,8 +9,17 @@ from engine.analyzer.models.graph import GraphNode, GraphEdge
 class ProjectKnowledgeGraph:
     """Directed Knowledge Graph mapping Project -> Module -> Function -> Endpoint relationships."""
 
-    def __init__(self):
+    def __init__(self, repo_name: str = "project"):
         self.graph = nx.DiGraph()
+        self.repo_name = repo_name
+
+    def build(
+        self,
+        source_files: List[SourceFile],
+        functions: List[FunctionInfo],
+        endpoints: List[APIEndpoint]
+    ) -> Dict[str, Any]:
+        return self.build_graph(self.repo_name, source_files, functions, endpoints)
 
     def build_graph(
         self,
