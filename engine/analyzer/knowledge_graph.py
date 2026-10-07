@@ -134,3 +134,7 @@ class ProjectKnowledgeGraph:
                 "edge_count": len(edges),
             }
         }
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Alias for export_json."""
+        return self.export_json()
