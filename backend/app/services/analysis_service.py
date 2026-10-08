@@ -1,14 +1,15 @@
 """
 ASTRA Backend - Phase 6 Analysis Service
 
-Service managing database persistence of failure analysis reports and defect clusters.
+Service managing database persistence of failure analysis reports and defect clusters,
+correctly retrieving TestCase specifications and TestResult outcome fields.
 """
 
 from typing import List, Optional, Dict, Any
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models.domain import FailureAnalysisModel, DefectClusterModel, TestResult
+from app.models.domain import FailureAnalysisModel, DefectClusterModel, TestResult, TestCase, TestOutcome
 from engine.analysis.root_cause_analyzer import RootCauseAnalyzer
 from engine.analysis.fingerprint import FingerprintEngine
 from engine.analysis.models import FailureAnalysis, DefectCluster
@@ -30,28 +31,46 @@ class FailureAnalysisService:
     ) -> List[FailureAnalysisModel]:
         """Analyzes all failed TestResults for a run and persists FailureAnalysisModel records."""
         
-        # 1. Fetch failed TestResults for run
-        stmt = select(TestResult).where(
-            TestResult.run_id == run_id,
-            TestResult.outcome.in_(["FAIL", "ERROR", "TIMEOUT"])
+        # 1. Fetch failed TestResults joined with TestCase specification
+        stmt = (
+            select(TestResult, TestCase)
+            .join(TestCase, TestResult.test_case_id == TestCase.id)
+            .where(
+                TestResult.test_run_id == run_id,
+                TestResult.outcome.in_([TestOutcome.FAIL, TestOutcome.ERROR, TestOutcome.TIMEOUT])
+            )
         )
         res = await self.db.execute(stmt)
-        failed_results = res.scalars().all()
+        pairs = res.all()
 
         analyses_to_db: List[FailureAnalysisModel] = []
         domain_analyses: List[FailureAnalysis] = []
 
-        for tr in failed_results:
+        for tr, tc in pairs:
+            spec = tc.specification or {}
+            exp_status = spec.get("expected_status", 200)
+            exp_body = spec.get("expected_body")
+            exp_headers = spec.get("expected_headers")
+            max_lat = spec.get("max_latency_ms")
+            ep_id = str(tc.endpoint_id) if tc.endpoint_id else f"{tr.method} {tr.endpoint}"
+
+            outcome_str = tr.outcome.value if hasattr(tr.outcome, "value") else str(tr.outcome)
+
             domain_analysis = self.analyzer.analyze(
                 test_result_id=str(tr.id),
-                test_case_id=str(tr.test_case_id) if tr.test_case_id else str(tr.id),
-                expected_status=200,
+                test_case_id=str(tc.id),
+                expected_status=exp_status,
                 actual_status=tr.status_code or 500,
-                actual_body=tr.response_body,
+                expected_body=exp_body,
+                actual_body=tr.response_data,
+                expected_headers=exp_headers,
+                actual_headers=None,
                 raw_stack_trace=tr.error_message or "",
-                raw_logs=str(tr.response_body) if tr.response_body else "",
+                raw_logs=str(tr.response_data) if tr.response_data else "",
+                endpoint_id=ep_id,
                 latency_ms=tr.execution_time_ms,
-                execution_result=tr.outcome,
+                max_latency_ms=max_lat,
+                execution_result=outcome_str,
                 execution_commit_sha=target_commit_sha,
             )
             domain_analyses.append(domain_analysis)
@@ -88,7 +107,6 @@ class FailureAnalysisService:
         if domain_analyses:
             clusters = self.fingerprint_engine.cluster_failures(domain_analyses, run_id=str(run_id))
             for cluster in clusters:
-                # Check if cluster already exists in DB
                 cl_stmt = select(DefectClusterModel).where(
                     DefectClusterModel.project_id == project_id,
                     DefectClusterModel.fingerprint == cluster.fingerprint
