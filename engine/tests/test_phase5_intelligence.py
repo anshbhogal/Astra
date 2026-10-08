@@ -60,7 +60,7 @@ def test_multi_signal_mapping():
         path="/withdraw",
         method="POST",
         function_name="withdraw",
-        parameters=[EndpointParameter(name="amount", parameter_type="body", data_type="float", is_required=True)]
+        parameters=[{"name": "amount", "parameter_type": "body", "data_type": "float", "is_required": True}]
     )
 
     req = RequirementSpec(
@@ -101,7 +101,7 @@ def test_candidate_validator_hallucination_defense():
         path="/withdraw",
         method="POST",
         function_name="withdraw",
-        parameters=[EndpointParameter(name="amount", parameter_type="body", data_type="float", is_required=True)]
+        parameters=[{"name": "amount", "parameter_type": "body", "data_type": "float", "is_required": True}]
     )
 
     # Candidate targeting non-existent parameter
@@ -135,7 +135,7 @@ async def test_hybrid_suite_generator():
         path="/withdraw",
         method="POST",
         function_name="withdraw",
-        parameters=[EndpointParameter(name="amount", parameter_type="body", data_type="float", is_required=True)]
+        parameters=[{"name": "amount", "parameter_type": "body", "data_type": "float", "is_required": True}]
     )
 
     generator = HybridSuiteGenerator(enable_ai=False)
