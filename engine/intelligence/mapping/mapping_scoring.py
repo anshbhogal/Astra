@@ -38,7 +38,10 @@ class MappingScorer:
                 signals.append("FUNCTION_NAME_MATCH")
 
             # 3. Parameter Overlap
-            ep_params = [p.name.lower() for p in getattr(ep, "parameters", [])]
+            ep_params = [
+                (p.get("name") if isinstance(p, dict) else getattr(p, "name", "")).lower()
+                for p in (getattr(ep, "parameters", []) or [])
+            ]
             matched_params = [p for p in ep_params if p in req_text]
             if matched_params:
                 param_score = 0.50 + min(len(matched_params) * 0.1, 0.25)

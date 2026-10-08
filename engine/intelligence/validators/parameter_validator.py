@@ -10,7 +10,10 @@ from engine.intelligence.models import LLMScenarioCandidate
 class ParameterValidator:
     @staticmethod
     def validate(candidate: LLMScenarioCandidate, endpoint: DiscoveredEndpoint) -> Tuple[bool, Optional[str]]:
-        ep_param_names = [p.name.lower() for p in getattr(endpoint, "parameters", [])]
+        ep_param_names = [
+            (p.get("name") if isinstance(p, dict) else getattr(p, "name", "")).lower()
+            for p in (getattr(endpoint, "parameters", []) or [])
+        ]
         
         # If endpoint parameters are empty (e.g. body payload), allow top-level fields
         if not ep_param_names:
