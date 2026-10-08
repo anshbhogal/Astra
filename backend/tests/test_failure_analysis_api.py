@@ -8,14 +8,16 @@ from app.main import app
 
 
 @pytest.mark.asyncio
-async def test_failure_analysis_api_endpoints():
+async def test_failure_analysis_api_unauthorized():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
-        # 1. Test health endpoint
-        res = await client.get("/api/v1/health")
-        assert res.status_code == 200
-
-        # 2. Test GET defects for non-existent project (should return empty list)
+        # 1. Unauthenticated GET defects should return 401 Unauthorized
         dummy_project_id = "00000000-0000-0000-0000-000000000001"
         res = await client.get(f"/api/v1/projects/{dummy_project_id}/defects")
+        assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_failure_analysis_api_health():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        res = await client.get("/api/v1/health")
         assert res.status_code == 200
-        assert res.json() == []
