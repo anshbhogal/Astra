@@ -6,7 +6,8 @@ from typing import List, Dict, Any, Tuple
 from app.models.domain import DiscoveredEndpoint
 from engine.generator.strategy import TestGenerationStrategy
 from engine.generator.advanced_suite_generator import AdvancedTestSuiteGenerator
-from engine.generator.models import TestScenario, TestSpecification
+from engine.generator.models import TestScenario
+from engine.models.test_spec import TestSpecification
 from engine.generator.deduplicator import PayloadDeduplicator
 from engine.generator.prioritizer import TestPrioritizer
 from engine.compiler.test_compiler import TestCompiler
