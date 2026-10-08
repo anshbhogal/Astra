@@ -34,9 +34,10 @@ class RootCauseCandidateEngine:
         # 1. False-Positive Restraint Check:
         # If no stack trace, no diff items, and category is UNKNOWN or SERVER_CRASH with zero frames
         has_stack_frames = parsed_exception is not None and len(parsed_exception.frames) > 0
-        has_diff_items = len(diff_items) > 0
+        body_diff_items = [d for d in diff_items if d.path.startswith("$.body")]
+        has_body_diffs = len(body_diff_items) > 0
 
-        if not has_stack_frames and not has_diff_items and category in (FailureCategory.UNKNOWN, FailureCategory.SERVER_CRASH):
+        if not has_stack_frames and not has_body_diffs and category in (FailureCategory.UNKNOWN, FailureCategory.SERVER_CRASH):
             candidate = RootCauseCandidate(
                 description="Insufficient empirical evidence available to determine definitive root cause.",
                 reasoning_type=ReasoningType.INSUFFICIENT_EVIDENCE,
@@ -76,8 +77,8 @@ class RootCauseCandidateEngine:
             candidates.append(cand)
 
         # 4. JSON Contract Mismatch Candidate
-        if has_diff_items:
-            diff_paths = [d.path for d in diff_items[:3]]
+        if has_body_diffs:
+            diff_paths = [d.path for d in body_diff_items[:3]]
             diff_summary = ", ".join(diff_paths)
             cand = RootCauseCandidate(
                 description=f"Response schema contract mismatch at JSON paths: {diff_summary}",
