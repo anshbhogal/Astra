@@ -43,6 +43,16 @@ class MappingStatus(str, Enum):
 
 
 @dataclass
+class RequirementEndpointMapping:
+    requirement_id: str
+    endpoint_id: str
+    confidence: float
+    evidence: List[str] = field(default_factory=list)
+    mapping_method: str = "HEURISTIC"
+    status: MappingStatus = MappingStatus.MAPPED
+
+
+@dataclass
 class SourceLocation:
     page: Optional[int] = None
     line_start: Optional[int] = None
