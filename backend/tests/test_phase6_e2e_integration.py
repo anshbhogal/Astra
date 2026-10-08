@@ -136,7 +136,7 @@ KeyError: 'discount'"""
         assert clusters[0].occurrence_count == 1
 
         # 6. Verify REST API endpoints with JWT authentication token
-        token = create_access_token(data={"sub": str(user_id)})
+        token = create_access_token(subject=str(user_id))
         headers = {"Authorization": f"Bearer {token}"}
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
