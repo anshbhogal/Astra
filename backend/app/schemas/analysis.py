@@ -3,7 +3,8 @@ Pydantic v2 schemas for Phase 6 Failure Analysis & Defect Clusters
 """
 
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
+from datetime import datetime
 import uuid
 
 
@@ -78,7 +79,7 @@ class FailureAnalysisResponse(BaseModel):
     classification_confidence: float
     attribution_confidence: float
     root_cause_confidence: float
-    created_at: str
+    created_at: Union[datetime, str]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -98,7 +99,8 @@ class DefectClusterResponse(BaseModel):
     occurrence_count: int
     first_seen_run_id: Optional[str] = None
     last_seen_run_id: Optional[str] = None
-    last_seen_at: str
+    last_seen_at: Union[datetime, str]
+    created_at: Optional[Union[datetime, str]] = None
     is_intermittent: bool = False
 
     model_config = ConfigDict(from_attributes=True)
