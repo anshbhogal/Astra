@@ -487,9 +487,35 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 
 ---
 
-## 14. Immediate Next Steps (Phase 7 Launch)
+---
 
-With Phase 6 fully locked and implemented, ASTRA is ready for **Phase 7: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline**.
+## 14. Phase 6.5 Completion — Integration & Reliability Gate
+
+**Phase 6.5 is 100% completed, verified, containerized, migrated, and committed to Git repository.**
+
+### Key Fixes & Architectural Hardening:
+1. **`TestResult` ORM Field Rewiring & Spec Derivation**:
+   - Fixed model wiring in `FailureAnalysisService` ([`backend/app/services/analysis_service.py`](file:///d:/Astra/backend/app/services/analysis_service.py)) to query `TestResult.test_run_id` (instead of `run_id`), `TestResult.response_data` (instead of `response_body`), and `TestResult.test_case_id`.
+   - Joined `TestCase` ORM to derive real expected specification parameters (`expected_status`, `expected_body`, `expected_headers`, `max_latency_ms`, `endpoint_id`, `test_type`) dynamically from `TestCase.specification` instead of hardcoding `expected_status=200`.
+2. **JWT Auth & Project RBAC Security Enforcement**:
+   - Enforced `get_current_user` authentication and project access verification (`_verify_project_access`) on all Phase 6 REST API endpoints ([`backend/app/api/v1/failure_analysis.py`](file:///d:/Astra/backend/app/api/v1/failure_analysis.py)).
+   - Enforced role permissions (`VIEWER` for read endpoints, `TESTER`/`DEVELOPER`/`ADMIN` for execution endpoints).
+3. **Async Celery Queue Integration**:
+   - Built background task `analyze_test_run_failures_task` in [`backend/app/tasks/analysis_tasks.py`](file:///d:/Astra/backend/app/tasks/analysis_tasks.py).
+   - Updated REST API `POST /projects/{project_id}/runs/{run_id}/failure-analysis/analyze` to support `async_mode=True`, returning `202 Accepted` with a `task_id` for long-running test suites.
+4. **Evaluator Benchmark & Full Taxonomy Matrix**:
+   - Enhanced `DiagnosticEvaluator` ([`engine/analysis/evaluator.py`](file:///d:/Astra/engine/analysis/evaluator.py)) to benchmark exact file, line number, and function attribution, as well as exact JSONPath diff isolation.
+   - Built [`engine/tests/test_evaluation_matrix.py`](file:///d:/Astra/engine/tests/test_evaluation_matrix.py) with 26+ synthetic failure scenarios covering all 13 taxonomy categories, achieving 100% classification and attribution accuracy.
+5. **Full E2E Integration Pipeline Test**:
+   - Created [`backend/tests/test_phase6_e2e_integration.py`](file:///d:/Astra/backend/tests/test_phase6_e2e_integration.py) verifying the complete pipeline: DB $\rightarrow$ `TestCase.specification` $\rightarrow$ `TestResult` $\rightarrow$ `FailureAnalysisService` $\rightarrow$ `RootCauseAnalyzer` $\rightarrow$ `FailureAnalysisModel` + `DefectClusterModel` $\rightarrow$ REST API JSON response.
+6. **Containerized Verification**:
+   - Full test suite verified via containerized pytest execution (`docker exec -e PYTHONPATH=. astra_backend pytest engine/tests/ tests/`): **83 passed out of 83 test functions** (100% pass rate).
+
+---
+
+## 15. Immediate Next Steps (Phase 7 Launch)
+
+With Phase 6 & Phase 6.5 fully locked, tested, and integrated, ASTRA is ready for **Phase 7: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline**.
 
 ### Master Roadmap Progress:
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
@@ -497,7 +523,9 @@ With Phase 6 fully locked and implemented, ASTRA is ready for **Phase 7: ML Prio
 - **Phase 4 ✅**: Advanced Rule-Based Test & Data Generation Engine
 - **Phase 5 ✅**: Requirement Intelligence & AI Payloads (Gemini+Ollama, Hallucination Defense)
 - **Phase 6 ✅**: Failure & Root-Cause Analysis Engine (Deterministic Evidence, Rule Classifier, PKG Fault Localizer, Canonical Clustering, Inspector UI)
+- **Phase 6.5 ✅**: Integration & Reliability Gate (Model Rewiring, Project RBAC, Celery Queue, Evaluation Matrix, E2E Integration Test)
 - **Phase 7 🚀**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline
+
 
 
 
