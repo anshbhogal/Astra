@@ -8,6 +8,7 @@ import { ProjectsList } from './pages/ProjectsList';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { TestRunDetail } from './pages/TestRunDetail';
 import { RequirementIntelligence } from './pages/RequirementIntelligence';
+import { DefectDashboard } from './pages/DefectDashboard';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuthStore();
@@ -64,6 +65,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <TestRunDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/defects"
+          element={
+            <ProtectedRoute>
+              <DefectDashboard />
             </ProtectedRoute>
           }
         />
