@@ -98,16 +98,14 @@ class HybridSuiteGenerator:
         report["total_deduplicated"] = (report["total_candidates"]) - len(final_scenarios)
 
         # 4. Prioritize & Limit
-        prioritized = TestPrioritizer.prioritize_scenarios(final_scenarios)
-        limited = prioritized[:strategy.max_total_cases]
+        limited, truncated_count = TestPrioritizer.prioritize_and_cap(final_scenarios, strategy.max_total_cases)
 
         # 5. Compile into final TestSpecifications
         final_specs = []
-        for sc in limited:
-            matched_ep = next((e for e in endpoints if str(e.id) == str(sc.endpoint_id)), endpoints[0] if endpoints else None)
-            if matched_ep:
-                spec = self.phase4_generator._compile_scenario_to_spec(sc, matched_ep)
-                final_specs.append(spec)
+        config_hash = strategy.compute_configuration_hash()
+        for idx, sc in enumerate(limited, start=1):
+            spec = self.phase4_generator._compile_scenario_to_spec(sc, order=idx, config_hash=config_hash, seed=strategy.seed)
+            final_specs.append(spec)
 
         report["total_generated"] = len(final_specs)
         
@@ -123,24 +121,27 @@ class HybridSuiteGenerator:
     ) -> List[TestScenario]:
         dedup = PayloadDeduplicator()
         unique_scenarios: List[TestScenario] = []
+        seen_fingerprints = set()
 
         # Process rule specs
         for spec in rule_specs:
-            fp = dedup.create_fingerprint(
+            fp = dedup.compute_fingerprint(
                 method=spec.method,
                 path=spec.path,
                 query_params=spec.query_params,
                 headers=spec.headers,
-                body=spec.body_payload,
-                test_type=spec.test_type.value
+                body=spec.body,
+                auth_omitted=spec.auth_ref is None,
+                test_type=spec.test_type.value if hasattr(spec.test_type, "value") else str(spec.test_type)
             )
-            if dedup.is_unique(fp):
+            if fp not in seen_fingerprints:
+                seen_fingerprints.add(fp)
                 sc = TestScenario(
                     endpoint_id=spec.endpoint_id,
                     scenario_name=spec.name,
                     test_type=spec.test_type,
                     mutations=[],
-                    expected_status_codes=spec.expected_status_codes
+                    expected_status_codes=spec.expected_status
                 )
                 unique_scenarios.append(sc)
 
@@ -152,15 +153,17 @@ class HybridSuiteGenerator:
                 for m in sc.mutations:
                     body_payload[m.field_path] = m.mutated_value
 
-                fp = dedup.create_fingerprint(
+                fp = dedup.compute_fingerprint(
                     method=matched_ep.method,
                     path=matched_ep.path,
                     query_params={},
                     headers={},
                     body=body_payload,
-                    test_type=sc.test_type.value
+                    auth_omitted=False,
+                    test_type=sc.test_type.value if hasattr(sc.test_type, "value") else str(sc.test_type)
                 )
-                if dedup.is_unique(fp):
+                if fp not in seen_fingerprints:
+                    seen_fingerprints.add(fp)
                     unique_scenarios.append(sc)
 
         return unique_scenarios
