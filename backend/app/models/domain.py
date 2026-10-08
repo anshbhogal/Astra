@@ -470,3 +470,72 @@ class LLMExecutionRecord(Base):
     )
 
 
+class FailureAnalysisModel(Base):
+    __tablename__ = "failure_analyses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    test_result_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    test_case_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    endpoint_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    error_message: Mapped[str] = mapped_column(Text, nullable=False)
+    exception_type: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    failing_file: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    failing_line: Mapped[Optional[int]] = mapped_column(nullable=True)
+    failing_function: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    commit_sha: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    source_mismatch: Mapped[bool] = mapped_column(default=False, nullable=False)
+    evidence: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    fault_locations: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    root_cause_candidates: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    diff_items: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    parsed_exception: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    classification_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    attribution_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    root_cause_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class DefectClusterModel(Base):
+    __tablename__ = "defect_clusters"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    representative_failure_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    member_failure_ids: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    member_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    similarity_score: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    match_precision: Mapped[str] = mapped_column(String(50), default="EXACT_MATCH", nullable=False)
+    occurrence_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    first_seen_run_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    last_seen_run_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    is_intermittent: Mapped[bool] = mapped_column(default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+
