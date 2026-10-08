@@ -148,12 +148,31 @@ The modern React single-page dashboard built with Vite, TypeScript, and Tailwind
 - [`App.tsx`](file:///d:/Astra/frontend/src/App.tsx): Main application router and layout container.
 - [`main.tsx`](file:///d:/Astra/frontend/src/main.tsx): React root mounting entry point.
 
+##### 📂 `engine/analysis/` (Phase 6 Failure & Root-Cause Analysis Engine)
+- [`models.py`](file:///d:/Astra/engine/analysis/models.py): Phase 6 domain models (`FailureEvidence`, `ParsedException`, `JsonDiffItem`, `FaultLocation`, `RootCauseCandidate`, `FailureAnalysis`, `DefectCluster`).
+- [`redactor.py`](file:///d:/Astra/engine/analysis/redactor.py): `EvidenceRedactor` sanitizing credentials, secrets, tokens, cookies, and enforcing payload size limits.
+- [`parsers/`](file:///d:/Astra/engine/analysis/parsers/): Language parsers for Python tracebacks, Node.js/V8 stacks, Java JVM stacks, and SQLSTATE error codes (`sql_parser.py`).
+- [`diff/json_diff_isolator.py`](file:///d:/Astra/engine/analysis/diff/json_diff_isolator.py): `JsonDiffIsolator` calculating exact JSONPath-level response deltas (`$.body...`), status mismatches, header diffs, and SLA latency breaches.
+- [`rules/classification_rules.py`](file:///d:/Astra/engine/analysis/rules/classification_rules.py): Priority Rule Engine (R001–R030) evaluating expected vs actual status semantically.
+- [`classifier.py`](file:///d:/Astra/engine/analysis/classifier.py): `FailureClassifier` determining taxonomic failure categories (`SERVER_CRASH`, `BUSINESS_LOGIC_DEFECT`, `CONTRACT_VIOLATION`, `DATABASE_ERROR`, etc.).
+- [`localization.py`](file:///d:/Astra/engine/analysis/localization.py): `FaultLocalizer` ranking source fault locations with individual attribution confidence and commit SHA validation against PKG nodes.
+- [`candidate_engine.py`](file:///d:/Astra/engine/analysis/candidate_engine.py): `RootCauseCandidateEngine` generating prioritized candidate hypotheses with false-positive restraint (`UNKNOWN` with `0.0` confidence on ambiguous data).
+- [`fingerprint.py`](file:///d:/Astra/engine/analysis/fingerprint.py): `FingerprintEngine` computing canonical JSON SHA256 hashes and clustering `DefectCluster` records.
+- [`evaluator.py`](file:///d:/Astra/engine/analysis/evaluator.py): `DiagnosticEvaluator` benchmarking classification accuracy ($\ge 98\%$), attribution accuracy, diff precision, and false-positive restraint.
+- [`root_cause_analyzer.py`](file:///d:/Astra/engine/analysis/root_cause_analyzer.py): Master Orchestrator coordinating full failure analysis pipeline.
+
 ##### 📂 `frontend/src/pages/`
 - [`Login.tsx`](file:///d:/Astra/frontend/src/pages/Login.tsx): Authentication screen for login and admin registration.
 - [`DashboardOverview.tsx`](file:///d:/Astra/frontend/src/pages/DashboardOverview.tsx): System metrics, total projects, test execution history, and active jobs.
 - [`ProjectsList.tsx`](file:///d:/Astra/frontend/src/pages/ProjectsList.tsx): Displays all scanned repositories, registration modal, and search filtering.
 - [`ProjectDetail.tsx`](file:///d:/Astra/frontend/src/pages/ProjectDetail.tsx): Comprehensive project view containing Knowledge Graph, Endpoint Catalog, and Test Suite Generator trigger.
+- [`RequirementIntelligence.tsx`](file:///d:/Astra/frontend/src/pages/RequirementIntelligence.tsx): Phase 5 requirement intelligence matrix and AI payload dashboard.
+- [`DefectDashboard.tsx`](file:///d:/Astra/frontend/src/pages/DefectDashboard.tsx): Phase 6 Failure Analysis & Defect Dashboard.
 - [`TestRunDetail.tsx`](file:///d:/Astra/frontend/src/pages/TestRunDetail.tsx): Detailed test execution results, pass/fail status breakdown, and response payloads.
+
+##### 📂 `frontend/src/components/`
+- [`RootCauseInspectorModal.tsx`](file:///d:/Astra/frontend/src/components/RootCauseInspectorModal.tsx): Interactive root-cause diagnostic inspector modal displaying confidence meters, fault locations, candidates, and structural diffs.
+- [`JsonDiffViewer.tsx`](file:///d:/Astra/frontend/src/components/JsonDiffViewer.tsx): Side-by-side expected vs actual JSONPath response delta viewer.
 
 ##### 📂 `frontend/src/store/`
 - [`authStore.ts`](file:///d:/Astra/frontend/src/store/authStore.ts): Zustand state store handling JWT token persistence, login state, and 401 unauthenticated response handling.

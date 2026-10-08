@@ -465,17 +465,39 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 
 ---
 
-## 13. Immediate Next Steps (Phase 6 Launch)
+## 13. Phase 6 Completion — Failure & Root-Cause Analysis Engine
 
-With Phase 5 (Requirement Intelligence & AI Payloads) fully implemented, containerized, migrated, committed to Git across 3 incremental commits, and verified with 100% test pass rate, ASTRA is ready for **Phase 6: Failure & Root-Cause Analysis Engine**.
+**Phase 6 is 100% completed, tested, containerized, migrated, and committed to Git repository.**
+
+### Key Achievements:
+1. **Deterministic-First Diagnostic Axiom**: Diagnoses failures autonomously without requiring an AI/cloud dependency.
+2. **Evidence vs Hypothesis Layering**: Separated failure evidence (`FailureEvidence`), priority rule classification (`FailureCategory`), PKG graph fault localization (`FaultLocation`), root-cause candidate generation (`RootCauseCandidate`), and multi-metric confidence metrics.
+3. **Secret Redactor & Resource Limits**: Created `EvidenceRedactor` ([`engine/analysis/redactor.py`](file:///d:/Astra/engine/analysis/redactor.py)) sanitizing tokens, keys, passwords, cookies, and enforcing payload size constraints.
+4. **Normalized Parsers**: Created language parsers ([`engine/analysis/parsers/`](file:///d:/Astra/engine/analysis/parsers/)) emitting `ParsedException` for Python tracebacks, Node.js/V8 stacks, Java JVM stacks, and SQLSTATE error codes (`23505`, `23503`, etc.).
+5. **Multi-Level Response Diff**: Built `JsonDiffIsolator` ([`engine/analysis/diff/json_diff_isolator.py`](file:///d:/Astra/engine/analysis/diff/json_diff_isolator.py)) isolating JSONPath deltas (`$.body...`), header mismatches, status deltas, and SLA latency breaches.
+6. **Priority Rule Classifier**: Built `FailureClassifier` ([`engine/analysis/classifier.py`](file:///d:/Astra/engine/analysis/classifier.py)) with Priority Rules R001–R030 across 13 taxonomy categories with semantic HTTP status evaluation.
+7. **PKG Graph Fault Localizer**: Built `FaultLocalizer` ([`engine/analysis/localization.py`](file:///d:/Astra/engine/analysis/localization.py)) ranking source fault locations with individual attribution confidence and commit SHA validation.
+8. **Root Cause Candidate Engine**: Built `RootCauseCandidateEngine` ([`engine/analysis/candidate_engine.py`](file:///d:/Astra/engine/analysis/candidate_engine.py)) with false-positive restraint (`UNKNOWN` with `0.0` confidence on ambiguous data).
+9. **Canonical Fingerprinting & Defect Clustering**: Built `FingerprintEngine` ([`engine/analysis/fingerprint.py`](file:///d:/Astra/engine/analysis/fingerprint.py)) computing SHA256 canonical JSON hashes and grouping `DefectCluster` records with repetition/intermittent flake tracking.
+10. **Deterministic Evaluation Matrix**: Built `DiagnosticEvaluator` ([`engine/analysis/evaluator.py`](file:///d:/Astra/engine/analysis/evaluator.py)) benchmarking classification accuracy ($\ge 98\%$), attribution accuracy, diff precision, and false-positive restraint.
+11. **Golden Target App Fixture**: Built [`backend/tests/fixtures/sample_failing_target_app.py`](file:///d:/Astra/backend/tests/fixtures/sample_failing_target_app.py) with 10+ failure endpoints.
+12. **Database Models, Migration & REST APIs**: Added `FailureAnalysisModel` & `DefectClusterModel` to [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py), applied Alembic migration `0006_failure_analysis_schema.py`, and registered REST endpoints [`backend/app/api/v1/failure_analysis.py`](file:///d:/Astra/backend/app/api/v1/failure_analysis.py).
+13. **React Inspector Modal & Defect Dashboard**: Created [`frontend/src/components/RootCauseInspectorModal.tsx`](file:///d:/Astra/frontend/src/components/RootCauseInspectorModal.tsx), [`frontend/src/components/JsonDiffViewer.tsx`](file:///d:/Astra/frontend/src/components/JsonDiffViewer.tsx), and [`frontend/src/pages/DefectDashboard.tsx`](file:///d:/Astra/frontend/src/pages/DefectDashboard.tsx).
+14. **Full Containerized Verification**: 81 tests passing in pytest (100% pass rate across entire codebase).
+
+---
+
+## 14. Immediate Next Steps (Phase 7 Launch)
+
+With Phase 6 fully locked and implemented, ASTRA is ready for **Phase 7: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline**.
 
 ### Master Roadmap Progress:
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
 - **Phase 3.5 ✅**: E2E Target Fixture Hardening & Security Boundary Verification
-- **Phase 4 ✅**: Advanced Rule-Based Test & Data Generation Engine (EP+BVA, N-wise combinatorial, location mutators, opt-in security probes, deduplication, Celery async jobs)
-- **Phase 5 ✅**: Requirement Intelligence & AI Payloads (Deterministic Parsing, Multi-Signal Mapping, Gemini+Ollama Providers, Candidate Hallucination Defense, Prompt Guard, AI Budgeting, Traceability Matrix UI)
-- **Phase 6 🚀**: Failure & Root-Cause Analysis Engine (stack trace parsing, diff isolation, failure classification)
-- **Phase 7 🔮**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline
+- **Phase 4 ✅**: Advanced Rule-Based Test & Data Generation Engine
+- **Phase 5 ✅**: Requirement Intelligence & AI Payloads (Gemini+Ollama, Hallucination Defense)
+- **Phase 6 ✅**: Failure & Root-Cause Analysis Engine (Deterministic Evidence, Rule Classifier, PKG Fault Localizer, Canonical Clustering, Inspector UI)
+- **Phase 7 🚀**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline
 
 
 
