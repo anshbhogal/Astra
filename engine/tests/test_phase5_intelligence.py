@@ -5,7 +5,7 @@ Unit & Integration Verification Tests for Phase 5 Requirement Intelligence & AI 
 import pytest
 import asyncio
 from uuid import uuid4
-from app.models.domain import DiscoveredEndpoint, EndpointParameter
+from app.models.domain import DiscoveredEndpoint
 
 from engine.intelligence.models import RequirementSpec, RequirementSource, RequirementStatus, MappingStatus, LLMScenarioCandidate
 from engine.intelligence.parsers.markdown_parser import MarkdownRequirementParser
