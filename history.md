@@ -425,9 +425,49 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 
 ---
 
-## 12. Immediate Next Steps (Phase 5 Launch)
+## 12. Phase 5 Implementation Completion: Requirement Intelligence & AI Payloads (Final Locked Architecture)
 
-With Phase 4 (Advanced Rule-Based Test & Data Generation Engine) fully implemented, containerized, migrated, committed to Git across 5 incremental commits, and verified with 100% test pass rate, ASTRA is ready for **Phase 5: Requirement Intelligence & AI Payload Exploration**.
+**Phase Status: COMPLETED ✅**
+
+### Summary of Accomplishments:
+1. **Enforced Axiom**: *"AI proposes; ASTRA validates; deterministic infrastructure executes."*  
+   - Implemented `LLMScenarioCandidate` intermediate representation ([`engine/intelligence/models.py`](file:///d:/Astra/engine/intelligence/models.py)) ensuring AI proposals are never directly converted to executable tests without passing through a multi-stage validation subsystem.
+2. **Rich `RequirementSpec` & `RequirementEvidence` Data Models**:
+   - Developed `RequirementSpec`, `BusinessRule`, `SourceLocation`, `RequirementEvidence`, `GherkinScenario`, and `LLMScenarioCandidate` dataclasses in [`engine/intelligence/models.py`](file:///d:/Astra/engine/intelligence/models.py) tracking line numbers, sections, preconditions, postconditions, and content hashes.
+3. **Deterministic Requirement Parsers**:
+   - `MarkdownRequirementParser` ([`engine/intelligence/parsers/markdown_parser.py`](file:///d:/Astra/engine/intelligence/parsers/markdown_parser.py)): Deterministically extracts headings, MUST/SHALL/CANNOT bullet points, acceptance criteria, and line locations.
+   - `GherkinRequirementParser` ([`engine/intelligence/parsers/gherkin_parser.py`](file:///d:/Astra/engine/intelligence/parsers/gherkin_parser.py)): Parses `.feature` files, builds `GherkinScenario` IR, and classifies steps into PRECONDITION, ACTION, and EXPECTED.
+   - `OpenAPIRequirementParser` ([`engine/intelligence/parsers/openapi_parser.py`](file:///d:/Astra/engine/intelligence/parsers/openapi_parser.py)): Extracts OpenAPI summaries, descriptions, and `x-business-rules`.
+4. **Multi-Signal Endpoint Mapping Engine**:
+   - Created `MappingScorer` & `RequirementMapper` ([`engine/intelligence/mapping/`](file:///d:/Astra/engine/intelligence/mapping/)): Scores mappings using exact endpoint mentions, HTTP method+path, OpenAPI operationId, function names, and parameter overlap.
+   - Assigns mapping lifecycle statuses: `MAPPED`, `MULTIPLE_MATCHES`, `UNMAPPED`, and `AMBIGUOUS`.
+5. **Multi-Provider LLM Abstraction Layer & Scoped MVP**:
+   - Created `BaseLLMProvider`, `LLMResponse`, `ProviderCapabilities`, and `LLMProviderFactory` ([`engine/intelligence/providers/`](file:///d:/Astra/engine/intelligence/providers/)).
+   - Implemented MVP providers for **Google Gemini** (`gemini-1.5-pro`) and **Ollama** (`llama3.1`).
+6. **Prompt Guard & Secret Sanitizer**:
+   - `PromptGuard` ([`engine/intelligence/security/prompt_guard.py`](file:///d:/Astra/engine/intelligence/security/prompt_guard.py)): Encloses untrusted PRDs in `<UNTRUSTED_DOCUMENT>` blocks preventing prompt injection overrides.
+   - `PromptSanitizer` ([`engine/intelligence/security/sanitizer.py`](file:///d:/Astra/engine/intelligence/security/sanitizer.py)): Redacts JWTs, API keys, passwords, database connection strings, emails, and private keys.
+7. **Candidate Hallucination Defense Subsystem**:
+   - Implemented `CandidateValidator`, `EndpointValidator`, `ParameterValidator`, `SafetyValidator` ([`engine/intelligence/validators/`](file:///d:/Astra/engine/intelligence/validators/)): Ensures AI candidates target real endpoints and parameters with valid, non-destructive values.
+8. **AI Budget Manager & Response Caching**:
+   - Created `AIBudgetManager` & `LLMResponseCache` ([`engine/intelligence/budget/`](file:///d:/Astra/engine/intelligence/budget/)): Enforces caps on max requirements, max calls, and max tokens, caching responses via SHA256 hashes.
+9. **Hybrid Suite Generator**:
+   - Built `HybridSuiteGenerator` ([`engine/intelligence/hybrid_suite_generator.py`](file:///d:/Astra/engine/intelligence/hybrid_suite_generator.py)): Combines Phase 4 rule-based EP/BVA test cases with validated AI edge-case scenarios, deduplicating request payloads and prioritizing test execution.
+10. **Database Models, Migration & REST APIs**:
+    - Added `RequirementDocument`, `RequirementSpecModel`, `LLMExecutionRecord` to [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py).
+    - Created and applied Alembic migration `0005_requirement_intelligence.py`.
+    - Implemented REST router [`backend/app/api/v1/intelligence.py`](file:///d:/Astra/backend/app/api/v1/intelligence.py) (`POST /projects/{id}/requirements/upload`, `GET /projects/{id}/requirements`, `PATCH /projects/{id}/requirements/{id}/review`, `GET /projects/{id}/requirements/traceability`).
+11. **Dedicated Phase 5 Target App Fixture & Pytest Suite**:
+    - Created [`backend/tests/fixtures/sample_phase5_target_app.py`](file:///d:/Astra/backend/tests/fixtures/sample_phase5_target_app.py) testing withdrawal balance limits, order payment/cancellation rules, 2FA thresholds, and account lockout rules.
+    - Verified with [`engine/tests/test_phase5_intelligence.py`](file:///d:/Astra/engine/tests/test_phase5_intelligence.py) (100% pass rate across 7 test suites).
+12. **React UI Components**:
+    - Developed [`frontend/src/components/RequirementUploadModal.tsx`](file:///d:/Astra/frontend/src/components/RequirementUploadModal.tsx), [`frontend/src/components/RequirementTraceabilityTable.tsx`](file:///d:/Astra/frontend/src/components/RequirementTraceabilityTable.tsx), [`frontend/src/components/LLMConfigDrawer.tsx`](file:///d:/Astra/frontend/src/components/LLMConfigDrawer.tsx), and [`frontend/src/pages/RequirementIntelligence.tsx`](file:///d:/Astra/frontend/src/pages/RequirementIntelligence.tsx) page.
+
+---
+
+## 13. Immediate Next Steps (Phase 6 Launch)
+
+With Phase 5 (Requirement Intelligence & AI Payloads) fully implemented, containerized, migrated, committed to Git across 3 incremental commits, and verified with 100% test pass rate, ASTRA is ready for **Phase 6: Failure & Root-Cause Analysis Engine**.
 
 ### Master Roadmap Progress:
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
@@ -436,6 +476,7 @@ With Phase 4 (Advanced Rule-Based Test & Data Generation Engine) fully implement
 - **Phase 5 ✅**: Requirement Intelligence & AI Payloads (Deterministic Parsing, Multi-Signal Mapping, Gemini+Ollama Providers, Candidate Hallucination Defense, Prompt Guard, AI Budgeting, Traceability Matrix UI)
 - **Phase 6 🚀**: Failure & Root-Cause Analysis Engine (stack trace parsing, diff isolation, failure classification)
 - **Phase 7 🔮**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline
+
 
 
 
