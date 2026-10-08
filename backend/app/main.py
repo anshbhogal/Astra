@@ -8,7 +8,7 @@ import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.db.session import engine
-from app.api.v1 import auth, projects, tasks, analyzer, execution, generator, intelligence
+from app.api.v1 import auth, projects, tasks, analyzer, execution, generator, intelligence, failure_analysis
 
 # Configure logging
 logging.basicConfig(
@@ -101,3 +101,4 @@ app.include_router(analyzer.router, prefix=settings.API_V1_STR)
 app.include_router(execution.router, prefix=settings.API_V1_STR)
 app.include_router(generator.router, prefix=settings.API_V1_STR)
 app.include_router(intelligence.router, prefix=settings.API_V1_STR)
+app.include_router(failure_analysis.router, prefix=settings.API_V1_STR)
