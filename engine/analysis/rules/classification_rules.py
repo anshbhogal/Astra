@@ -34,6 +34,60 @@ class ClassificationRule:
 
 def get_default_classification_rules() -> List[ClassificationRule]:
     return [
+        # R003: TIMEOUT_PERFORMANCE (Priority 110)
+        ClassificationRule(
+            rule_id="R003",
+            category=FailureCategory.TIMEOUT_PERFORMANCE,
+            priority=110,
+            condition=lambda ctx: ctx.execution_result in ("TIMEOUT", "TIMED_OUT") or "timeout" in ctx.raw_logs.lower() or (
+                ctx.max_latency_ms is not None and ctx.latency_ms is not None and ctx.latency_ms > ctx.max_latency_ms
+            ) or (ctx.parsed_exception is not None and "Timeout" in ctx.parsed_exception.exception_type),
+            description="Execution timeout or SLA performance limit breach",
+            confidence=0.95,
+        ),
+
+        # R002: DATABASE_ERROR (Priority 109)
+        ClassificationRule(
+            rule_id="R002",
+            category=FailureCategory.DATABASE_ERROR,
+            priority=109,
+            condition=lambda ctx: (
+                (ctx.parsed_exception is not None and (
+                    ctx.parsed_exception.language == "sql"
+                    or ctx.parsed_exception.sql_state is not None
+                    or "Constraint" in ctx.parsed_exception.exception_type
+                    or "IntegrityError" in ctx.parsed_exception.exception_type
+                    or "OperationalError" in ctx.parsed_exception.exception_type
+                    or "DatabaseError" in ctx.parsed_exception.exception_type
+                )) or "duplicate key" in ctx.raw_logs.lower() or "foreign key" in ctx.raw_logs.lower() or "sqlstate" in ctx.raw_logs.lower()
+            ),
+            description="Database integrity error, constraint violation, or SQL exception",
+            confidence=0.96,
+        ),
+
+        # R004: ENVIRONMENT_FLAKE (Priority 115)
+        ClassificationRule(
+            rule_id="R004",
+            category=FailureCategory.ENVIRONMENT_FLAKE,
+            priority=115,
+            condition=lambda ctx: any(
+                err in ctx.raw_logs.lower()
+                for err in ["connection refused", "dns failure", "target host down", "econnrefused", "name or service not known", "connectionrefused"]
+            ) or (ctx.parsed_exception is not None and "ConnectionRefused" in ctx.parsed_exception.exception_type),
+            description="Transient network error, DNS failure, or infrastructure connection drop",
+            confidence=0.90,
+        ),
+
+        # R020: DEPENDENCY_FAILURE (Priority 107)
+        ClassificationRule(
+            rule_id="R020",
+            category=FailureCategory.DEPENDENCY_FAILURE,
+            priority=107,
+            condition=lambda ctx: ctx.actual_status in (502, 504) or "upstream" in ctx.raw_logs.lower() or "bad gateway" in ctx.raw_logs.lower(),
+            description="Downstream service or third-party dependency outage",
+            confidence=0.85,
+        ),
+
         # R001: SERVER_CRASH (Priority 100)
         ClassificationRule(
             rule_id="R001",
@@ -44,50 +98,6 @@ def get_default_classification_rules() -> List[ClassificationRule]:
             ),
             description="HTTP 500 Server Error or unhandled application exception",
             confidence=0.98,
-        ),
-
-        # R002: DATABASE_ERROR (Priority 105)
-        ClassificationRule(
-            rule_id="R002",
-            category=FailureCategory.DATABASE_ERROR,
-            priority=105,
-            condition=lambda ctx: (
-                (ctx.parsed_exception is not None and (
-                    ctx.parsed_exception.language == "sql"
-                    or ctx.parsed_exception.sql_state is not None
-                    or "Constraint" in ctx.parsed_exception.exception_type
-                    or "IntegrityError" in ctx.parsed_exception.exception_type
-                    or "OperationalError" in ctx.parsed_exception.exception_type
-                    or "DatabaseError" in ctx.parsed_exception.exception_type
-                )) or "duplicate key" in ctx.raw_logs.lower() or "foreign key" in ctx.raw_logs.lower()
-            ),
-            description="Database integrity error, constraint violation, or SQL exception",
-            confidence=0.96,
-        ),
-
-        # R003: TIMEOUT_PERFORMANCE (Priority 90)
-        ClassificationRule(
-            rule_id="R003",
-            category=FailureCategory.TIMEOUT_PERFORMANCE,
-            priority=90,
-            condition=lambda ctx: ctx.execution_result == "TIMEOUT" or (
-                ctx.max_latency_ms is not None and ctx.latency_ms is not None and ctx.latency_ms > ctx.max_latency_ms
-            ) or (ctx.parsed_exception is not None and "Timeout" in ctx.parsed_exception.exception_type),
-            description="Execution timeout or SLA performance limit breach",
-            confidence=0.95,
-        ),
-
-        # R004: ENVIRONMENT_FLAKE (Priority 85)
-        ClassificationRule(
-            rule_id="R004",
-            category=FailureCategory.ENVIRONMENT_FLAKE,
-            priority=85,
-            condition=lambda ctx: any(
-                err in ctx.raw_logs.lower()
-                for err in ["connection refused", "dns failure", "target host down", "econnrefused", "name or service not known"]
-            ) or (ctx.parsed_exception is not None and "ConnectionRefused" in ctx.parsed_exception.exception_type),
-            description="Transient network error, DNS failure, or infrastructure connection drop",
-            confidence=0.90,
         ),
 
         # R005: AUTHENTICATION_FAILURE (Priority 80)
@@ -147,7 +157,7 @@ def get_default_classification_rules() -> List[ClassificationRule]:
             rule_id="R010",
             category=FailureCategory.CONTRACT_VIOLATION,
             priority=55,
-            condition=lambda ctx: len(ctx.diff_items) > 0 and ctx.actual_status < 500,
+            condition=lambda ctx: any(d.path.startswith("$.body") for d in ctx.diff_items) and ctx.actual_status < 500,
             description="Response body or headers violate test specification contract",
             confidence=0.88,
         ),
@@ -159,16 +169,6 @@ def get_default_classification_rules() -> List[ClassificationRule]:
             priority=50,
             condition=lambda ctx: ctx.actual_status in (400, 409, 422) and (ctx.expected_status is None or ctx.expected_status != ctx.actual_status),
             description="Domain rule rejection or business logic failure",
-            confidence=0.85,
-        ),
-
-        # R020: DEPENDENCY_FAILURE (Priority 45)
-        ClassificationRule(
-            rule_id="R020",
-            category=FailureCategory.DEPENDENCY_FAILURE,
-            priority=45,
-            condition=lambda ctx: ctx.actual_status in (502, 504) or "upstream" in ctx.raw_logs.lower() or "bad gateway" in ctx.raw_logs.lower(),
-            description="Downstream service or third-party dependency outage",
             confidence=0.85,
         ),
 

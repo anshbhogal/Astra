@@ -45,8 +45,8 @@ class RootCauseAnalyzer:
         self.fingerprint_engine = FingerprintEngine()
 
         self.parsers = [
-            PythonStackTraceParser(),
             SqlErrorParser(),
+            PythonStackTraceParser(),
             NodejsStackTraceParser(),
             JavaStackTraceParser(),
         ]

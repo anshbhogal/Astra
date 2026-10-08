@@ -1,8 +1,8 @@
 """
 ASTRA Engine - Phase 6 Deterministic Diagnostic Evaluation Matrix
 
-Benchmarking suite that evaluates classification accuracy, attribution precision, diff isolation,
-fingerprint stability, and false-positive restraint against standard test matrices.
+Benchmarking suite evaluating exact classification, exact file/line/function attribution,
+exact JSONPath diff isolation, fingerprint stability, and false-positive restraint.
 """
 
 from dataclasses import dataclass, field
@@ -22,7 +22,10 @@ class EvaluationScenario:
     raw_logs: str = ""
     expected_body: Any = None
     actual_body: Any = None
-    should_have_attribution: bool = False
+    expected_file: Optional[str] = None
+    expected_line: Optional[int] = None
+    expected_function: Optional[str] = None
+    expected_diff_path: Optional[str] = None
     should_be_insufficient: bool = False
 
 
@@ -59,7 +62,7 @@ class DiagnosticEvaluator:
             analysis = self.analyzer.analyze(
                 test_result_id=f"eval_tr_{idx}",
                 test_case_id=f"eval_tc_{idx}",
-                expected_status=sc.expected_category if isinstance(sc.expected_status, int) else sc.expected_status,
+                expected_status=sc.expected_status,
                 actual_status=sc.actual_status,
                 expected_body=sc.expected_body,
                 actual_body=sc.actual_body,
@@ -67,28 +70,49 @@ class DiagnosticEvaluator:
                 raw_logs=sc.raw_logs,
             )
 
-            # 1. Classification Accuracy
-            is_class_correct = analysis.category == sc.expected_category
+            # 1. Exact Category Classification Check
+            is_class_correct = (analysis.category == sc.expected_category)
             if is_class_correct:
                 class_correct += 1
 
-            # 2. Attribution Accuracy
-            has_loc = len(analysis.fault_locations) > 0
-            is_attr_correct = (has_loc == sc.should_have_attribution)
+            # 2. Strict Exact File / Line / Function Attribution Check
+            is_attr_correct = True
+            if sc.expected_file:
+                top_loc = analysis.fault_locations[0] if analysis.fault_locations else None
+                if not top_loc or top_loc.file_path != sc.expected_file:
+                    is_attr_correct = False
+                if sc.expected_line and top_loc and top_loc.line_number != sc.expected_line:
+                    is_attr_correct = False
+                if sc.expected_function and top_loc and top_loc.function_name != sc.expected_function:
+                    is_attr_correct = False
+            else:
+                # If no expected file specified, verify no false attribution claims
+                if sc.should_be_insufficient and len(analysis.fault_locations) > 0:
+                    is_attr_correct = False
+
             if is_attr_correct:
                 attr_correct += 1
 
-            # 3. Diff Precision
+            # 3. Exact JSONPath Diff Isolation Check
             is_diff_correct = True
-            if sc.expected_body is not None and sc.actual_body is not None:
+            if sc.expected_diff_path:
+                diff_paths = [d.path for d in analysis.diff_items]
+                if sc.expected_diff_path not in diff_paths:
+                    is_diff_correct = False
+            elif sc.expected_body is not None and sc.actual_body is not None and sc.expected_body != sc.actual_body:
                 is_diff_correct = len(analysis.diff_items) > 0
+
             if is_diff_correct:
                 diff_correct += 1
 
-            # 4. False-Positive Restraint
+            # 4. False-Positive Restraint Check
             is_fp_correct = True
             if sc.should_be_insufficient:
-                is_fp_correct = (analysis.root_cause_confidence == 0.0 and analysis.root_cause_candidates[0].reasoning_type == ReasoningType.INSUFFICIENT_EVIDENCE)
+                is_fp_correct = (
+                    analysis.root_cause_confidence == 0.0
+                    and len(analysis.root_cause_candidates) > 0
+                    and analysis.root_cause_candidates[0].reasoning_type == ReasoningType.INSUFFICIENT_EVIDENCE
+                )
             if is_fp_correct:
                 fp_restraint_correct += 1
 
@@ -98,7 +122,8 @@ class DiagnosticEvaluator:
                 "actual_category": analysis.category.value,
                 "classification_passed": is_class_correct,
                 "attribution_passed": is_attr_correct,
-                "confidence": analysis.classification_confidence,
+                "diff_passed": is_diff_correct,
+                "fp_restraint_passed": is_fp_correct,
             })
 
         total = len(scenarios)
