@@ -556,11 +556,50 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 
 ---
 
-## 16. Immediate Next Steps (Phase 8 Launch)
+## 16. Phase 8 Completion — Selective Regression Engine & Change Impact Analysis
 
-With Phase 7 fully locked, tested, containerized, and integrated, ASTRA is ready for **Phase 8: Regression Engine, AST Impact Analysis & Selective Execution**.
+**Phase 8 is 100% completed, verified, containerized, migrated, and committed to Git repository.**
 
-### Master Roadmap Progress:
+### Key Achievements:
+1. **Zero-LLM Core Engine (`engine/regression/`)**:
+   - Built pure AST parser, PKG reachability analyzer, test impact mapper, safety gate, and selective selector without any LLM/cloud dependency.
+2. **Multi-Commit & PR Git Diff Parser (`engine/regression/git_diff_parser.py`)**:
+   - Parses unified git diff outputs across single commits, multi-commit PRs, or raw diff strings.
+   - Key feature: **Rename Detection** (`old_path` $\rightarrow$ `new_path`, calculates rename similarity score 0.0–1.0).
+   - Tracks exact line range deltas (`added_lines`, `deleted_lines`) and categorizes changes (`SCHEMA_CHANGE`, `ROUTE_CHANGE`, `UTIL_CHANGE`, `TEST_ONLY`, `DOCUMENTATION_ONLY`).
+3. **Qualified Symbol Identity AST Change Analyzer (`engine/regression/ast_change_analyzer.py`)**:
+   - Formulates **Fully Qualified Symbol Identity**: `language:module.Class.method` (e.g. `python:backend.app.services.user_service.UserService.get_user`).
+   - Compares AST nodes of base vs target code versions using SHA256 signature and body hashes to detect modified signatures, modified bodies, decorator changes, added symbols, deleted/renamed symbols, and import diffs.
+4. **PKG Weighted Edge Reachability Impact Core (`engine/regression/impact_analyzer.py`)**:
+   - Traverses the Project Knowledge Graph from modified code symbols to reachable API endpoints up to `max_depth=5`.
+   - Weighted edge reachability: `CALLS`=1.0, `ROUTE`=1.0, `HANDLED_BY`=1.0, `USES`=0.8, `INHERITS`=0.7, `IMPORTS`=0.5.
+   - Calculates path-decayed confidence scores ($C = \prod W_e \times 0.9^{\text{depth}}$) and maintains step-by-step path traces (`[symbol_id -> caller -> endpoint]`).
+5. **TestCase-to-Endpoint Impact Mapper (`engine/regression/test_impact_mapper.py`)**:
+   - Maps reachable endpoints (`GET /api/v1/users`, etc.) to actual test cases in the project suite using exact route matching, route pattern wildcards (`/users/{id}` vs `/users/123`), and tag metadata.
+6. **Conservative Safety Gate & Unknown Impact Expander (`engine/regression/safety_gate.py`)**:
+   - Enforces **ZERO False Negatives Axiom** (missing an impacted test is unacceptable for a regression suite).
+   - Detects safety triggers: `SCHEMA_OR_MIGRATION_CHANGE`, `GLOBAL_UTILITY_MODIFIED` (`auth`, `db`, `config`, `middleware`), `DELETED_OR_RENAMED_SYMBOL`, `NEW_MODULE_UNKNOWN_GRAPH`, `LOW_GRAPH_COVERAGE`.
+   - Automatically expands candidate tests when triggers fire (including smoke/critical tests or full suite depending on configuration).
+7. **Dynamic Tiered Selective Selector & Metrics Engine (`engine/regression/selective_selector.py`)**:
+   - Partitions test suite into **Tier 1 Targeted** (immediate execution during PR pipeline) and **Tier 2 Deferred Full** (scheduled nightly regression run).
+   - Tier 2 tests are explicitly labeled "deferred full", NOT "skipped".
+   - Calculates telemetry metrics: `test_reduction_percent`, `estimated_time_avoided_ms`, `impact_confidence`, and machine-readable selection rationale for every test case.
+8. **Regression Oracle Evaluator (`engine/regression/evaluators.py`)**:
+   - Compares Tier 1 selective execution choices against actual ground-truth (Oracle) full test suite execution outcomes, evaluating precision, recall, false negatives, and time saved.
+9. **Database Models & Alembic Migration 0008**:
+   - Added `RegressionAnalysisModel`, `CodeChangeManifestModel`, `EndpointImpactRecordModel`, `SelectiveExecutionRunModel`, `ExecutionTier`, `RegressionAnalysisStatus` to [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py).
+   - Created and applied Alembic migration [`0008_regression_schema.py`](file:///d:/Astra/backend/app/db/migrations/versions/0008_regression_schema.py).
+10. **Celery Tasks, Service & REST Router**:
+    - Built [`backend/app/services/regression_service.py`](file:///d:/Astra/backend/app/services/regression_service.py), [`backend/app/tasks/regression_tasks.py`](file:///d:/Astra/backend/app/tasks/regression_tasks.py), and registered REST endpoints in [`backend/app/api/v1/regression.py`](file:///d:/Astra/backend/app/api/v1/regression.py) (`POST /projects/{id}/regression/analyze`, `GET /projects/{id}/regression/analyses`, `GET /regression/analyses/{id}`).
+11. **React Analytics & Reachability UI**:
+    - Developed [`frontend/src/components/ChangeImpactGraph.tsx`](file:///d:/Astra/frontend/src/components/ChangeImpactGraph.tsx), [`frontend/src/components/SelectionReasonDrawer.tsx`](file:///d:/Astra/frontend/src/components/SelectionReasonDrawer.tsx), [`frontend/src/components/SelectiveSuiteCard.tsx`](file:///d:/Astra/frontend/src/components/SelectiveSuiteCard.tsx), [`frontend/src/components/RegressionTelemetryCard.tsx`](file:///d:/Astra/frontend/src/components/RegressionTelemetryCard.tsx), and [`frontend/src/components/RegressionDashboardTab.tsx`](file:///d:/Astra/frontend/src/components/RegressionDashboardTab.tsx).
+12. **Full Containerized Verification**:
+    - Complete test suite verified via containerized pytest execution (`docker exec -e PYTHONPATH=. astra_backend pytest engine/tests/ tests/`): **106 passed out of 106 test functions** (100% pass rate).
+
+---
+
+## 17. Master Roadmap Progress Summary
+
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
 - **Phase 3.5 ✅**: E2E Target Fixture Hardening & Security Boundary Verification
 - **Phase 4 ✅**: Advanced Rule-Based Test & Data Generation Engine
@@ -568,7 +607,8 @@ With Phase 7 fully locked, tested, containerized, and integrated, ASTRA is ready
 - **Phase 6 ✅**: Failure & Root-Cause Analysis Engine (Deterministic Evidence, Rule Classifier, PKG Fault Localizer, Canonical Clustering, Inspector UI)
 - **Phase 6.5 ✅**: Integration & Reliability Gate (Model Rewiring, Project RBAC, Celery Queue, Evaluation Matrix, E2E Integration Test)
 - **Phase 7 ✅**: ML Intelligence, Flakiness Engine & Human-in-the-Loop Test Healing
-- **Phase 8 🚀**: Regression Engine, AST Impact Analysis & Selective Execution
+- **Phase 8 ✅**: Selective Regression Engine, AST Impact Analysis & Selective Execution
+
 
 
 
