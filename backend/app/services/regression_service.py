@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.domain import (
-    Project, TestCase, TestRun, TestResult,
+    Project, TestSuite, TestCase, TestRun, TestResult,
     RegressionAnalysisModel, CodeChangeManifestModel, EndpointImpactRecordModel, SelectiveExecutionRunModel,
     RegressionAnalysisStatus, ExecutionTier
 )
