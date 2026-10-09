@@ -34,9 +34,10 @@ def test_flakiness_detector_quarantine_trigger():
 
 
 def test_quarantine_manager_non_blocking():
-    detector = FlakinessDetector()
+    detector = FlakinessDetector(fi_threshold=0.50)
     history = ["PASS", "FAIL", "PASS", "FAIL", "PASS", "FAIL", "PASS", "FAIL"]
-    eval_res = detector.evaluate_test_case_flakiness("tc_flaky", history, [100.0] * 8)
+    latencies = [100.0, 500.0, 100.0, 500.0, 100.0, 500.0, 100.0, 500.0]
+    eval_res = detector.evaluate_test_case_flakiness("tc_flaky", history, latencies)
 
     # Unapproved recommendation -> not non-blocking
     dec1 = QuarantineManager.process_quarantine_decision(eval_res, user_approved=False)
