@@ -56,28 +56,31 @@ async def test_phase8_full_e2e_pipeline(db_session: AsyncSession, client: AsyncC
     tc1_id = uuid.uuid4()
     tc1 = TestCase(
         id=tc1_id,
-        project_id=project_id,
         suite_id=suite_id,
         name="Test Get User Profile",
-        endpoint="/api/v1/users",
-        method="GET",
-        test_type="FUNCTIONAL",
-        tags=["smoke", "users"],
+        test_type="HAPPY_PATH",
+        specification={
+            "endpoint": "/api/v1/users",
+            "method": "GET",
+            "tags": ["smoke", "users"],
+        },
     )
     db_session.add(tc1)
 
     tc2_id = uuid.uuid4()
     tc2 = TestCase(
         id=tc2_id,
-        project_id=project_id,
         suite_id=suite_id,
         name="Test Delete Post",
-        endpoint="/api/v1/posts",
-        method="DELETE",
-        test_type="FUNCTIONAL",
-        tags=["posts"],
+        test_type="HAPPY_PATH",
+        specification={
+            "endpoint": "/api/v1/posts",
+            "method": "DELETE",
+            "tags": ["posts"],
+        },
     )
     db_session.add(tc2)
+
 
     await db_session.commit()
 
