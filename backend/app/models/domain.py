@@ -693,5 +693,119 @@ class MLActionAuditLogModel(Base):
     )
 
 
+class ExecutionTier(str, Enum):
+    TIER1_TARGETED = "TIER1_TARGETED"
+    TIER2_DEFERRED_FULL = "TIER2_DEFERRED_FULL"
+
+
+class RegressionAnalysisStatus(str, Enum):
+    QUEUED = "QUEUED"
+    ANALYZING = "ANALYZING"
+    COMPLETED = "COMPLETED"
+    COMPLETED_WITH_WARNINGS = "COMPLETED_WITH_WARNINGS"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class RegressionAnalysisModel(Base):
+    __tablename__ = "regression_analyses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    analysis_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    base_commit: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_commit: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_branch: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    pkg_snapshot_version: Mapped[str] = mapped_column(String(50), default="v1.0", nullable=False)
+    total_modified_files: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_modified_symbols: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_impacted_endpoints: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_suite_tests: Mapped[int] = mapped_column(default=0, nullable=False)
+    selected_tier1_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    deferred_tier2_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    test_reduction_percent: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    estimated_time_avoided_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    impact_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    safety_expansion_triggered: Mapped[bool] = mapped_column(default=False, nullable=False)
+    status: Mapped[RegressionAnalysisStatus] = mapped_column(
+        SQLEnum(RegressionAnalysisStatus), default=RegressionAnalysisStatus.QUEUED, nullable=False
+    )
+    analysis_warnings: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class CodeChangeManifestModel(Base):
+    __tablename__ = "code_change_manifests"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    regression_analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("regression_analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    old_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    new_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    change_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    rename_similarity: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    modified_lines: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    modified_symbols: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    change_category: Mapped[str] = mapped_column(String(50), default="FUNCTION_MODIFIED", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class EndpointImpactRecordModel(Base):
+    __tablename__ = "endpoint_impact_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    regression_analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("regression_analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    endpoint_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+    method: Mapped[str] = mapped_column(String(10), nullable=False)
+    impact_distance: Mapped[int] = mapped_column(default=0, nullable=False)
+    confidence_score: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    impact_type: Mapped[str] = mapped_column(String(30), default="DIRECT", nullable=False)
+    impact_path_trace: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    dependency_edge_types: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+
+
+class SelectiveExecutionRunModel(Base):
+    __tablename__ = "selective_execution_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    regression_analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("regression_analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    test_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    execution_tier: Mapped[ExecutionTier] = mapped_column(
+        SQLEnum(ExecutionTier), default=ExecutionTier.TIER1_TARGETED, nullable=False
+    )
+    selected_test_details: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    deferred_test_details: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    selection_recall: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    selection_precision: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    tier1_actual_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    tier2_actual_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+
 
 
