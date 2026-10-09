@@ -23,21 +23,26 @@ class HealingEngine:
         """
         Analyzes all failure analyses for a test run and generates safety-validated HealingCandidate records.
         """
-        stmt = (
-            select(FailureAnalysisModel, TestCase, TestResult)
-            .join(TestCase, TestCase.id == FailureAnalysisModel.test_case_id)
-            .join(TestResult, TestResult.id == FailureAnalysisModel.test_result_id)
-            .where(
-                FailureAnalysisModel.project_id == project_id,
-                FailureAnalysisModel.run_id == run_id,
-            )
+        fa_stmt = select(FailureAnalysisModel).where(
+            FailureAnalysisModel.project_id == project_id,
+            FailureAnalysisModel.run_id == run_id,
         )
-
-        res = await self.db.execute(stmt)
-        records = res.all()
+        fa_res = await self.db.execute(fa_stmt)
+        fa_records = fa_res.scalars().all()
 
         candidates = []
-        for fa, tc, tr in records:
+        for fa in fa_records:
+            tc_stmt = select(TestCase).where(TestCase.id == uuid.UUID(fa.test_case_id))
+            tc_res = await self.db.execute(tc_stmt)
+            tc = tc_res.scalar_one_or_none()
+
+            tr_stmt = select(TestResult).where(TestResult.id == uuid.UUID(fa.test_result_id))
+            tr_res = await self.db.execute(tr_stmt)
+            tr = tr_res.scalar_one_or_none()
+
+            if not tc or not tr:
+                continue
+
             spec = tc.specification or {}
             resp_data = tr.response_data or {}
             diff_items = fa.diff_items or []
