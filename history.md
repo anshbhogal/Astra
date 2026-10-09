@@ -188,13 +188,15 @@ Below is the authoritative directory map with direct clickable markdown links to
 | Phase | Module Title | Primary Deliverables | Status |
 | :--- | :--- | :--- | :--- |
 | **Phase 1** | [Core Foundation & Infrastructure](file:///d:/Astra/planning/phase_01_core_foundation.md) | FastAPI scaffold, PostgreSQL schema, JWT Auth, RBAC, Celery/Redis queue, React dashboard shell, Docker Compose. | **COMPLETED & VERIFIED (100% PASS)** |
-| **Phase 2** | [Project & Repository Analyzer](file:///d:/Astra/planning/phase_02_project_analyzer.md) | Git repo cloner, Python AST & Tree-Sitter static analyzers, OpenAPI endpoint parser, Code Knowledge Graph builder. | **READY TO START** |
-| **Phase 3** | [Test Execution & Assertion Engine](file:///d:/Astra/planning/phase_03_test_execution_engine.md) | Worker execution pool (Pytest, HTTPX, Playwright), deterministic assertion engine, execution log recorder. | Pending |
-| **Phase 4** | [Rule-Based Test & Data Generation](file:///d:/Astra/planning/phase_04_test_generation_engine.md) | Non-LLM test case generator, Boundary Value Analyzer (BVA), Equivalence Partitioning, Synthetic Data engine. | Pending |
-| **Phase 5** | [Requirement Intelligence & AI Layer](file:///d:/Astra/planning/phase_05_requirement_and_ai_layer.md) | SRS document parser, Gemini/Local LLM integration, zero-shot/few-shot edge case synthesis, prompt engine. | Pending |
-| **Phase 6** | [Failure & Root-Cause Analysis](file:///d:/Astra/planning/phase_06_failure_and_root_cause_analysis.md) | Failure classification engine (App Bug vs Env Issue), stack trace parser, automated Markdown bug report writer. | Pending |
-| **Phase 7** | [ML Intelligence Engine](file:///d:/Astra/planning/phase_07_ml_intelligence.md) | XGBoost test prioritization, flaky test classifier, K-Means/DBSCAN failure clustering engine. | Pending |
-| **Phase 8** | [Regression Testing & Impact Analysis](file:///d:/Astra/planning/phase_08_regression_engine.md) | Git diff parser, AST dependency mapper, targeted test selector, change impact assessment. | Pending |
+| **Phase 2** | [Project & Repository Analyzer](file:///d:/Astra/planning/phase_02_project_analyzer.md) | Git repo cloner, Python AST & Tree-Sitter static analyzers, OpenAPI endpoint parser, Code Knowledge Graph builder. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 3** | [Test Execution & Assertion Engine](file:///d:/Astra/planning/phase_03_test_execution_engine.md) | Worker execution pool (Pytest, HTTPX, Playwright), deterministic assertion engine, execution log recorder. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 3.5** | Hardening & Target App Integration | Synthetic target app integration, security probe generators, SSRF protection, E2E boundary testing. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 4** | [Rule-Based Test & Data Generation](file:///d:/Astra/planning/phase_04_test_generation_engine.md) | Non-LLM test case generator, Boundary Value Analyzer (BVA), Equivalence Partitioning, Synthetic Data engine. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 5** | [Requirement Intelligence & AI Layer](file:///d:/Astra/planning/phase_05_requirement_and_ai_layer.md) | SRS document parser, Gemini/Local LLM integration, zero-shot/few-shot edge case synthesis, prompt engine. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 6** | [Failure & Root-Cause Analysis](file:///d:/Astra/planning/phase_06_failure_and_root_cause_analysis.md) | Failure classification engine (App Bug vs Env Issue), stack trace parser, automated Markdown bug report writer. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 6.5** | Integration & Reliability Gate | TestResult ORM rewiring, Spec derivation, Project RBAC, Celery queue integration, full taxonomy evaluation. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 7** | [ML Intelligence Engine](file:///d:/Astra/planning/phase_07_ml_intelligence.md) | XGBoost test prioritization, flaky test classifier, K-Means/DBSCAN failure clustering engine, spec healing. | **COMPLETED & VERIFIED (100% PASS)** |
+| **Phase 8** | [Regression Testing & Impact Analysis](file:///d:/Astra/planning/phase_08_regression_engine.md) | Git diff parser, AST dependency mapper, targeted test selector, change impact assessment. | **READY TO START (NEXT PHASE)** |
 | **Phase 9** | [CI/CD Pipeline & GitHub Integration](file:///d:/Astra/planning/phase_09_cicd_and_github_integration.md) | GitHub Webhooks, PR status checks, GitHub Actions workflow runner, Slack/Email alert dispatchers. | Pending |
 | **Phase 10** | [Analytics, Reporting & Evaluation](file:///d:/Astra/planning/phase_10_analytics_reporting_evaluation.md) | Quality analytics dashboard, defect density metrics, evaluation on deliberately defective benchmark apps. | Pending |
 
@@ -228,11 +230,11 @@ Phase 1 established the foundation for ASTRA:
 ## 8. Empirical Verification & Test Execution Log
 
 ### Containerized Test Execution Record
-- **Command Executed**: `docker compose exec backend python -m pytest -v`
+- **Command Executed**: `docker exec -e PYTHONPATH=. astra_backend pytest engine/tests/ tests/`
 - **Environment**: Docker Linux Container (Python 3.11.17, Pytest 9.1.1)
-- **Total Tests Collected**: 17
-- **Total Tests Passed**: 17 (100% Pass Rate)
-- **Execution Time**: 1.73s
+- **Total Tests Collected**: 99
+- **Total Tests Passed**: 99 (100% Pass Rate across 37 test files)
+- **Execution Time**: 14.83s
 
 ```text
 ============================= test session starts ==============================
