@@ -597,8 +597,51 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
     - Complete test suite verified via containerized pytest execution (`docker exec -e PYTHONPATH=. astra_backend pytest engine/tests/ tests/`): **106 passed out of 106 test functions** (100% pass rate).
 
 ---
+---
 
-## 17. Master Roadmap Progress Summary
+## 18. Phase 9 Completion — CI/CD Pipeline, GitHub Integration & Multi-Channel Notifications
+
+**Phase 9 is 100% completed, verified, containerized, migrated, and committed to Git repository.**
+
+### Key Achievements:
+1. **Provider-Neutral Event Abstraction & Adapters (`engine/cicd/event_abstraction.py`)**:
+   - Standardized `CIPipelineEvent` abstraction decouples core engine from specific git provider formats.
+   - `GitHubEventAdapter` normalizes GitHub `pull_request`, `push`, and `workflow_dispatch` payloads into unified CI pipeline events.
+2. **Secure Webhook Gateway & Raw HMAC Verification (`engine/cicd/hmac_validator.py`, `backend/app/api/v1/webhooks.py`)**:
+   - Verifies raw request payload bytes with HMAC-SHA256 *before* JSON parsing to eliminate tampering vulnerabilities.
+   - Enforces database delivery deduplication via `UniqueConstraint("provider", "delivery_id")` on `WebhookEventModel`.
+   - Performs repo-to-project secret mapping and authorization checks.
+3. **GitHub Credential Provider & API Client (`engine/cicd/github_credentials.py`, `engine/cicd/github_service.py`)**:
+   - `GitHubCredentialProvider` supports GitHub App installation tokens (JWT exchange) and Personal Access Tokens (PAT).
+   - `GitHubService` manages Commit Statuses (`pending`, `success`, `failure`, `error`) and Checks API runs (`check_runs` with detailed markdown summaries, annotations, and actions).
+   - Handles rate limiting gracefully with exponential backoff and `Retry-After` header processing.
+4. **Idempotent In-Place PR Commenter (`engine/cicd/pr_commenter.py`)**:
+   - Generates comprehensive markdown reports detailing pass/fail counts, quality gate compliance, failure highlights, and selective regression stats.
+   - Idempotently updates existing PR comments using HTML marker `<!-- ASTRA_REPORT -->` or posts a new comment if none exists.
+5. **Formal Quality Gate Engine (`engine/cicd/quality_gate.py`)**:
+   - Evaluates project-defined rules: pass percentage threshold, maximum allowed flaky tests, zero critical defect policy, minimum test coverage, and regression ratio limit.
+   - Returns structured `QualityGateResult` with pass/fail evaluation, violation notices, and detailed metric breakdown.
+6. **Pipeline Orchestrator & Concurrency Control (`engine/cicd/orchestrator.py`)**:
+   - Manages end-to-end execution flow across event parsing, selective regression selection, test execution, quality gate checks, status updates, PR comments, and notification dispatching.
+   - Implements "newest commit wins" concurrency control to automatically cancel/supersede older active runs on the same pull request branch when a newer commit arrives.
+7. **Multi-Channel Notification Dispatchers (`engine/cicd/notifications/`)**:
+   - Built rich dispatchers for Slack Block Kit (`slack_dispatcher.py`), Microsoft Teams Adaptive Cards (`teams_dispatcher.py`), and HTML Email (`email_dispatcher.py`).
+   - Secure target webhook validation enforced via `SSRFProtector.validate_url`.
+8. **Reusable GitHub Action (`ci/astra-action/action.yml`, `ci/astra-action/run_astra.py`)**:
+   - Created standalone GitHub Action enabling external CI workflows to execute ASTRA quality gates natively from GitHub runner environments.
+9. **Database Schema & Alembic Migration 0009**:
+   - Added `WebhookEventModel`, `CIPipelineRunModel`, `NotificationChannelModel`, `NotificationDeliveryModel` to [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py).
+   - Applied Alembic migration [`0009_cicd_schema.py`](file:///d:/Astra/backend/app/db/migrations/versions/0009_cicd_schema.py).
+10. **Celery Tasks, Backend Services & REST Routers**:
+    - Created [`backend/app/services/cicd_service.py`](file:///d:/Astra/backend/app/services/cicd_service.py), [`backend/app/tasks/cicd_tasks.py`](file:///d:/Astra/backend/app/tasks/cicd_tasks.py), public webhook router [`backend/app/api/v1/webhooks.py`](file:///d:/Astra/backend/app/api/v1/webhooks.py), and CI router [`backend/app/api/v1/cicd.py`](file:///d:/Astra/backend/app/api/v1/cicd.py).
+11. **React Integrations & CI Dashboard**:
+    - Developed [`frontend/src/components/WebhookLogViewer.tsx`](file:///d:/Astra/frontend/src/components/WebhookLogViewer.tsx), [`frontend/src/components/NotificationChannelModal.tsx`](file:///d:/Astra/frontend/src/components/NotificationChannelModal.tsx), [`frontend/src/components/CIStatusBadge.tsx`](file:///d:/Astra/frontend/src/components/CIStatusBadge.tsx), and [`frontend/src/pages/IntegrationsTab.tsx`](file:///d:/Astra/frontend/src/pages/IntegrationsTab.tsx).
+12. **Full E2E Containerized Verification**:
+    - Complete test suite verified via containerized pytest execution (`docker exec -e PYTHONPATH=. astra_backend pytest engine/tests/ tests/`): **113 passed out of 113 test functions** (100% pass rate).
+
+---
+
+## 19. Master Roadmap Progress Summary
 
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
 - **Phase 3.5 ✅**: E2E Target Fixture Hardening & Security Boundary Verification
@@ -608,13 +651,4 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 - **Phase 6.5 ✅**: Integration & Reliability Gate (Model Rewiring, Project RBAC, Celery Queue, Evaluation Matrix, E2E Integration Test)
 - **Phase 7 ✅**: ML Intelligence, Flakiness Engine & Human-in-the-Loop Test Healing
 - **Phase 8 ✅**: Selective Regression Engine, AST Impact Analysis & Selective Execution
-
-
-
-
-
-
-
-
-
-
+- **Phase 9 ✅**: CI/CD Pipeline, GitHub Integration & Multi-Channel Notifications
