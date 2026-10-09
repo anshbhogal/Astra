@@ -80,20 +80,25 @@ class RegressionService:
         )
 
         # 6. Fetch project TestCases from DB
-        tc_stmt = select(TestCase).where(TestCase.project_id == project_id)
+        tc_stmt = select(TestCase).join(TestSuite).where(TestSuite.project_id == project_id)
         tc_result = await self.db.execute(tc_stmt)
         test_case_records = list(tc_result.scalars().all())
 
         test_cases_data = []
         for tc in test_case_records:
+            spec = tc.specification if isinstance(tc.specification, dict) else {}
+            ep = spec.get("endpoint") or spec.get("path") or getattr(tc, "endpoint", "")
+            method = spec.get("method") or getattr(tc, "method", "GET")
+            tags = spec.get("tags") or getattr(tc, "tags", [])
             test_cases_data.append({
                 "id": str(tc.id),
                 "name": tc.name,
-                "endpoint": tc.endpoint,
-                "method": tc.method,
-                "tags": tc.tags if isinstance(tc.tags, list) else [],
+                "endpoint": ep,
+                "method": method,
+                "tags": tags if isinstance(tags, list) else [],
                 "avg_duration_ms": 120.0,
             })
+
 
         # 7. Map impacted endpoints to test cases
         impact_mapper = TestImpactMapper()
