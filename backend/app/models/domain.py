@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 
-from sqlalchemy import String, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, Boolean
+from sqlalchemy import String, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, Boolean, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -804,6 +804,133 @@ class SelectiveExecutionRunModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
+
+
+class CIPipelineStatus(str, Enum):
+    QUEUED = "QUEUED"
+    VALIDATING = "VALIDATING"
+    ANALYZING = "ANALYZING"
+    SELECTING = "SELECTING"
+    EXECUTING = "EXECUTING"
+    EVALUATING = "EVALUATING"
+    REPORTING = "REPORTING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    SUPERSEDED = "SUPERSEDED"
+    STALE = "STALE"
+    ENVIRONMENT_ERROR = "ENVIRONMENT_ERROR"
+
+
+class WebhookEventModel(Base):
+    __tablename__ = "webhook_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    provider: Mapped[str] = mapped_column(String(20), default="GITHUB", nullable=False)
+    delivery_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    signature_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
+    sender: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    payload_redacted: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    processing_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("provider", "delivery_id", name="uq_provider_delivery_id"),
+    )
+
+
+class CIPipelineRunModel(Base):
+    __tablename__ = "ci_pipeline_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    regression_analysis_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("regression_analyses.id", ondelete="SET NULL"), nullable=True
+    )
+    test_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    webhook_event_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("webhook_events.id", ondelete="SET NULL"), nullable=True
+    )
+    git_provider: Mapped[str] = mapped_column(String(20), default="GITHUB", nullable=False)
+    repository_full_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    pr_number: Mapped[Optional[int]] = mapped_column(nullable=True, index=True)
+    base_commit: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_commit: Mapped[str] = mapped_column(String(64), nullable=False)
+    branch: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    pipeline_status: Mapped[CIPipelineStatus] = mapped_column(
+        SQLEnum(CIPipelineStatus), default=CIPipelineStatus.QUEUED, nullable=False
+    )
+    quality_gate_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+    github_check_run_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    duration_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    failure_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class NotificationChannelModel(Base):
+    __tablename__ = "notification_channels"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    channel_type: Mapped[str] = mapped_column(String(20), nullable=False)  # SLACK, MS_TEAMS, EMAIL, WEBHOOK
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    encrypted_target_url: Mapped[str] = mapped_column(Text, nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    events_filter: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class NotificationDeliveryModel(Base):
+    __tablename__ = "notification_deliveries"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    pipeline_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ci_pipeline_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("notification_channels.id", ondelete="CASCADE"), nullable=False
+    )
+    channel_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="PENDING", nullable=False)  # SENT, FAILED, RETRYING
+    attempt_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    response_code: Mapped[Optional[int]] = mapped_column(nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
 
 
 

@@ -1,0 +1,54 @@
+name: 'ASTRA Quality Gate & Selective Regression Action'
+description: 'Triggers ASTRA AST reachability analysis, risk prioritization, and selective regression execution directly inside GitHub workflows.'
+author: 'ASTRA Team'
+
+inputs:
+  astra_server_url:
+    description: 'Base URL of your ASTRA Server instance'
+    required: true
+    default: 'http://localhost:8000'
+  api_key:
+    description: 'ASTRA API Access Key or Token'
+    required: true
+  project_id:
+    description: 'ASTRA Project UUID'
+    required: true
+  base_commit:
+    description: 'Base Git commit SHA'
+    required: false
+    default: 'HEAD~1'
+  target_commit:
+    description: 'Target Git commit SHA'
+    required: false
+    default: 'HEAD'
+  fail_on_critical:
+    description: 'Whether to exit with status code 1 if Quality Gate fails'
+    required: false
+    default: 'true'
+
+outputs:
+  quality_gate_status:
+    description: 'Final Quality Gate Status (PASS, FAIL, ERROR, BLOCKED)'
+  test_reduction_percent:
+    description: 'Percentage of test execution count avoided'
+  tier1_test_count:
+    description: 'Number of Tier 1 targeted tests executed'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Run ASTRA CI Quality Gate
+      shell: bash
+      run: |
+        python ${{ github.action_path }}/run_astra.py \
+          --server-url "${{ inputs.astra_server_url }}" \
+          --api-key "${{ inputs.api_key }}" \
+          --project-id "${{ inputs.project_id }}" \
+          --base-commit "${{ inputs.base_commit }}" \
+          --target-commit "${{ inputs.target_commit }}" \
+          --fail-on-critical "${{ inputs.fail_on_critical }}"
