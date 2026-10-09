@@ -131,8 +131,9 @@ async def test_phase8_full_e2e_pipeline(db_session: AsyncSession, client: AsyncC
     assert manifests[0].new_path == "app/services/user_service.py"
 
     # 5. REST API Endpoint Tests
-    token = create_access_token(data={"sub": user.email, "role": user.role})
+    token = create_access_token(subject=str(user.id))
     headers = {"Authorization": f"Bearer {token}"}
+
 
     # Trigger via API
     api_resp = await client.post(
