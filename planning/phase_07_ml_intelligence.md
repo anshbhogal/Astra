@@ -1,197 +1,339 @@
-# Phase 7 — Machine Learning Intelligence Module Implementation Guide
+# Phase 7 — ML Intelligence, Flakiness Engine & Human-in-the-Loop Test Healing Implementation Plan
 
-> **Module Focus:** Test Prioritization (XGBoost / Random Forest), Flaky Test Detection, TF-IDF + DBSCAN Failure Clustering, Feature Engineering Pipelines, and Offline Model Training Workflows.
-
----
-
-## 1. Phase Overview & Objectives
-
-Phase 7 introduces machine learning models to Astra to optimize testing efficiency and reduce noise. Rather than running hundreds of tests in arbitrary order or treating every intermittent test failure as a critical bug, Astra uses ML algorithms to **prioritize high-risk tests**, **detect flaky tests**, and **cluster duplicate failure root causes**.
-
-### Key Deliverables
-1. **Feature Engineering Pipeline:** Dataset builder computing historical failure rate, code line churn, execution latency variance, component risk, and failure entropy per test case.
-2. **Test Prioritization Model (XGBoost):** Predictive model scoring test failure probability to schedule high-risk tests first in CI/CD pipelines.
-3. **Flaky Test Detection Model:** Classifier evaluating execution outcome variance (`PASS` -> `FAIL` -> `PASS`) and retry consistency to flag flaky test scripts.
-4. **Failure Clustering Engine (DBSCAN / K-Means):** Unsupervised clustering pipeline vectorizing stack traces with TF-IDF and grouping $N$ test failures into $M$ distinct root-cause clusters.
-5. **ML Training & Inference API:** Endpoints to train models on historical test run data and fetch real-time prioritization scores.
+> **Module Focus:** ML Classification Test Prioritization (XGBoost/RandomForest), Temporal Leakage Guards, APFD Metric Evaluation, State-Machine Flakiness Detection & Non-Blocking Quarantine, Normalized TF-IDF + Cosine DBSCAN Semantic Clustering, Safety-Validated Test Specification Healing, Versioning & Rollback, Async Celery Jobs, and REST/React Dashboards.
 
 ---
 
-## 2. Technical Stack Specifications
+## 1. Executive Summary & Core Architectural Axioms
 
-- **ML Frameworks:** `scikit-learn` `1.4+`, `xgboost` `2.0+`.
-- **Data Manipulation:** `pandas` `2.2+`, `numpy` `1.26+`.
-- **Vectorization & Clustering:** `TfidfVectorizer`, `DBSCAN`, `KMeans` from `sklearn.feature_extraction.text` and `sklearn.cluster`.
-
----
-
-## 3. Architecture & Data Flow
+Phase 7 transforms ASTRA from automated execution and failure diagnosis into an enterprise-grade **self-optimizing quality platform**. Building on Phase 2 AST/PKG code churn, Phase 3 execution metrics, and Phase 6 root-cause failure diagnostics, Phase 7 introduces statistical machine learning, flakiness quarantine state-machines, and safety-validated test specification healing.
 
 ```text
-Historical Test Results & Code Changes
-                 │
-                 ▼
-┌─────────────────────────────────┐
-│   Feature Engineering Engine    │ Computes failure rates, churn, latency variance
-└────────────────┬────────────────┘
-                 ▼
-       ┌─────────┴─────────────────────────┬─────────────────────────┐
-       ▼                                   ▼                         ▼
-┌───────────────┐                  ┌───────────────┐         ┌───────────────┐
-│ XGBoost Model │                  │  Flaky Model  │         │ TF-IDF +      │
-│ (Prioritized) │                  │ (Oscillations)│         │ DBSCAN        │
-└──────┬────────┘                  └──────┬────────┘         └──────┬────────┘
-       ▼                                  ▼                         ▼
-Ranked Test Suite                 Flaky Test Alerts         Clustered Failures
-(Runs high risk tests 1st)        (quarantine candidate)    (Groups 31 fails -> 3 groups)
+                    ┌──────────────────────┐
+                    │ Phase 2 PKG / Git    │
+                    │ commit + code churn  │
+                    └──────────┬───────────┘
+                               │
+                    ┌──────────▼───────────┐
+                    │ Phase 3 Test History │
+                    │ runs/results/latency │
+                    └──────────┬───────────┘
+                               │
+                    ┌──────────▼───────────┐
+                    │ Phase 6 Diagnostics  │
+                    │ category/RCA/evidence│
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                 ┌───────────────────────────┐
+                 │ Phase 7 Feature Store /   │
+                 │ Dataset Builder           │
+                 │ + Temporal Leakage Guard  │
+                 └────────────┬──────────────┘
+                              │
+          ┌───────────────────┼────────────────────┐
+          ▼                   ▼                    ▼
+ ┌────────────────┐  ┌─────────────────┐  ┌──────────────────┐
+ │ Prioritization │  │ Flakiness Engine│  │ Failure Clustering│
+ │ XGBClassifier  │  │ State Machine   │  │ TF-IDF + DBSCAN  │
+ └───────┬────────┘  └────────┬────────┘  └─────────┬────────┘
+         │                    │                     │
+         └────────────────────┼─────────────────────┘
+                              ▼
+                   ┌─────────────────────┐
+                   │ Healing Candidate   │
+                   │ Generator           │
+                   └──────────┬──────────┘
+                              ▼
+                   ┌─────────────────────┐
+                   │ Safety Validator    │
+                   │ (Whitelist/Blacklist│
+                   └──────────┬──────────┘
+                              ▼
+                    HUMAN REVIEW GATE
+                              │
+                  ┌───────────┴───────────┐
+                  ▼                       ▼
+               APPROVE                 REJECT
+                  │
+                  ▼
+             TestCase v2 (With Rollback)
+```
+
+### Core Architectural Axioms
+
+1. **Zero-LLM ML Core & Baseline Fallbacks**: All ML pipelines (`XGBClassifier`, `RandomForestClassifier`, `TF-IDF`, `DBSCAN`, state-machines) run 100% locally and deterministically. If sample counts are insufficient ($N < 50$ runs), ASTRA automatically falls back to deterministic heuristic ranking (`PriorityScore = Risk * Impact / Cost`).
+2. **Temporal Validation & Leakage Protection**: Data splitting strictly follows temporal ordering ($\text{Train} = \text{Older Runs}, \text{Validation} = \text{Subsequent Runs}, \text{Test} = \text{Latest Runs}$). Features for run $N$ are computed strictly using data available *before* run $N$.
+3. **Binary Classification Formulation**: Prioritization is formulated as binary classification ($P(\text{FAIL} | \text{features}) = \text{predict\_proba}()[:, 1]$), combined with execution cost and failure severity into configurable ranking strategies (*Risk-First*, *Fast-Feedback*, *Severity-First*, *Balanced*). Evaluated empirically using **APFD (Average Percentage of Faults Detected)** and **NDCG@K**.
+4. **Deterministic Flakiness & Non-Blocking Quarantine**: Flakiness detection uses a state machine tracking multi-outcome transitions (`PASS`, `FAIL`, `ERROR`, `TIMEOUT`, `ENVIRONMENT_ERROR`) over a minimum observation window ($N \ge 8$ runs, $T \ge 2$ transitions). Quarantined tests are executed in non-blocking mode (do not fail CI build gates) and require explicit human approval to quarantine.
+5. **Normalized TF-IDF + DBSCAN Semantic Clustering**: Text normalizer strips dynamic values (UUIDs, timestamps, IPs, ports, dynamic paths) prior to TF-IDF vectorization. Post-clustering mapper assigns confidence metrics (`EXACT_MATCH` from Phase 6, `LIKELY_SAME`, `POSSIBLY_SAME`, `UNRELATED`).
+6. **Human-in-the-Loop Test Healing & Safety Gate**: Healing generates proposed `TestCase.specification` patch candidates with strict operation whitelisting and blacklisting. Patches create immutable `TestCase v2` versions with 1-click rollback, optimistic locking, and audit trail (`MLActionAuditLog`). Automated spec mutation without human review is strictly prohibited.
+
+---
+
+## 2. Monorepo Directory Architecture
+
+```text
+d:\Astra\
+├── ml/
+│   ├── __init__.py
+│   ├── common/
+│   │   ├── schemas.py                     # Data Contracts & Feature Schemas
+│   │   ├── versions.py                    # Model & Dataset Versioning
+│   │   └── metrics.py                     # APFD, APFDc, NDCG@K Metric Calculators
+│   ├── dataset/
+│   │   ├── __init__.py
+│   │   ├── builder.py                     # Historical Feature Extractor & Store
+│   │   ├── schema.py                      # Dataset Column Schemas
+│   │   ├── temporal_split.py              # Temporal Train/Val/Test Splitter
+│   │   └── validator.py                   # Data Leakage Guard & Sanity Checks
+│   ├── features/
+│   │   ├── feature_extractor.py           # Feature Engineering Core
+│   │   ├── failure_features.py            # Failure Category & Entropy Features
+│   │   ├── performance_features.py        # Latency Mean & Std Dev Features
+│   │   └── code_churn.py                  # Git/AST Churn Features from Phase 2
+│   ├── prioritization/
+│   │   ├── baseline.py                    # Deterministic Heuristic Risk Baselines
+│   │   ├── prioritizer.py                 # XGBClassifier / RandomForest Classifier
+│   │   ├── evaluator.py                   # APFD & Ranking Strategy Evaluator
+│   │   └── ranking.py                     # Configurable Scoring (Risk/Fast/Balanced)
+│   ├── flakiness/
+│   │   ├── state_machine.py               # Outcome Sequence State Machine
+│   │   ├── flakiness_detector.py          # Entropy & Latency Flakiness Score Calculator
+│   │   └── quarantine.py                  # Quarantine Recommendation Engine
+│   ├── clustering/
+│   │   ├── normalizer.py                  # Dynamic Value Text Normalizer
+│   │   ├── vectorizer.py                  # TF-IDF N-gram Vectorizer
+│   │   ├── semantic_clusterer.py          # Cosine DBSCAN & Post-Clustering Mapper
+│   │   └── evaluator.py                   # Cluster Silhouette & Purity Metrics
+│   ├── healing/
+│   │   ├── candidate_generator.py         # Structural Patch Candidate Generator
+│   │   ├── patch_operations.py            # Whitelist/Blacklist Operation Enforcer
+│   │   ├── safety_validator.py            # Security & Contract Safety Gate
+│   │   ├── versioning.py                  # TestCase Spec Versioning & Rollback
+│   │   └── healing_engine.py              # Orchestrator for Specification Healing
+│   └── models/                            # Serialized ML Artifacts (.joblib)
+│       └── .gitkeep
+├── backend/app/
+│   ├── api/v1/
+│   │   └── ml.py                          # REST Router for ML, Flakiness & Healing
+│   ├── tasks/
+│   │   └── ml_tasks.py                    # Celery Async Processing Tasks
+│   ├── services/
+│   │   └── ml_service.py                  # Service Layer Orchestrating ML & DB
+│   └── models/
+│       └── domain.py                      # Phase 7 DB Models & Alembic Migration 0007
+├── engine/tests/
+│   ├── test_dataset_builder.py            # Dataset & Temporal Split Verification
+│   ├── test_prioritization_ml.py          # XGBoost Training, APFD & Baseline Tests
+│   ├── test_flakiness_state_machine.py    # State Machine & Quarantine Tests
+│   ├── test_semantic_clustering.py        # Dynamic Normalization & DBSCAN Tests
+│   └── test_healing_safety_gate.py        # Whitelist/Blacklist & Versioning Tests
+├── backend/tests/
+│   └── test_phase7_e2e_integration.py     # Complete Pipeline Integration Test
+└── frontend/src/
+    ├── components/
+    │   ├── FlakyTestsDrawer.tsx           # Flaky Tests Quarantine Inspector
+    │   ├── PriorityHeatmapCard.tsx        # Prioritized Execution Plan Inspector
+    │   └── HealingInspectorModal.tsx      # Human Approval Diff Inspector & Rollback UI
+    └── pages/
+        └── MLAnalyticsTab.tsx             # Unified ML Dashboard
 ```
 
 ---
 
-## 4. Feature Extraction Engine (`ml/feature_extractor.py`)
+## 3. Database Domain Schemas (Alembic Migration `0007_ml_intelligence_schema.py`)
+
+Five ORM models registered in [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py):
 
 ```python
-import pandas as pd
-import numpy as np
-from typing import List, Dict, Any
+class MLJobStatus(str, Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
-class FeatureExtractor:
-    @staticmethod
-    def extract_test_features(historical_results: List[Dict[str, Any]]) -> pd.DataFrame:
-        """Converts raw database test run history into ML feature vectors."""
-        df = pd.DataFrame(historical_results)
-        
-        # Aggregate features per test_case_id
-        features = df.groupby("test_case_id").agg(
-            total_runs=("outcome", "count"),
-            failure_count=("outcome", lambda x: (x == "FAIL").sum()),
-            historical_failure_rate=("outcome", lambda x: (x == "FAIL").mean()),
-            avg_execution_time_ms=("execution_time_ms", "mean"),
-            std_execution_time_ms=("execution_time_ms", lambda x: np.std(x) if len(x) > 1 else 0.0),
-            recent_failure_rate=("outcome", lambda x: (x.tail(5) == "FAIL").mean())
-        ).reset_index()
+class FlakyTestStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    RECOMMENDED_QUARANTINE = "RECOMMENDED_QUARANTINE"
+    QUARANTINED = "QUARANTINED"
+    RESOLVED = "RESOLVED"
 
-        # Compute Outcome Flakiness Index (Frequency of outcome transitions PASS -> FAIL -> PASS)
-        features["flaky_score"] = features.apply(
-            lambda row: 1.0 if row["historical_failure_rate"] > 0.1 and row["historical_failure_rate"] < 0.9 and row["std_execution_time_ms"] > 50.0 else 0.0,
-            axis=1
-        )
-        
-        return features
+class HealingCandidateStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    SUPERSEDED = "SUPERSEDED"
+
+class MLModelArtifactModel(Base):
+    __tablename__ = "ml_model_artifacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    model_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    version: Mapped[str] = mapped_column(String(50), nullable=False)
+    dataset_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    algorithm: Mapped[str] = mapped_column(String(50), nullable=False)  # XGBClassifier / RandomForest
+    hyperparameters: Mapped[dict] = mapped_column(JSON, nullable=False)
+    metrics: Mapped[dict] = mapped_column(JSON, nullable=False)  # APFD, NDCG, Precision@K
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    training_commit_sha: Mapped[str] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class FlakyTestRecordModel(Base):
+    __tablename__ = "flaky_test_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    test_case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"))
+    flakiness_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    observation_window: Mapped[int] = mapped_column(Integer, default=10)
+    transition_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pass_count: Mapped[int] = mapped_column(Integer, default=0)
+    fail_count: Mapped[int] = mapped_column(Integer, default=0)
+    latency_mean_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_std_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[FlakyTestStatus] = mapped_column(String(30), default=FlakyTestStatus.ACTIVE)
+    last_evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class TestPriorityRankingModel(Base):
+    __tablename__ = "test_priority_rankings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    test_run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"))
+    test_case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"))
+    failure_probability: Mapped[float] = mapped_column(Float, nullable=False)
+    execution_cost_ms: Mapped[float] = mapped_column(Float, nullable=False)
+    severity_weight: Mapped[float] = mapped_column(Float, nullable=False)
+    priority_score: Mapped[float] = mapped_column(Float, nullable=False)
+    rank_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    strategy: Mapped[str] = mapped_column(String(50), default="BALANCED")
+    rationale: Mapped[str] = mapped_column(String(500), nullable=True)
+
+class HealingCandidateModel(Base):
+    __tablename__ = "healing_candidates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    test_case_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"))
+    failure_analysis_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("failure_analyses.id", ondelete="CASCADE"))
+    source_run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"))
+    original_specification: Mapped[dict] = mapped_column(JSON, nullable=False)
+    proposed_specification: Mapped[dict] = mapped_column(JSON, nullable=False)
+    patch_operations: Mapped[list] = mapped_column(JSON, nullable=False)  # Allowed diff ops list
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.8)
+    status: Mapped[HealingCandidateStatus] = mapped_column(String(20), default=HealingCandidateStatus.PENDING)
+    approved_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    resulting_spec_version: Mapped[int] = mapped_column(Integer, default=1)
+    rollback_available: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class MLActionAuditLogModel(Base):
+    __tablename__ = "ml_action_audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"))
+    actor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action_type: Mapped[str] = mapped_column(String(50), nullable=False)  # QUARANTINE_APPROVE, HEALING_APPROVE, HEALING_ROLLBACK
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 ```
 
 ---
 
-## 5. Test Prioritization Model Engine (`ml/prioritization/prioritizer.py`)
+## 4. Subsystem Technical Specifications
 
-```python
-import xgboost as xgb
-import numpy as np
-import pandas as pd
-from typing import List, Dict, Any
+### Milestone 7.1: Dataset Builder & Temporal Leakage Guard (`ml/dataset/`)
+- Builds reproducible Pandas DataFrames from PostgreSQL tables.
+- Enforces **Temporal Split**: `Train` (Runs $1 \dots T_1$), `Validation` (Runs $T_1+1 \dots T_2$), `Test` (Runs $T_2+1 \dots T_N$).
+- **Leakage Guard**: Feature values for run $N$ are calculated strictly using data up to run $N-1$.
+- Columns: `sample_id`, `project_id`, `test_case_id`, `test_run_id`, `commit_sha`, `historical_failure_rate_prev`, `recent_failure_rate_5runs`, `transition_entropy_prev`, `avg_latency_prev`, `latency_std_prev`, `code_churn_score`, `target_failed`.
 
-class TestPrioritizationModel:
-    def __init__(self):
-        self.model = xgb.XGBRegressor(
-            n_estimators=100,
-            max_depth=4,
-            learning_rate=0.1,
-            random_state=42
-        )
-        self.is_trained = False
+### Milestone 7.2: Binary Classification Prioritization Engine (`ml/prioritization/`)
+- Trains `XGBClassifier` and `RandomForestClassifier` to output $P(\text{FAIL} | \text{features}) = \text{predict\_proba}()[:, 1]$.
+- Calculates Priority Score:
+  $$\text{PriorityScore} = \frac{P(\text{FAIL}) \cdot \text{SeverityWeight}}{\text{NormalizedCost}_{\text{ms}} + 0.1}$$
+- Evaluates against deterministic baselines (*Random*, *Historical Rate*, *Recent Rate*, *Heuristic Risk*) using **APFD (Average Percentage of Faults Detected)**:
+  $$\text{APFD} = 1 - \frac{\sum_{i=1}^{m} TF_i}{n \cdot m} + \frac{1}{2n}$$
+- Model serialization via `joblib` with versioning in `MLModelArtifactModel`.
 
-    def train(self, feature_df: pd.DataFrame):
-        X = feature_df[["historical_failure_rate", "avg_execution_time_ms", "std_execution_time_ms", "recent_failure_rate"]]
-        y = feature_df["recent_failure_rate"]  # Target: predict likelihood of failure in next run
-        
-        self.model.fit(X, y)
-        self.is_trained = True
+### Milestone 7.3: State Machine Flakiness Engine & Non-Blocking Quarantine (`ml/flakiness/`)
+- Tracks outcome sequences across $W = 10$ runs per test case.
+- Requires minimum observation ($N \ge 8$ runs, $T \ge 2$ transitions) before triggering flakiness evaluation.
+- Calculates Flakiness Index ($FI$):
+  $$FI = 0.5 \cdot \text{TransitionRate} + 0.3 \cdot \left(\frac{\sigma_{\text{latency}}}{\mu_{\text{latency}} + 1}\right) + 0.2 \cdot \text{EnvFlakeRatio}$$
+- Quarantined tests execute in **non-blocking mode** (do not fail CI build gate) after explicit human approval via the React UI.
 
-    def predict_priorities(self, feature_df: pd.DataFrame) -> List[Dict[str, Any]]:
-        if not self.is_trained:
-            # Fallback to simple heuristic sorting if model is un-trained
-            feature_df["priority_score"] = feature_df["historical_failure_rate"]
-        else:
-            X = feature_df[["historical_failure_rate", "avg_execution_time_ms", "std_execution_time_ms", "recent_failure_rate"]]
-            feature_df["priority_score"] = self.model.predict(X)
+### Milestone 7.4: Normalized TF-IDF + Cosine DBSCAN Failure Clusterer (`ml/clustering/`)
+- **Text Normalizer**: Strips UUIDs (`[0-9a-f-]{36}`), timestamps, IP addresses, ports, and dynamic paths.
+- **Vectorizer**: `TfidfVectorizer(ngram_range=(1,2), max_features=1000)`.
+- **Clustering**: `DBSCAN(metric='cosine', eps=0.35, min_samples=2)`.
+- Assigns macro-cluster confidence labels (`EXACT_MATCH` from Phase 6, `LIKELY_SAME`, `POSSIBLY_SAME`, `UNRELATED`).
 
-        # Sort descending by failure probability
-        sorted_df = feature_df.sort_values(by="priority_score", ascending=False)
-        
-        results = []
-        for _, row in sorted_df.iterrows():
-            results.append({
-                "test_case_id": row["test_case_id"],
-                "priority_score": float(np.round(row["priority_score"], 4)),
-                "rank_reason": f"Historical failure rate: {row['historical_failure_rate']*100:.1f}%"
-            })
-        return results
+### Milestone 7.5: Human-in-the-Loop Test Healing & Safety Gate (`ml/healing/`)
+- Structural repair generator analyzing Phase 6 `FailureAnalysis` output and `TestCase.specification`.
+- **Whitelist Operations**:
+  - `REPLACE_EXPECTED_STATUS` (e.g., 200 $\rightarrow$ 201)
+  - `ADD_EXPECTED_HEADER`
+  - `REMOVE_EXPECTED_HEADER`
+  - `RENAME_JSON_PATH` (e.g., `$.user_id` $\rightarrow$ `$.account_id`)
+  - `UPDATE_JSON_VALUE_CONSTRAINT`
+  - `UPDATE_LATENCY_THRESHOLD` (requires human confirmation)
+- **Forbidden Blacklist Operations**:
+  - `REMOVE_AUTH_ASSERTION`
+  - `REMOVE_SECURITY_TEST`
+  - `DISABLE_ASSERTION`
+  - `CHANGE_HTTP_METHOD`
+  - `CHANGE_TARGET_HOST`
+  - `DISABLE_SSL_VALIDATION`
+- **Versioning**: Approval creates `TestCase v2` with complete audit trail (`MLActionAuditLogModel`) and 1-click rollback capability. Optimistic locking prevents race conditions.
+
+---
+
+## 5. REST APIs & Celery Infrastructure
+
+### Celery Async Tasks (`backend/app/tasks/ml_tasks.py`)
+- `train_prioritization_model_task(project_id: str)`
+- `evaluate_flakiness_task(project_id: str)`
+- `cluster_semantic_defects_task(project_id: str, run_id: str)`
+
+### REST Router (`backend/app/api/v1/ml.py`)
+- `POST /api/v1/projects/{project_id}/ml/train` (Triggers Celery training job)
+- `GET /api/v1/projects/{project_id}/ml/prioritize` (Returns ranked test execution plan)
+- `GET /api/v1/projects/{project_id}/ml/flaky-tests` (Lists flaky test records)
+- `POST /api/v1/projects/{project_id}/ml/flaky-tests/{id}/quarantine` (Approve/Reject quarantine)
+- `GET /api/v1/projects/{project_id}/ml/healing-candidates` (Lists pending spec repair candidates)
+- `POST /api/v1/projects/{project_id}/ml/healing-candidates/{id}/apply` (Human approval endpoint with optimistic locking)
+- `POST /api/v1/projects/{project_id}/ml/healing-candidates/{id}/rollback` (Rollback to previous spec version)
+
+All endpoints enforce JWT authentication (`get_current_user`), project RBAC access verification, and administrative role enforcement for state mutation.
+
+---
+
+## 6. Comprehensive Multi-Phase Execution Roadmap
+
+```text
+PHASE 7.0: Pre-ML Dataset Validation & Integration Contract Check
+PHASE 7.1: Monorepo Setup & Database Migration 0007
+PHASE 7.2: Dataset Builder & Temporal Leakage Guard (`ml/dataset/`)
+PHASE 7.3: Deterministic Heuristic Prioritization Baseline (`ml/prioritization/baseline.py`)
+PHASE 7.4: XGBoost / RandomForest Binary Classifier (`ml/prioritization/prioritizer.py`)
+PHASE 7.5: APFD Ranking Metric Evaluator (`ml/prioritization/evaluator.py`)
+PHASE 7.6: Outcome Sequence State Machine & Flakiness Engine (`ml/flakiness/`)
+PHASE 7.7: Quarantine Approval Subsystem & Non-Blocking Execution Gate
+PHASE 7.8: Dynamic Value Text Normalizer (`ml/clustering/normalizer.py`)
+PHASE 7.9: TF-IDF + Cosine DBSCAN Semantic Failure Clusterer (`ml/clustering/`)
+PHASE 7.10: Structural Test Specification Healing Candidate Generator (`ml/healing/`)
+PHASE 7.11: Whitelist/Blacklist Safety Gate & Optimistic Locking Engine
+PHASE 7.12: TestCase Spec Versioning, Rollback & Audit Logging
+PHASE 7.13: Celery Background Tasks & REST API Router (`v1/ml.py`)
+PHASE 7.14: React Dashboard Components (`FlakyTestsDrawer`, `PriorityHeatmap`, `HealingInspector`)
+PHASE 7.15: Containerized Pytest Verification Suite (100% Pass Rate Target)
+PHASE 7.16: Repository Documentation Update (`history.md`) & Git Commit
 ```
-
----
-
-## 6. TF-IDF + DBSCAN Failure Clustering Engine (`ml/clustering/failure_clusterer.py`)
-
-When 50 tests fail during a single test run, displaying 50 separate bug reports overwhelms QA engineers. DBSCAN clusters failures based on stack trace text similarity:
-
-```python
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.cluster import DBSCAN
-from typing import List, Dict, Any
-
-class FailureClusterer:
-    @staticmethod
-    def cluster_failures(failures: List[Dict[str, Any]]) -> Dict[str, Any]:
-        if not failures:
-            return {"clusters": []}
-
-        # Extract text representations (stack traces + error messages)
-        texts = [
-            f"{f.get('endpoint')} {f.get('error_message', '')} {str(f.get('assertion_failures', ''))}"
-            for f in failures
-        ]
-
-        # Vectorize using TF-IDF
-        vectorizer = TfidfVectorizer(stop_words="english", max_features=500)
-        X = vectorizer.fit_transform(texts)
-
-        # Apply DBSCAN clustering
-        db = DBSCAN(eps=0.5, min_samples=2, metric="cosine")
-        labels = db.fit_predict(X)
-
-        clustered_groups = {}
-        for idx, label in enumerate(labels):
-            cluster_id = f"Cluster_{label}" if label != -1 else "Unclustered_Outliers"
-            if cluster_id not in clustered_groups:
-                clustered_groups[cluster_id] = []
-            clustered_groups[cluster_id].append(failures[idx]["test_case_id"])
-
-        summary = []
-        for group_id, test_ids in clustered_groups.items():
-            summary.append({
-                "cluster_name": group_id,
-                "affected_test_count": len(test_ids),
-                "affected_test_ids": test_ids
-            })
-
-        return {"clusters": summary}
-```
-
----
-
-## 7. API Controllers (`backend/app/api/v1/ml.py`)
-
-- `POST /ml/train/{project_id}` — Triggers training pipeline on historical test run data; saves serialized XGBoost model artifact to disk.
-- `GET /ml/prioritize/{project_id}` — Returns ordered test cases ranked by failure probability score.
-- `POST /ml/cluster-failures` — Accepts list of failed test results from a run and returns grouped failure clusters.
-
----
-
-## 8. Verification & Test Plan
-
-1. **Failure Clustering Verification:**
-   - Input 10 failed test results (5 containing `KeyError: user_id` in `auth.py`, 5 containing `httpx.TimeoutException`). Verify DBSCAN groups them into exactly 2 distinct clusters.
-2. **Flaky Test Identification Test:**
-   - Input synthetic test run history with oscillating outcomes (`PASS, FAIL, PASS, FAIL, PASS`). Verify feature extractor assigns `flaky_score = 1.0`.
-3. **XGBoost Model Pipeline Test:**
-   - Execute model training script on 200 synthetic historical runs. Verify feature importance weights `historical_failure_rate` as top priority feature and predicts scores between `0.0` and `1.0`.

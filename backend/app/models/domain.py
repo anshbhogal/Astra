@@ -538,4 +538,160 @@ class DefectClusterModel(Base):
     )
 
 
+class MLJobStatus(str, Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
+class FlakyTestStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    RECOMMENDED_QUARANTINE = "RECOMMENDED_QUARANTINE"
+    QUARANTINED = "QUARANTINED"
+    RESOLVED = "RESOLVED"
+
+
+class HealingCandidateStatus(str, Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class MLModelArtifactModel(Base):
+    __tablename__ = "ml_model_artifacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    model_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    version: Mapped[str] = mapped_column(String(50), nullable=False)
+    dataset_version: Mapped[str] = mapped_column(String(50), nullable=False, default="v1.0")
+    algorithm: Mapped[str] = mapped_column(String(50), nullable=False, default="XGBClassifier")
+    hyperparameters: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    training_commit_sha: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class FlakyTestRecordModel(Base):
+    __tablename__ = "flaky_test_records"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    test_case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    flakiness_score: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    observation_window: Mapped[int] = mapped_column(default=10, nullable=False)
+    transition_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    pass_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    fail_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    latency_mean_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    latency_std_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    status: Mapped[FlakyTestStatus] = mapped_column(
+        SQLEnum(FlakyTestStatus), default=FlakyTestStatus.ACTIVE, nullable=False
+    )
+    last_evaluated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class TestPriorityRankingModel(Base):
+    __tablename__ = "test_priority_rankings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    test_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    test_case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    failure_probability: Mapped[float] = mapped_column(nullable=False)
+    execution_cost_ms: Mapped[float] = mapped_column(nullable=False)
+    severity_weight: Mapped[float] = mapped_column(nullable=False)
+    priority_score: Mapped[float] = mapped_column(nullable=False)
+    rank_order: Mapped[int] = mapped_column(nullable=False)
+    strategy: Mapped[str] = mapped_column(String(50), default="BALANCED", nullable=False)
+    rationale: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+
+class HealingCandidateModel(Base):
+    __tablename__ = "healing_candidates"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    test_case_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_cases.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    failure_analysis_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("failure_analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    original_specification: Mapped[dict] = mapped_column(JSON, nullable=False)
+    proposed_specification: Mapped[dict] = mapped_column(JSON, nullable=False)
+    patch_operations: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    confidence: Mapped[float] = mapped_column(default=0.8, nullable=False)
+    status: Mapped[HealingCandidateStatus] = mapped_column(
+        SQLEnum(HealingCandidateStatus), default=HealingCandidateStatus.PENDING, nullable=False
+    )
+    approved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    applied_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    resulting_spec_version: Mapped[int] = mapped_column(default=1, nullable=False)
+    rollback_available: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+class MLActionAuditLogModel(Base):
+    __tablename__ = "ml_action_audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    action_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    details: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
+
 
