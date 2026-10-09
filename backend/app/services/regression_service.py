@@ -285,16 +285,20 @@ class RegressionService:
 
     async def _build_project_graph(self, project_id: uuid.UUID) -> nx.DiGraph:
         graph = nx.DiGraph()
-        tc_stmt = select(TestCase).where(TestCase.project_id == project_id)
+        tc_stmt = select(TestCase).join(TestSuite).where(TestSuite.project_id == project_id)
         tc_res = await self.db.execute(tc_stmt)
         test_cases = list(tc_res.scalars().all())
 
         for tc in test_cases:
-            if tc.endpoint and tc.method:
-                ep_node = f"endpoint:{tc.method.upper()}:{tc.endpoint}"
-                graph.add_node(ep_node, type="ENDPOINT", properties={"method": tc.method.upper(), "path": tc.endpoint})
+            spec = tc.specification if isinstance(tc.specification, dict) else {}
+            ep = spec.get("endpoint") or spec.get("path")
+            method = spec.get("method") or "GET"
+            if ep and method:
+                ep_node = f"endpoint:{method.upper()}:{ep}"
+                graph.add_node(ep_node, type="ENDPOINT", properties={"method": method.upper(), "path": ep})
                 func_node = f"func:{tc.name}:handler"
-                graph.add_node(func_node, type="FUNCTION", properties={"qualified_name": tc.name, "file_path": tc.endpoint})
+                graph.add_node(func_node, type="FUNCTION", properties={"qualified_name": tc.name, "file_path": ep})
                 graph.add_edge(ep_node, func_node, relationship="HANDLED_BY", confidence=1.0)
 
         return graph
+
