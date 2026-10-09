@@ -513,9 +513,50 @@ tests/test_rbac.py::test_viewer_can_list_projects PASSED                 [100%]
 
 ---
 
-## 15. Immediate Next Steps (Phase 7 Launch)
+---
 
-With Phase 6 & Phase 6.5 fully locked, tested, and integrated, ASTRA is ready for **Phase 7: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline**.
+## 15. Phase 7 Completion — ML Intelligence, Flakiness Engine & Human-in-the-Loop Test Healing
+
+**Phase 7 is 100% completed, verified, containerized, migrated, and committed to Git repository.**
+
+### Key Achievements:
+1. **Zero-LLM ML Subsystem Architecture (`ml/`)**:
+   - Created clean package structure (`ml/common/`, `ml/dataset/`, `ml/features/`, `ml/prioritization/`, `ml/flakiness/`, `ml/clustering/`, `ml/healing/`).
+2. **Dataset Builder & Temporal Leakage Guard (`ml/dataset/`)**:
+   - Built reproducible feature vector generator with chronological temporal train/val/test splitting (`TemporalSplitter`).
+   - Implemented strict `LeakageValidator` enforcing zero data leakage from target or future runs.
+3. **Binary Classification Test Prioritizer (`ml/prioritization/`)**:
+   - Built `XGBoostTestPrioritizer` (`XGBClassifier` and `RandomForestClassifier`) predicting $P(\text{FAIL} | \text{features}) = \text{predict\_proba}()[:, 1]$.
+   - Implemented heuristic risk baselines (`HeuristicPrioritizerBaseline`) with configurable ranking strategies (*Risk-First*, *Fast-Feedback*, *Severity-First*, *Balanced*).
+   - Evaluated ranking accuracy using **APFD (Average Percentage of Faults Detected)** and **NDCG@10**.
+   - Model artifact serialization using `joblib`.
+4. **Flakiness State Machine & Non-Blocking Quarantine (`ml/flakiness/`)**:
+   - Built outcome sequence state machine (`FlakinessStateMachine`) analyzing outcome transitions across window $W=10$ runs with minimum observation bounds ($N \ge 8$ runs, $T \ge 2$ transitions).
+   - Built `FlakinessDetector` calculating Flakiness Index ($FI$) and recommending quarantine.
+   - Enforced non-blocking execution mode for quarantined tests upon human approval.
+5. **Normalized TF-IDF + Cosine DBSCAN Semantic Failure Clusterer (`ml/clustering/`)**:
+   - Built `FailureTextNormalizer` stripping dynamic UUIDs, timestamps, IPs, ports, and line numbers.
+   - Built `SemanticFailureClusterer` applying TF-IDF vectorization and Cosine `DBSCAN(metric='cosine', eps=0.35)` with post-clustering confidence mapping (`EXACT_MATCH`, `LIKELY_SAME`, `POSSIBLY_SAME`, `UNRELATED`).
+6. **Human-in-the-Loop Test Healing & Safety Gate (`ml/healing/`)**:
+   - Built structural repair generator (`CandidateGenerator`) analyzing Phase 6 `FailureAnalysis` output and actual vs expected diffs.
+   - Enforced operation Whitelist (`REPLACE_EXPECTED_STATUS`, `ADD_EXPECTED_HEADER`, `REMOVE_EXPECTED_HEADER`, `RENAME_JSON_PATH`, `UPDATE_JSON_VALUE_CONSTRAINT`, `UPDATE_LATENCY_THRESHOLD`) and Blacklist (`REMOVE_AUTH_ASSERTION`, `REMOVE_SECURITY_TEST`, `DISABLE_ASSERTION`, `CHANGE_HTTP_METHOD`, `CHANGE_TARGET_HOST`, `DISABLE_SSL_VALIDATION`).
+   - Built `SpecVersionManager` handling immutable `TestCase v2` versioning, 1-click rollback, optimistic locking, and audit logging (`MLActionAuditLogModel`).
+7. **Database Models & Alembic Migration 0007**:
+   - Added `MLModelArtifactModel`, `FlakyTestRecordModel`, `TestPriorityRankingModel`, `HealingCandidateModel`, `MLActionAuditLogModel` to [`backend/app/models/domain.py`](file:///d:/Astra/backend/app/models/domain.py).
+   - Created and applied Alembic migration [`0007_ml_intelligence_schema.py`](file:///d:/Astra/backend/app/db/migrations/versions/0007_ml_intelligence_schema.py).
+8. **Celery Tasks & REST Router (`backend/app/api/v1/ml.py`)**:
+   - Registered Celery background tasks in [`backend/app/tasks/ml_tasks.py`](file:///d:/Astra/backend/app/tasks/ml_tasks.py) (`train_prioritization_model_task`, `evaluate_flakiness_task`, `cluster_semantic_defects_task`, `generate_healing_candidates_task`).
+   - Registered JWT-authenticated & RBAC-enforced REST endpoints in [`backend/app/api/v1/ml.py`](file:///d:/Astra/backend/app/api/v1/ml.py).
+9. **React Dashboard Components**:
+   - Built [`frontend/src/components/FlakyTestsDrawer.tsx`](file:///d:/Astra/frontend/src/components/FlakyTestsDrawer.tsx), [`frontend/src/components/PriorityHeatmapCard.tsx`](file:///d:/Astra/frontend/src/components/PriorityHeatmapCard.tsx), [`frontend/src/components/HealingInspectorModal.tsx`](file:///d:/Astra/frontend/src/components/HealingInspectorModal.tsx), and [`frontend/src/pages/MLAnalyticsTab.tsx`](file:///d:/Astra/frontend/src/pages/MLAnalyticsTab.tsx).
+10. **Full Containerized Verification**:
+    - Complete test suite verified via containerized pytest execution (`docker exec -e PYTHONPATH=. astra_backend pytest engine/tests/ tests/`): **99 passed out of 99 test functions** (100% pass rate).
+
+---
+
+## 16. Immediate Next Steps (Phase 8 Launch)
+
+With Phase 7 fully locked, tested, containerized, and integrated, ASTRA is ready for **Phase 8: Regression Engine, AST Impact Analysis & Selective Execution**.
 
 ### Master Roadmap Progress:
 - **Phase 3 ✅**: Execution + Deterministic Assertions & Base Generator
@@ -524,7 +565,9 @@ With Phase 6 & Phase 6.5 fully locked, tested, and integrated, ASTRA is ready fo
 - **Phase 5 ✅**: Requirement Intelligence & AI Payloads (Gemini+Ollama, Hallucination Defense)
 - **Phase 6 ✅**: Failure & Root-Cause Analysis Engine (Deterministic Evidence, Rule Classifier, PKG Fault Localizer, Canonical Clustering, Inspector UI)
 - **Phase 6.5 ✅**: Integration & Reliability Gate (Model Rewiring, Project RBAC, Celery Queue, Evaluation Matrix, E2E Integration Test)
-- **Phase 7 🚀**: ML Prioritization, Flakiness Detection & Agentic Healing Pipeline
+- **Phase 7 ✅**: ML Intelligence, Flakiness Engine & Human-in-the-Loop Test Healing
+- **Phase 8 🚀**: Regression Engine, AST Impact Analysis & Selective Execution
+
 
 
 
