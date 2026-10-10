@@ -90,7 +90,7 @@ async def get_me(request: Request):
     return {"status": 200, "user_id": 1, "email": "alice@example.com"}
 
 
-@app.post("/api/v1/auth/register")
+@app.post("/api/v1/auth/register", status_code=201)
 async def register(request: Request):
     payload = await request.json()
     email = payload.get("email", "")
