@@ -4,6 +4,7 @@ import { Cpu, Zap, ShieldAlert, GitPullRequest, Play, RefreshCw, AlertTriangle }
 import { PriorityHeatmapCard } from '../components/PriorityHeatmapCard';
 import { FlakyTestsDrawer } from '../components/FlakyTestsDrawer';
 import { HealingInspectorModal } from '../components/HealingInspectorModal';
+import { Button } from '../components/common/Button';
 
 interface MLAnalyticsTabProps {
   projectId: string;
@@ -95,36 +96,37 @@ export const MLAnalyticsTab: React.FC<MLAnalyticsTabProps> = ({ projectId }) => 
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-card border border-border-card rounded-2xl p-6 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-400">
-            <Cpu className="w-7 h-7" />
+          <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+            <Cpu className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-100">ML Intelligence & Agentic Healing Pipeline</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <h2 className="text-xl font-bold text-primary">ML Intelligence & Agentic Healing Pipeline</h2>
+            <p className="text-xs text-secondary mt-0.5">
               XGBoost Test Prioritization • State-Machine Flakiness Quarantine • Spec Healing Gate
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <button
+        <div className="flex items-center space-x-3 flex-wrap">
+          <Button
+            variant="secondary"
             onClick={() => setIsDrawerOpen(true)}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 flex items-center space-x-2"
+            leftIcon={<ShieldAlert className="w-4 h-4 text-status-flaky" />}
           >
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
-            <span>Quarantine Inspector ({flakyTests.length})</span>
-          </button>
+            Quarantine Inspector ({flakyTests.length})
+          </Button>
 
-          <button
+          <Button
+            variant="primary"
             onClick={handleTrainModel}
             disabled={training}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:brightness-110 shadow-lg shadow-indigo-500/20 flex items-center space-x-2"
+            isLoading={training}
+            leftIcon={<Play className="w-4 h-4 fill-current" />}
           >
-            <Play className={`w-4 h-4 ${training ? 'animate-spin' : ''}`} />
-            <span>{training ? 'Training Model...' : 'Train XGBoost Model'}</span>
-          </button>
+            {training ? 'Training Model...' : 'Train XGBoost Model'}
+          </Button>
         </div>
       </div>
 
@@ -139,20 +141,20 @@ export const MLAnalyticsTab: React.FC<MLAnalyticsTabProps> = ({ projectId }) => 
         </div>
 
         {/* Healing Candidates List */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+        <div className="bg-card border border-border-card rounded-2xl p-6 shadow-card space-y-4">
+          <div className="flex items-center justify-between border-b border-border-card pb-4">
             <div className="flex items-center space-x-2.5">
-              <GitPullRequest className="w-5 h-5 text-purple-400" />
-              <h3 className="text-base font-bold text-slate-100">Spec Repair Candidates</h3>
+              <GitPullRequest className="w-5 h-5 text-brand" />
+              <h3 className="text-base font-bold text-primary">Spec Repair Candidates</h3>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand/10 text-brand border border-brand/20">
               {healingCandidates.length}
             </span>
           </div>
 
           <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
             {healingCandidates.length === 0 ? (
-              <div className="text-center py-10 text-slate-500 text-xs">
+              <div className="text-center py-10 text-muted text-xs">
                 No specification patch candidates pending review.
               </div>
             ) : (
@@ -163,20 +165,20 @@ export const MLAnalyticsTab: React.FC<MLAnalyticsTabProps> = ({ projectId }) => 
                     setSelectedCandidate(cand);
                     setIsModalOpen(true);
                   }}
-                  className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3.5 hover:border-purple-500/50 cursor-pointer transition-all space-y-2 group"
+                  className="bg-field border border-border-card rounded-xl p-3.5 hover:border-brand cursor-pointer transition-all space-y-2 group"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-slate-300 font-semibold truncate max-w-[200px]">
+                    <span className="font-mono text-xs text-primary font-semibold truncate max-w-[200px]">
                       Case: {cand.test_case_id}
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      cand.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-purple-500/10 text-purple-400'
+                      cand.status === 'APPROVED' ? 'bg-status-passed-bg text-status-passed border border-status-passed/30' : 'bg-brand/10 text-brand border border-brand/20'
                     }`}>
                       {cand.status}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-400 line-clamp-1">
+                  <p className="text-xs text-secondary line-clamp-1">
                     Patch ops: {cand.patch_operations.map((o: any) => o.op_type).join(', ')}
                   </p>
                 </div>
