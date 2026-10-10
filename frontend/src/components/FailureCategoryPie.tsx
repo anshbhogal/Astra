@@ -12,16 +12,21 @@ interface FailureCategoryPieProps {
   totalFailures: number;
 }
 
+const CHART_SERIES = ['#7C5CFF', '#22D3EE', '#C6FF3D', '#FF7A45', '#F472B6', '#38BDF8'];
+
 export const FailureCategoryPie: React.FC<FailureCategoryPieProps> = ({
   categories,
   totalFailures,
 }) => {
-  const displayItems = categories && categories.length > 0 ? categories : [
-    { category: 'APPLICATION_BUG', count: 12, color: '#ef4444' },
-    { category: 'BUSINESS_LOGIC_DEFECT', count: 6, color: '#f97316' },
-    { category: 'TEST_SCRIPT_ISSUE', count: 3, color: '#f59e0b' },
-    { category: 'SCHEMA_VIOLATION', count: 2, color: '#eab308' },
-    { category: 'ENVIRONMENT_ISSUE', count: 1, color: '#3b82f6' },
+  const displayItems = categories && categories.length > 0 ? categories.map((cat, idx) => ({
+    ...cat,
+    color: cat.color || CHART_SERIES[idx % CHART_SERIES.length],
+  })) : [
+    { category: 'APPLICATION_BUG', count: 12, color: CHART_SERIES[0] },
+    { category: 'BUSINESS_LOGIC_DEFECT', count: 6, color: CHART_SERIES[1] },
+    { category: 'TEST_SCRIPT_ISSUE', count: 3, color: CHART_SERIES[2] },
+    { category: 'SCHEMA_VIOLATION', count: 2, color: CHART_SERIES[3] },
+    { category: 'ENVIRONMENT_ISSUE', count: 1, color: CHART_SERIES[4] },
   ];
 
   const sumCount = Math.max(1, displayItems.reduce((acc, curr) => acc + curr.count, 0));

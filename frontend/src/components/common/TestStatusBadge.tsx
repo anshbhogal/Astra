@@ -27,6 +27,15 @@ export type UnifiedStatus =
   | 'SKIPPED'
   | 'BLOCKED';
 
+export type TestStatus =
+  | UnifiedStatus
+  | 'passed'
+  | 'failed'
+  | 'flaky'
+  | 'running'
+  | 'error'
+  | 'skipped';
+
 interface TestStatusBadgeProps {
   status: UnifiedStatus | string;
   label?: string;
