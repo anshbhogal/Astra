@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Network,
   Layers,
   FileCode,
   Cpu,
+  Box,
+  Globe,
   Search,
   ZoomIn,
   ZoomOut,
@@ -11,14 +13,24 @@ import {
   List,
   Download,
   ChevronRight,
-  X
+  X,
+  type LucideIcon,
 } from 'lucide-react';
+
+/* ────────────────────────────── Types ────────────────────────────── */
+
+export interface NodeProperties {
+  language?: string;
+  lines?: number;
+  method?: string;
+  [key: string]: unknown;
+}
 
 export interface GraphNodeData {
   id: string;
   label: string;
   type: string;
-  properties?: any;
+  properties?: NodeProperties;
 }
 
 export interface GraphEdgeData {
@@ -27,1035 +39,1034 @@ export interface GraphEdgeData {
   type?: string;
   relationship?: string;
   confidence?: number;
-  properties?: any;
+  properties?: NodeProperties;
 }
 
 interface KnowledgeGraphVisualizerProps {
-  graph: {
-    nodes: GraphNodeData[];
-    edges: GraphEdgeData[];
-  };
+  graph: { nodes: GraphNodeData[]; edges: GraphEdgeData[] };
   projectName?: string;
   onSelectNode?: (nodeId: string) => void;
 }
 
-interface SimulatedNode extends GraphNodeData {
+type ViewMode = 'modules' | 'full' | 'table';
+type FilterableType = 'MODULE' | 'ENDPOINT' | 'FUNCTION';
+
+interface LayoutNode extends GraphNodeData {
   x: number;
   y: number;
-  vx: number;
-  vy: number;
+  w: number;
+  h: number;
   inDegree: number;
   outDegree: number;
-  radius: number;
+  title: string;
+  subtitle: string;
 }
 
-interface SimulatedEdge extends GraphEdgeData {
-  sourceNode: SimulatedNode;
-  targetNode: SimulatedNode;
+interface Overrides {
+  owner: LayoutNode[]; // overrides are only valid for the layout they were made on
+  pos: Record<string, { x: number; y: number }>;
 }
+
+type DragState =
+  | { kind: 'pan'; pointerId: number; sx: number; sy: number; ox: number; oy: number; moved: boolean }
+  | { kind: 'node'; pointerId: number; id: string; dx: number; dy: number };
+
+/* ───────────────────────────── Constants ──────────────────────────── */
+
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 2.5;
+const NODE_H = 48;
+const TABLE_ROW_LIMIT = 500;
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+const NODE_STYLE: Record<
+  string,
+  { border: string; badge: string; Icon: LucideIcon }
+> = {
+  PROJECT: { border: '#fbbf24', badge: 'text-amber-400 border-amber-400/30 bg-amber-400/10', Icon: Box },
+  MODULE: { border: '#22d3ee', badge: 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10', Icon: FileCode },
+  ENDPOINT: { border: '#34d399', badge: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10', Icon: Globe },
+  FUNCTION: { border: '#818cf8', badge: 'text-indigo-400 border-indigo-400/30 bg-indigo-400/10', Icon: Cpu },
+};
+const styleOf = (type: string) => NODE_STYLE[type] ?? NODE_STYLE.FUNCTION;
+
+const EDGE_COLORS: Record<string, string> = {
+  DEPENDS_ON: '#22d3ee',
+  IMPORTS: '#22d3ee',
+  HANDLED_BY: '#34d399',
+  EXPOSES: '#34d399',
+  CALLS: '#818cf8',
+  DEFINES: '#a78bfa',
+  CONTAINS: '#fbbf24',
+};
+const EDGE_FALLBACK = '#64748b';
+const edgeColor = (rel: string) => EDGE_COLORS[rel] ?? EDGE_FALLBACK;
+const ALL_EDGE_COLORS = Array.from(new Set([...Object.values(EDGE_COLORS), EDGE_FALLBACK]));
+
+const FILTERS: { type: FilterableType; label: string; text: string }[] = [
+  { type: 'MODULE', label: 'Modules', text: 'text-cyan-400' },
+  { type: 'ENDPOINT', label: 'Endpoints', text: 'text-emerald-400' },
+  { type: 'FUNCTION', label: 'Functions', text: 'text-indigo-400' },
+];
+
+/* ──────────────────────── Pure graph helpers ──────────────────────── */
+
+const relOf = (e: GraphEdgeData) => (e.relationship || e.type || '').toUpperCase();
+
+/** Collapse symbol-level edges into module → module dependencies. */
+function buildModuleGraph(rawNodes: GraphNodeData[], rawEdges: GraphEdgeData[]) {
+  const moduleNodes = rawNodes.filter((n) => n.type === 'MODULE');
+  const moduleIds = new Set(moduleNodes.map((n) => n.id));
+
+  const symbolToModule = new Map<string, string>();
+  for (const e of rawEdges) {
+    if (relOf(e) === 'DEFINES' && moduleIds.has(e.source)) symbolToModule.set(e.target, e.source);
+  }
+  // Fallback: function ids look like "function:<relative/path>:<name>"
+  for (const n of rawNodes) {
+    if (n.type !== 'FUNCTION' || symbolToModule.has(n.id)) continue;
+    const parts = n.id.split(':');
+    if (parts.length >= 3) {
+      const modId = `module:${parts[1].replace(/\\/g, '/')}`;
+      if (moduleIds.has(modId)) symbolToModule.set(n.id, modId);
+    }
+  }
+
+  const edgeMap = new Map<string, GraphEdgeData>();
+  for (const e of rawEdges) {
+    const rel = relOf(e);
+    if (moduleIds.has(e.source) && moduleIds.has(e.target)) {
+      if (e.source === e.target) continue;
+      edgeMap.set(`${e.source}->${e.target}`, {
+        source: e.source,
+        target: e.target,
+        relationship: rel === 'CONTAINS' || !rel ? 'DEPENDS_ON' : rel,
+        confidence: e.confidence ?? 1,
+      });
+    } else if (rel === 'CALLS') {
+      const s = symbolToModule.get(e.source);
+      const t = symbolToModule.get(e.target);
+      const key = s && t ? `${s}->${t}` : '';
+      if (s && t && s !== t && !edgeMap.has(key)) {
+        edgeMap.set(key, { source: s, target: t, relationship: 'DEPENDS_ON', confidence: 0.9 });
+      }
+    }
+  }
+
+  // No real dependencies found: chain modules that share a directory so the view isn't empty.
+  if (edgeMap.size === 0 && moduleNodes.length > 1) {
+    const dirs = new Map<string, string[]>();
+    for (const m of moduleNodes) {
+      const parts = (m.label || m.id).split('/');
+      const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : 'root';
+      dirs.set(dir, [...(dirs.get(dir) ?? []), m.id]);
+    }
+    dirs.forEach((ids) => {
+      for (let i = 0; i < ids.length - 1; i++) {
+        edgeMap.set(`${ids[i]}->${ids[i + 1]}`, {
+          source: ids[i],
+          target: ids[i + 1],
+          relationship: 'CO_LOCATED',
+          confidence: 0.7,
+        });
+      }
+    });
+  }
+
+  return { nodes: moduleNodes, edges: Array.from(edgeMap.values()) };
+}
+
+/** Force-directed layout on typed arrays. Iterations scale down as the graph grows. */
+function computeLayout(
+  nodes: GraphNodeData[],
+  edges: GraphEdgeData[],
+  width = 900,
+  height = 560
+): LayoutNode[] {
+  const n = nodes.length;
+  if (n === 0) return [];
+
+  const idx = new Map(nodes.map((nd, i) => [nd.id, i]));
+  const inDeg = new Int32Array(n);
+  const outDeg = new Int32Array(n);
+  const links: [number, number][] = [];
+  for (const e of edges) {
+    const a = idx.get(e.source);
+    const b = idx.get(e.target);
+    if (a === undefined || b === undefined) continue;
+    links.push([a, b]);
+    outDeg[a]++;
+    inDeg[b]++;
+  }
+
+  const cx = width / 2;
+  const cy = height / 2;
+  const ring = Math.min(width, height) * 0.38 * Math.max(1, Math.sqrt(n / 12));
+  const x = new Float64Array(n);
+  const y = new Float64Array(n);
+  const vx = new Float64Array(n);
+  const vy = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * 2 * Math.PI;
+    const r = ring * (i % 2 === 0 ? 1 : 0.85);
+    x[i] = cx + r * Math.cos(a);
+    y[i] = cy + r * Math.sin(a);
+  }
+
+  const kRepel = 12000;
+  const kSpring = 0.04;
+  const targetDist = 180;
+  const iterations = clamp(Math.floor(6e6 / (n * n)), 25, 120);
+
+  for (let it = 0; it < iterations; it++) {
+    const cool = 1 - (it / iterations) * 0.7;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const dx = x[j] - x[i];
+        const dy = y[j] - y[i];
+        const distSq = dx * dx + dy * dy + 100;
+        const dist = Math.sqrt(distSq);
+        const f = kRepel / distSq;
+        const fx = (dx / dist) * f;
+        const fy = (dy / dist) * f;
+        vx[i] -= fx;
+        vy[i] -= fy;
+        vx[j] += fx;
+        vy[j] += fy;
+      }
+    }
+    for (const [a, b] of links) {
+      const dx = x[b] - x[a];
+      const dy = y[b] - y[a];
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const f = (dist - targetDist) * kSpring;
+      const fx = (dx / dist) * f;
+      const fy = (dy / dist) * f;
+      vx[a] += fx;
+      vy[a] += fy;
+      vx[b] -= fx;
+      vy[b] -= fy;
+    }
+    for (let i = 0; i < n; i++) {
+      vx[i] += (cx - x[i]) * 0.01;
+      vy[i] += (cy - y[i]) * 0.01;
+      x[i] += vx[i] * 0.15 * cool;
+      y[i] += vy[i] * 0.15 * cool;
+      vx[i] *= 0.75;
+      vy[i] *= 0.75;
+    }
+  }
+
+  return nodes.map((nd, i) => {
+    const label = nd.label || nd.id;
+    const title = label.split('/').pop() || label;
+    const dir = label.includes('/') ? label.slice(0, label.lastIndexOf('/')) : '';
+    const subtitle = nd.type === 'MODULE' ? (dir ? `${dir}/` : 'root module') : nd.type;
+    const shownTitle = truncate(title, 24);
+    const shownSub = truncate(subtitle, 26);
+    const w = clamp(Math.max(shownTitle.length * 6.6, shownSub.length * 5.2) + 52, 110, 220);
+    return {
+      ...nd,
+      x: x[i],
+      y: y[i],
+      w,
+      h: NODE_H,
+      inDegree: inDeg[i],
+      outDegree: outDeg[i],
+      title: shownTitle,
+      subtitle: shownSub,
+    };
+  });
+}
+
+function truncate(s: string, max: number) {
+  return s.length > max ? `${s.slice(0, max - 2)}..` : s;
+}
+
+/** Point where a ray from the rect's centre toward (dx, dy) leaves the rect, pushed out by `gap`. */
+function clipToRect(cx: number, cy: number, hw: number, hh: number, dx: number, dy: number, gap: number) {
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return { x: cx, y: cy };
+  const k = 1 / Math.max(Math.abs(dx) / hw, Math.abs(dy) / hh);
+  return { x: cx + dx * k + (dx / len) * gap, y: cy + dy * k + (dy / len) * gap };
+}
+
+function edgeGeometry(
+  sx: number, sy: number, sw: number, sh: number,
+  tx: number, ty: number, tw: number, th: number
+) {
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const cx = (sx + tx) / 2 - dy * 0.18;
+  const cy = (sy + ty) / 2 + dx * 0.18;
+  const a = clipToRect(sx, sy, sw / 2, sh / 2, cx - sx, cy - sy, 2);
+  const b = clipToRect(tx, ty, tw / 2, th / 2, cx - tx, cy - ty, 4);
+  return {
+    d: `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`,
+    lx: 0.25 * a.x + 0.5 * cx + 0.25 * b.x,
+    ly: 0.25 * a.y + 0.5 * cy + 0.25 * b.y,
+  };
+}
+
+function boundsOf(items: { x: number; y: number; w: number; h: number }[]) {
+  if (items.length === 0) return { minX: 0, minY: 0, maxX: 900, maxY: 560 };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const i of items) {
+    minX = Math.min(minX, i.x - i.w / 2);
+    maxX = Math.max(maxX, i.x + i.w / 2);
+    minY = Math.min(minY, i.y - i.h / 2);
+    maxY = Math.max(maxY, i.y + i.h / 2);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
+/* ──────────────────────── Memoised SVG parts ──────────────────────── */
+
+interface EdgeViewProps {
+  sx: number; sy: number; sw: number; sh: number;
+  tx: number; ty: number; tw: number; th: number;
+  rel: string;
+  confidence: number;
+  highlighted: boolean;
+  dimmed: boolean;
+  markerPrefix: string;
+}
+
+const EdgeView = memo(function EdgeView(p: EdgeViewProps) {
+  const color = edgeColor(p.rel);
+  const { d, lx, ly } = edgeGeometry(p.sx, p.sy, p.sw, p.sh, p.tx, p.ty, p.tw, p.th);
+  const opacity = p.dimmed ? 0.12 : p.highlighted ? 1 : 0.3 + 0.3 * p.confidence;
+  return (
+    <g>
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={p.highlighted ? 2.5 : 1.2}
+        strokeDasharray={p.rel === 'CO_LOCATED' ? '4 4' : undefined}
+        strokeOpacity={opacity}
+        markerEnd={`url(#${p.markerPrefix}-${color.slice(1)})`}
+      >
+        <title>{`${p.rel} (${Math.round(p.confidence * 100)}% confidence)`}</title>
+      </path>
+      {p.highlighted && (
+        <text
+          x={lx}
+          y={ly - 6}
+          fill={color}
+          fontSize={9}
+          fontFamily="monospace"
+          fontWeight="bold"
+          textAnchor="middle"
+          stroke="#020617"
+          strokeWidth={3}
+          paintOrder="stroke"
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          {p.rel}
+        </text>
+      )}
+    </g>
+  );
+});
+
+interface NodeViewProps {
+  node: LayoutNode;
+  x: number;
+  y: number;
+  selected: boolean;
+  hovered: boolean;
+  dimmed: boolean;
+  showText: boolean;
+  onPointerDown: (id: string, e: React.PointerEvent<SVGGElement>) => void;
+  onHover: (id: string | null) => void;
+  onActivate: (id: string) => void;
+}
+
+const NodeView = memo(function NodeView({
+  node, x, y, selected, hovered, dimmed, showText, onPointerDown, onHover, onActivate,
+}: NodeViewProps) {
+  const { border, Icon } = styleOf(node.type);
+  const hw = node.w / 2;
+  const hh = node.h / 2;
+  const degree = node.inDegree + node.outDegree;
+
+  return (
+    <g
+      transform={`translate(${x}, ${y})`}
+      style={{ opacity: dimmed ? 0.22 : 1, cursor: 'pointer' }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${node.type} ${node.label}, ${degree} connections`}
+      aria-pressed={selected}
+      onPointerDown={(e) => onPointerDown(node.id, e)}
+      onPointerEnter={() => onHover(node.id)}
+      onPointerLeave={() => onHover(null)}
+      onFocus={() => onHover(node.id)}
+      onBlur={() => onHover(null)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onActivate(node.id);
+        }
+      }}
+    >
+      {selected && (
+        <rect
+          x={-hw - 6} y={-hh - 6} width={node.w + 12} height={node.h + 12} rx={18}
+          fill="none" stroke={border} strokeWidth={1.5} strokeDasharray="4 3" opacity={0.9}
+          style={{ pointerEvents: 'none' }}
+        />
+      )}
+      <rect
+        x={-hw} y={-hh} width={node.w} height={node.h} rx={14}
+        fill={selected ? '#1e293b' : hovered ? '#0f172a' : '#0b1120'}
+        stroke={selected ? '#ffffff' : border}
+        strokeWidth={selected ? 2.2 : hovered ? 1.8 : 1.2}
+      />
+      <circle cx={-hw + 20} cy={0} r={12} fill={border} fillOpacity={0.15} stroke={border} style={{ pointerEvents: 'none' }} />
+      <Icon x={-hw + 13} y={-7} size={14} color={border} style={{ pointerEvents: 'none' }} />
+      {showText && (
+        <>
+          <text
+            x={-hw + 40} y={-3}
+            fill={hovered ? '#38bdf8' : '#f8fafc'}
+            fontSize={11} fontWeight={700} fontFamily="monospace"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            {node.title}
+          </text>
+          <text
+            x={-hw + 40} y={11}
+            fill="#64748b" fontSize={8.5} fontFamily="monospace"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            {node.subtitle}
+          </text>
+        </>
+      )}
+      <g transform={`translate(${hw}, ${-hh})`} style={{ pointerEvents: 'none' }}>
+        <rect x={-12} y={-7} width={24} height={14} rx={7} fill="#1e293b" stroke={border} />
+        <text x={0} y={3} fill={border} fontSize={8} fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+          {degree}
+        </text>
+      </g>
+    </g>
+  );
+});
+
+/* ─────────────────────────── Small UI parts ───────────────────────── */
+
+const Row: React.FC<{ label: string; value: React.ReactNode; className?: string }> = ({ label, value, className = 'text-white' }) => (
+  <div className="flex items-center justify-between text-slate-400">
+    <span>{label}</span>
+    <span className={`font-bold truncate max-w-[150px] ${className}`}>{value}</span>
+  </div>
+);
+
+const TypeBadge: React.FC<{ type: string }> = ({ type }) => (
+  <span className={`px-2 py-0.5 rounded font-bold border text-[10px] font-mono uppercase tracking-wider ${styleOf(type).badge}`}>
+    {type}
+  </span>
+);
+
+/* ───────────────────────────── Component ──────────────────────────── */
 
 export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> = ({
   graph,
   projectName = 'Repository',
   onSelectNode,
 }) => {
-  // View states
-  const [viewMode, setViewMode] = useState<'modules' | 'full' | 'table'>('modules');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [viewMode, setViewMode] = useState<ViewMode>('modules');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  
-  // Type toggles for Full Graph mode
-  const [showModules, setShowModules] = useState<boolean>(true);
-  const [showEndpoints, setShowEndpoints] = useState<boolean>(true);
-  const [showFunctions, setShowFunctions] = useState<boolean>(false);
-
-  // Canvas pan & zoom states
-  const [zoom, setZoom] = useState<number>(1);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  // Node drag state
-  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [show, setShow] = useState<Record<FilterableType, boolean>>({ MODULE: true, ENDPOINT: true, FUNCTION: false });
+  const [view, setView] = useState({ k: 1, x: 0, y: 0 });
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [overrides, setOverrides] = useState<Overrides>({ owner: [], pos: {} });
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const pendingFocus = useRef<string | null>(null);
+  const markerPrefix = `kg${useId().replace(/:/g, '')}`;
 
-  // 1. Process and derive Module-to-Module dependencies
+  const showCanvas = viewMode !== 'table';
+
+  /* 1. Derive the graph for the current view */
+  const { rawNodes, rawEdges } = useMemo(
+    () => ({
+      rawNodes: graph?.nodes ?? [],
+      rawEdges: (graph?.edges ?? []).map((e) => ({ ...e, relationship: relOf(e) || 'RELATED' })),
+    }),
+    [graph]
+  );
+
+  const moduleCount = useMemo(() => rawNodes.filter((n) => n.type === 'MODULE').length, [rawNodes]);
+
   const processedGraph = useMemo(() => {
-    const rawNodes = graph?.nodes || [];
-    const rawEdges = graph?.edges || [];
+    if (viewMode === 'table') return { nodes: rawNodes, edges: rawEdges };
+    if (viewMode === 'modules') return buildModuleGraph(rawNodes, rawEdges);
 
-    if (viewMode === 'modules') {
-      const moduleNodes = rawNodes.filter((n) => n.type === 'MODULE');
-      const moduleIds = new Set(moduleNodes.map((n) => n.id));
+    const allowed = new Set<string>(['PROJECT']);
+    (Object.keys(show) as FilterableType[]).forEach((t) => show[t] && allowed.add(t));
+    const nodes = rawNodes.filter((n) => allowed.has(n.type));
+    const ids = new Set(nodes.map((n) => n.id));
+    const edges = rawEdges.filter((e) => e.source !== e.target && ids.has(e.source) && ids.has(e.target));
+    return { nodes, edges };
+  }, [rawNodes, rawEdges, viewMode, show]);
 
-      const funcToModule = new Map<string, string>();
-      rawEdges.forEach((e) => {
-        const rel = (e.relationship || e.type || '').toUpperCase();
-        if (rel === 'DEFINES' && moduleIds.has(e.source)) {
-          funcToModule.set(e.target, e.source);
-        }
-      });
+  /* 2. Layout (skipped entirely in table mode) */
+  const baseNodes = useMemo(
+    () => (showCanvas ? computeLayout(processedGraph.nodes, processedGraph.edges) : []),
+    [processedGraph, showCanvas]
+  );
+  const baseNodeMap = useMemo(() => new Map(baseNodes.map((n) => [n.id, n])), [baseNodes]);
+  const edges = useMemo(
+    () => (showCanvas ? processedGraph.edges.filter((e) => baseNodeMap.has(e.source) && baseNodeMap.has(e.target)) : []),
+    [processedGraph.edges, baseNodeMap, showCanvas]
+  );
 
-      rawNodes.forEach((n) => {
-        if (n.type === 'FUNCTION') {
-          const parts = n.id.split(':');
-          if (parts.length >= 3) {
-            const relPath = parts[1].replace(/\\/g, '/');
-            const modId = `module:${relPath}`;
-            if (moduleIds.has(modId)) {
-              funcToModule.set(n.id, modId);
-            }
-          }
-        }
-      });
+  const activeOverrides = overrides.owner === baseNodes ? overrides.pos : EMPTY_POS;
 
-      const moduleEdgeMap = new Map<string, GraphEdgeData>();
+  // Latest values for stable event handlers (avoids stale closures without re-creating callbacks)
+  const live = useRef({ view, size, baseNodes, baseNodeMap, activeOverrides });
+  live.current = { view, size, baseNodes, baseNodeMap, activeOverrides };
 
-      rawEdges.forEach((e) => {
-        const rel = (e.relationship || e.type || '').toUpperCase();
-        
-        if (moduleIds.has(e.source) && moduleIds.has(e.target) && e.source !== e.target) {
-          const key = `${e.source}->${e.target}`;
-          moduleEdgeMap.set(key, {
-            source: e.source,
-            target: e.target,
-            relationship: rel === 'CONTAINS' ? 'DEPENDS_ON' : rel,
-            confidence: e.confidence || 1.0,
-          });
-          return;
-        }
+  /* 3. Selection, neighbours, search */
+  const selected = selectedNodeId ? baseNodeMap.get(selectedNodeId) ?? null : null;
+  const selectedId = selected?.id ?? null; // ignores a stale id after a view switch, so nothing gets dimmed
 
-        if (rel === 'CALLS') {
-          const modSource = funcToModule.get(e.source);
-          const modTarget = funcToModule.get(e.target);
-          if (modSource && modTarget && modSource !== modTarget) {
-            const key = `${modSource}->${modTarget}`;
-            if (!moduleEdgeMap.has(key)) {
-              moduleEdgeMap.set(key, {
-                source: modSource,
-                target: modTarget,
-                relationship: 'DEPENDS_ON',
-                confidence: 0.9,
-              });
-            }
-          }
-        }
-      });
-
-      if (moduleEdgeMap.size === 0 && moduleNodes.length > 1) {
-        const dirGroups = new Map<string, string[]>();
-        moduleNodes.forEach((m) => {
-          const label = m.label || m.id;
-          const parts = label.split('/');
-          const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : 'root';
-          if (!dirGroups.has(dir)) dirGroups.set(dir, []);
-          dirGroups.get(dir)!.push(m.id);
-        });
-
-        dirGroups.forEach((ids) => {
-          for (let i = 0; i < ids.length - 1; i++) {
-            const key = `${ids[i]}->${ids[i + 1]}`;
-            moduleEdgeMap.set(key, {
-              source: ids[i],
-              target: ids[i + 1],
-              relationship: 'CO_LOCATED',
-              confidence: 0.7,
-            });
-          }
-        });
-      }
-
-      return {
-        nodes: moduleNodes,
-        edges: Array.from(moduleEdgeMap.values()),
-      };
-    } else {
-      const allowedTypes = new Set<string>();
-      allowedTypes.add('PROJECT');
-      if (showModules) allowedTypes.add('MODULE');
-      if (showEndpoints) allowedTypes.add('ENDPOINT');
-      if (showFunctions) allowedTypes.add('FUNCTION');
-
-      const filteredNodes = rawNodes.filter((n) => allowedTypes.has(n.type));
-      const allowedNodeIds = new Set(filteredNodes.map((n) => n.id));
-
-      const filteredEdges = rawEdges.filter(
-        (e) => allowedNodeIds.has(e.source) && allowedNodeIds.has(e.target)
-      );
-
-      return {
-        nodes: filteredNodes,
-        edges: filteredEdges,
-      };
-    }
-  }, [graph, viewMode, showModules, showEndpoints, showFunctions]);
-
-  // 2. Node Simulation Layout
-  const [simulatedNodes, setSimulatedNodes] = useState<SimulatedNode[]>([]);
-
-  useEffect(() => {
-    const { nodes, edges } = processedGraph;
-    if (nodes.length === 0) {
-      setSimulatedNodes([]);
-      return;
-    }
-
-    const width = 900;
-    const height = 560;
-    const cx = width / 2;
-    const cy = height / 2;
-
-    const inDeg = new Map<string, number>();
-    const outDeg = new Map<string, number>();
-    edges.forEach((e) => {
-      outDeg.set(e.source, (outDeg.get(e.source) || 0) + 1);
-      inDeg.set(e.target, (inDeg.get(e.target) || 0) + 1);
-    });
-
-    const radius = Math.min(width, height) * 0.38;
-    const total = nodes.length;
-
-    let initNodes: SimulatedNode[] = nodes.map((n, idx) => {
-      const angle = (idx / Math.max(1, total)) * 2 * Math.PI;
-      const jitter = (idx % 2 === 0 ? 1 : 0.85);
-      const r = radius * jitter;
-      const x = cx + r * Math.cos(angle);
-      const y = cy + r * Math.sin(angle);
-
-      let nodeRadius = 36;
-      if (n.type === 'PROJECT') nodeRadius = 42;
-      else if (n.type === 'MODULE') nodeRadius = 38;
-      else if (n.type === 'ENDPOINT') nodeRadius = 32;
-      else if (n.type === 'FUNCTION') nodeRadius = 26;
-
-      return {
-        ...n,
-        x,
-        y,
-        vx: 0,
-        vy: 0,
-        inDegree: inDeg.get(n.id) || 0,
-        outDegree: outDeg.get(n.id) || 0,
-        radius: nodeRadius,
-      };
-    });
-
-    const nodeMap = new Map<string, SimulatedNode>();
-    initNodes.forEach((n) => nodeMap.set(n.id, n));
-
-    const iterations = Math.min(80, Math.max(30, total * 3));
-    const kRepel = 7000;
-    const kSpring = 0.04;
-    const targetDist = 140;
-
-    for (let iter = 0; iter < iterations; iter++) {
-      for (let i = 0; i < initNodes.length; i++) {
-        for (let j = i + 1; j < initNodes.length; j++) {
-          const a = initNodes[i];
-          const b = initNodes[j];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const distSq = dx * dx + dy * dy + 100;
-          const dist = Math.sqrt(distSq);
-          const force = kRepel / distSq;
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          a.vx -= fx;
-          a.vy -= fy;
-          b.vx += fx;
-          b.vy += fy;
-        }
-      }
-
-      edges.forEach((e) => {
-        const a = nodeMap.get(e.source);
-        const b = nodeMap.get(e.target);
-        if (a && b) {
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = (dist - targetDist) * kSpring;
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          a.vx += fx;
-          a.vy += fy;
-          b.vx += fx;
-          b.vy += fy;
-        }
-      });
-
-      const damping = 0.75;
-      initNodes.forEach((n) => {
-        n.vx += (cx - n.x) * 0.01;
-        n.vy += (cy - n.y) * 0.01;
-        n.x += n.vx * 0.15;
-        n.y += n.vy * 0.15;
-        n.vx *= damping;
-        n.vy *= damping;
-      });
-    }
-
-    setSimulatedNodes(initNodes);
-  }, [processedGraph]);
-
-  const simulatedNodeMap = useMemo(() => {
-    const map = new Map<string, SimulatedNode>();
-    simulatedNodes.forEach((n) => map.set(n.id, n));
-    return map;
-  }, [simulatedNodes]);
-
-  const simulatedEdges = useMemo<SimulatedEdge[]>(() => {
-    const result: SimulatedEdge[] = [];
-    processedGraph.edges.forEach((e) => {
-      const sourceNode = simulatedNodeMap.get(e.source);
-      const targetNode = simulatedNodeMap.get(e.target);
-      if (sourceNode && targetNode) {
-        result.push({
-          ...e,
-          sourceNode,
-          targetNode,
-        });
-      }
-    });
-    return result;
-  }, [processedGraph.edges, simulatedNodeMap]);
-
-  const selectedNode = useMemo(() => {
-    if (!selectedNodeId) return null;
-    return simulatedNodeMap.get(selectedNodeId) || null;
-  }, [selectedNodeId, simulatedNodeMap]);
-
-  const neighborNodeIds = useMemo(() => {
-    if (!selectedNodeId) return new Set<string>();
-    const neighbors = new Set<string>();
-    neighbors.add(selectedNodeId);
-    simulatedEdges.forEach((e) => {
-      if (e.source === selectedNodeId) neighbors.add(e.target);
-      if (e.target === selectedNodeId) neighbors.add(e.source);
-    });
-    return neighbors;
-  }, [selectedNodeId, simulatedEdges]);
-
-  const searchMatchedIds = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    const q = searchQuery.toLowerCase();
+  const neighborIds = useMemo(() => {
     const set = new Set<string>();
-    simulatedNodes.forEach((n) => {
-      if (n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)) {
-        set.add(n.id);
-      }
-    });
+    if (!selectedId) return set;
+    set.add(selectedId);
+    for (const e of edges) {
+      if (e.source === selectedId) set.add(e.target);
+      if (e.target === selectedId) set.add(e.source);
+    }
     return set;
-  }, [searchQuery, simulatedNodes]);
+  }, [selectedId, edges]);
 
-  const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDraggedNodeId(nodeId);
-    setSelectedNodeId(nodeId);
-    if (onSelectNode) onSelectNode(nodeId);
-  };
+  const { inbound, outbound } = useMemo(
+    () => ({
+      inbound: selectedId ? edges.filter((e) => e.target === selectedId) : [],
+      outbound: selectedId ? edges.filter((e) => e.source === selectedId) : [],
+    }),
+    [selectedId, edges]
+  );
 
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (draggedNodeId) {
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      const clientY = e.clientY - rect.top;
-      const svgX = (clientX - pan.x) / zoom;
-      const svgY = (clientY - pan.y) / zoom;
+  const query = searchQuery.trim().toLowerCase();
+  const matches = useCallback(
+    (n: GraphNodeData) => n.label.toLowerCase().includes(query) || n.id.toLowerCase().includes(query),
+    [query]
+  );
+  const matchedIds = useMemo(
+    () => (query ? new Set(baseNodes.filter(matches).map((n) => n.id)) : null),
+    [query, baseNodes, matches]
+  );
 
-      setSimulatedNodes((prev) =>
-        prev.map((n) => (n.id === draggedNodeId ? { ...n, x: svgX, y: svgY } : n))
-      );
-    } else if (isPanning) {
-      setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    setDraggedNodeId(null);
-    setIsPanning(false);
-  };
-
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.target === svgRef.current || (e.target as HTMLElement).tagName === 'svg' || (e.target as HTMLElement).tagName === 'rect') {
-      setIsPanning(true);
-      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-    }
-  };
-
-  useEffect(() => {
-    const svgEl = svgRef.current;
-    if (!svgEl) return;
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      setZoom((prev) => Math.min(2.5, Math.max(0.3, prev * zoomFactor)));
-    };
-
-    svgEl.addEventListener('wheel', onWheel, { passive: false });
-    return () => {
-      svgEl.removeEventListener('wheel', onWheel);
-    };
+  /* 4. Viewport helpers */
+  const zoomAt = useCallback((px: number, py: number, factor: number) => {
+    setView((v) => {
+      const k = clamp(v.k * factor, MIN_ZOOM, MAX_ZOOM);
+      const r = k / v.k;
+      return { k, x: px - (px - v.x) * r, y: py - (py - v.y) * r };
+    });
   }, []);
 
-  const resetView = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-    setSelectedNodeId(null);
+  const fitView = useCallback((nodes: LayoutNode[]) => {
+    const { w, h } = live.current.size;
+    if (!w || !h) return;
+    const b = boundsOf(nodes);
+    const pad = 70;
+    const k = clamp(Math.min(w / (b.maxX - b.minX + pad * 2), h / (b.maxY - b.minY + pad * 2), 1.2), MIN_ZOOM, MAX_ZOOM);
+    setView({ k, x: w / 2 - ((b.minX + b.maxX) / 2) * k, y: h / 2 - ((b.minY + b.maxY) / 2) * k });
+  }, []);
+
+  const centerOn = useCallback((id: string) => {
+    const { baseNodeMap: map, activeOverrides: ov, size: s, view: v } = live.current;
+    const n = map.get(id);
+    if (!n) return;
+    const p = ov[id] ?? n;
+    setView({ k: v.k, x: s.w / 2 - p.x * v.k, y: s.h / 2 - p.y * v.k });
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize({ w: width, h: height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showCanvas]);
+
+  // React's onWheel is passive, so preventDefault only works through a native listener.
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = svg.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', onWheel);
+  }, [showCanvas, zoomAt]);
+
+  const hasSize = size.w > 0 && size.h > 0;
+  useEffect(() => {
+    if (!showCanvas || !hasSize) return;
+    const target = pendingFocus.current;
+    pendingFocus.current = null;
+    if (target && baseNodeMap.has(target)) {
+      const n = baseNodeMap.get(target)!;
+      setView({ k: 1, x: live.current.size.w / 2 - n.x, y: live.current.size.h / 2 - n.y });
+    } else {
+      fitView(baseNodes);
+    }
+  }, [baseNodes, baseNodeMap, showCanvas, hasSize, fitView]);
+
+  /* 5. Pointer interaction (mouse + touch + pen) */
+  const toWorld = (clientX: number, clientY: number) => {
+    const r = svgRef.current!.getBoundingClientRect();
+    const v = live.current.view;
+    return { x: (clientX - r.left - v.x) / v.k, y: (clientY - r.top - v.y) / v.k };
   };
 
-  const centerOnNode = (node: SimulatedNode) => {
-    const width = containerRef.current?.clientWidth || 900;
-    const height = containerRef.current?.clientHeight || 560;
-    setPan({
-      x: width / 2 - node.x * zoom,
-      y: height / 2 - node.y * zoom,
-    });
+  const selectNode = useCallback(
+    (id: string) => {
+      setSelectedNodeId(id);
+      onSelectNode?.(id);
+    },
+    [onSelectNode]
+  );
+
+  const handleNodePointerDown = useCallback(
+    (id: string, e: React.PointerEvent<SVGGElement>) => {
+      e.stopPropagation();
+      const svg = svgRef.current;
+      const n = live.current.baseNodeMap.get(id);
+      if (!svg || !n) return;
+      svg.setPointerCapture(e.pointerId);
+      const p = live.current.activeOverrides[id] ?? n;
+      const w = toWorld(e.clientX, e.clientY);
+      dragRef.current = { kind: 'node', pointerId: e.pointerId, id, dx: p.x - w.x, dy: p.y - w.y };
+      selectNode(id);
+    },
+    [selectNode] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const handleCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const v = live.current.view;
+    dragRef.current = { kind: 'pan', pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, ox: v.x, oy: v.y, moved: false };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (d.kind === 'pan') {
+      const mx = e.clientX - d.sx;
+      const my = e.clientY - d.sy;
+      if (Math.hypot(mx, my) > 3) d.moved = true;
+      setView((v) => ({ ...v, x: d.ox + mx, y: d.oy + my }));
+    } else {
+      const w = toWorld(e.clientX, e.clientY);
+      const owner = live.current.baseNodes;
+      setOverrides((prev) => ({
+        owner,
+        pos: { ...(prev.owner === owner ? prev.pos : {}), [d.id]: { x: w.x + d.dx, y: w.y + d.dy } },
+      }));
+    }
+  };
+
+  const handlePointerEnd = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    if (d.kind === 'pan' && !d.moved) setSelectedNodeId(null); // plain click on empty canvas
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+
+  const zoomBy = (factor: number) => zoomAt(live.current.size.w / 2, live.current.size.h / 2, factor);
+  const resetView = () => {
+    setSelectedNodeId(null);
+    setOverrides({ owner: [], pos: {} });
+    fitView(live.current.baseNodes);
+  };
+
+  /* 6. Actions */
+  const focusFromTable = (node: GraphNodeData) => {
+    pendingFocus.current = node.id;
+    if (node.type === 'MODULE') {
+      setViewMode('modules');
+    } else {
+      if (node.type in show) setShow((s) => ({ ...s, [node.type as FilterableType]: true }));
+      setViewMode('full');
+    }
     setSelectedNodeId(node.id);
   };
 
-  const getNodeColor = (type: string) => {
-    switch (type) {
-      case 'PROJECT':
-        return {
-          fill: '#f59e0b',
-          bg: 'rgba(245, 158, 11, 0.15)',
-          border: '#fbbf24',
-          text: 'text-amber-400',
-        };
-      case 'MODULE':
-        return {
-          fill: '#06b6d4',
-          bg: 'rgba(6, 182, 212, 0.15)',
-          border: '#22d3ee',
-          text: 'text-cyan-400',
-        };
-      case 'ENDPOINT':
-        return {
-          fill: '#10b981',
-          bg: 'rgba(16, 185, 129, 0.15)',
-          border: '#34d399',
-          text: 'text-emerald-400',
-        };
-      case 'FUNCTION':
-      default:
-        return {
-          fill: '#6366f1',
-          bg: 'rgba(99, 102, 241, 0.15)',
-          border: '#818cf8',
-          text: 'text-indigo-400',
-        };
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && showCanvas) {
+      const first = baseNodes.find(matches);
+      if (first) {
+        selectNode(first.id);
+        centerOn(first.id);
+      }
     }
   };
 
-  const getEdgeColor = (rel?: string) => {
-    const r = (rel || '').toUpperCase();
-    if (r === 'DEPENDS_ON' || r === 'IMPORTS') return '#22d3ee';
-    if (r === 'HANDLED_BY' || r === 'EXPOSES') return '#34d399';
-    if (r === 'CALLS') return '#818cf8';
-    if (r === 'DEFINES') return '#a78bfa';
-    if (r === 'CONTAINS') return '#fbbf24';
-    return '#64748b';
-  };
-
   const handleExportSvg = () => {
-    if (!svgRef.current) return;
-    const svgData = new XMLSerializer().serializeToString(svgRef.current);
-    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${projectName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_knowledge_graph.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const svg = svgRef.current;
+    if (!svg) return;
+    const positioned = baseNodes.map((n) => activeOverrides[n.id] ? { ...n, ...activeOverrides[n.id] } : n);
+    const b = boundsOf(positioned);
+    const pad = 40;
+    const width = b.maxX - b.minX + pad * 2;
+    const height = b.maxY - b.minY + pad * 2;
+
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('viewBox', `${b.minX - pad} ${b.minY - pad} ${width} ${height}`);
+    clone.setAttribute('width', String(Math.round(width)));
+    clone.setAttribute('height', String(Math.round(height)));
+    clone.removeAttribute('class');
+    clone.removeAttribute('style');
+    clone.querySelector('[data-world]')?.removeAttribute('transform');
+    clone.querySelector('[data-grid]')?.remove();
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    for (const [k, v] of Object.entries({ x: b.minX - pad, y: b.minY - pad, width, height, fill: '#020617' })) {
+      bg.setAttribute(k, String(v));
+    }
+    clone.insertBefore(bg, clone.firstChild);
+
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_knowledge_graph.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
+  /* 7. Render */
+  const tableRows = useMemo(
+    () => (viewMode === 'table' ? processedGraph.nodes.filter((n) => !query || matches(n)) : []),
+    [viewMode, processedGraph.nodes, query, matches]
+  );
+
+  const tabs: { mode: ViewMode; label: string; Icon: LucideIcon }[] = [
+    { mode: 'modules', label: `Module Architecture (${moduleCount})`, Icon: Layers },
+    { mode: 'full', label: `Full Knowledge Graph (${rawNodes.length})`, Icon: Network },
+    { mode: 'table', label: 'Table List', Icon: List },
+  ];
+
+  const tabClass = (active: boolean) =>
+    `px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+      active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+    }`;
+  const iconBtn = 'p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors';
+
   return (
     <div className="space-y-4">
-      {/* Top Interactive Graph Controls Bar */}
+      {/* Controls */}
       <div className="glass-card rounded-2xl p-4 border border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-        {/* Left: View Mode Tabs & Stats */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
-            <button
-              onClick={() => setViewMode('modules')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
-                viewMode === 'modules'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" /> Module Architecture ({processedGraph.nodes.filter(n => n.type === 'MODULE').length})
-            </button>
-            <button
-              onClick={() => setViewMode('full')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
-                viewMode === 'full'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Network className="w-3.5 h-3.5" /> Full Knowledge Graph ({graph?.nodes?.length || 0})
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
-                viewMode === 'table'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" /> Table List
-            </button>
+          <div role="tablist" aria-label="Graph view" className="flex flex-wrap items-center bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
+            {tabs.map(({ mode, label, Icon }) => (
+              <button key={mode} role="tab" aria-selected={viewMode === mode} onClick={() => setViewMode(mode)} className={tabClass(viewMode === mode)}>
+                <Icon className="w-3.5 h-3.5" /> {label}
+              </button>
+            ))}
           </div>
-
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] font-mono text-slate-400">
             <span>Nodes: <strong className="text-white">{processedGraph.nodes.length}</strong></span>
-            <span>•</span>
+            <span aria-hidden>•</span>
             <span>Connections: <strong className="text-indigo-400">{processedGraph.edges.length}</strong></span>
           </div>
         </div>
 
-        {/* Right: Search, Filter Checks & Export */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 sm:w-60">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
             <input
-              type="text"
+              type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search module or symbol..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50"
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search module or symbol…  (Enter to jump)"
+              aria-label="Search nodes"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50"
             />
             {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs"
-              >
-                ×
+              <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+                <X className="w-3 h-3" />
               </button>
             )}
           </div>
 
           {viewMode === 'full' && (
-            <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-300">
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showModules}
-                  onChange={(e) => setShowModules(e.target.checked)}
-                  className="rounded bg-slate-900 border-slate-700 text-cyan-500 focus:ring-0"
-                />
-                <span className="text-cyan-400">Modules</span>
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showEndpoints}
-                  onChange={(e) => setShowEndpoints(e.target.checked)}
-                  className="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0"
-                />
-                <span className="text-emerald-400">Endpoints</span>
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showFunctions}
-                  onChange={(e) => setShowFunctions(e.target.checked)}
-                  className="rounded bg-slate-900 border-slate-700 text-indigo-500 focus:ring-0"
-                />
-                <span className="text-indigo-400">Functions</span>
-              </label>
+            <div className="flex items-center gap-2 text-[11px] font-semibold">
+              {FILTERS.map(({ type, label, text }) => (
+                <label key={type} className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={show[type]}
+                    onChange={(e) => setShow((s) => ({ ...s, [type]: e.target.checked }))}
+                    className="rounded bg-slate-900 border-slate-700 focus:ring-0"
+                  />
+                  <span className={text}>{label}</span>
+                </label>
+              ))}
             </div>
           )}
 
           <button
             onClick={handleExportSvg}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-            title="Export Architecture Diagram (SVG)"
+            disabled={!showCanvas || baseNodes.length === 0}
+            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            title="Export diagram (SVG)"
+            aria-label="Export diagram as SVG"
           >
             <Download className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Graph Visualization Stage */}
-      {viewMode !== 'table' ? (
+      {showCanvas ? (
         <div
           ref={containerRef}
           className="relative w-full h-[580px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl select-none"
+          onKeyDown={(e) => e.key === 'Escape' && setSelectedNodeId(null)}
         >
-          <div className="absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-2">
+          <div className="absolute top-4 left-4 z-10 pointer-events-none">
             <span className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-400 backdrop-blur-md">
-              {viewMode === 'modules' ? 'Module Dependency Architecture' : 'Semantic Knowledge Graph'} • Drag nodes to organize • Click to inspect
+              {viewMode === 'modules' ? 'Module Dependency Architecture' : 'Semantic Knowledge Graph'} • Drag to move • Click to inspect • Esc to clear
             </span>
           </div>
 
           <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-1 shadow-xl backdrop-blur-md">
-            <button
-              onClick={() => setZoom((z) => Math.min(2.5, z + 0.15))}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setZoom((z) => Math.max(0.3, z - 0.15))}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
-              onClick={resetView}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              title="Reset View"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </button>
+            <button onClick={() => zoomBy(1.2)} className={iconBtn} title="Zoom in" aria-label="Zoom in"><ZoomIn className="w-4 h-4" /></button>
+            <button onClick={() => zoomBy(1 / 1.2)} className={iconBtn} title="Zoom out" aria-label="Zoom out"><ZoomOut className="w-4 h-4" /></button>
+            <button onClick={resetView} className={iconBtn} title="Fit to screen" aria-label="Fit to screen"><Maximize2 className="w-4 h-4" /></button>
           </div>
+
+          {baseNodes.length === 0 && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-slate-500 pointer-events-none">
+              {viewMode === 'full' ? 'Nothing to show. Enable a node type above.' : 'No modules found in this graph.'}
+            </div>
+          )}
 
           <svg
             ref={svgRef}
+            role="group"
+            aria-label={`${projectName} dependency graph`}
             className="w-full h-full cursor-grab active:cursor-grabbing"
-            onMouseDown={handleCanvasMouseDown}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleCanvasMouseUp}
+            style={{ touchAction: 'none' }}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
           >
             <defs>
-              <pattern id="graph-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <pattern id={`${markerPrefix}-grid`} width="30" height="30" patternUnits="userSpaceOnUse">
                 <circle cx="2" cy="2" r="1" fill="#1e293b" opacity="0.6" />
               </pattern>
-
-              {['#22d3ee', '#34d399', '#818cf8', '#a78bfa', '#fbbf24', '#64748b'].map((color) => (
+              {ALL_EDGE_COLORS.map((c) => (
                 <marker
-                  key={color}
-                  id={`arrow-${color.replace('#', '')}`}
+                  key={c}
+                  id={`${markerPrefix}-${c.slice(1)}`}
                   viewBox="0 0 10 10"
-                  refX="22"
+                  refX="9"
                   refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto-start-reverse"
+                  markerWidth="8"
+                  markerHeight="8"
+                  markerUnits="userSpaceOnUse"
+                  orient="auto"
                 >
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill={color} />
+                  <path d="M 0 1 L 10 5 L 0 9 z" fill={c} />
                 </marker>
               ))}
             </defs>
 
-            <rect width="100%" height="100%" fill="url(#graph-grid)" />
+            <rect data-grid width="100%" height="100%" fill={`url(#${markerPrefix}-grid)`} />
 
-            <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-              {/* Layer 1: Edges */}
-              <g className="edges-layer">
-                {simulatedEdges.map((edge, idx) => {
-                  const s = edge.sourceNode;
-                  const t = edge.targetNode;
-                  const isHighlighted =
-                    selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId);
-                  const isDimmed =
-                    selectedNodeId && !isHighlighted;
-                  const edgeColor = getEdgeColor(edge.relationship);
-
-                  const dx = t.x - s.x;
-                  const dy = t.y - s.y;
-                  const dr = Math.sqrt(dx * dx + dy * dy);
-                  const pathData = `M ${s.x} ${s.y} A ${dr * 1.2} ${dr * 1.2} 0 0,1 ${t.x} ${t.y}`;
-
+            <g data-world transform={`translate(${view.x}, ${view.y}) scale(${view.k})`}>
+              <g>
+                {edges.map((e) => {
+                  const s = baseNodeMap.get(e.source)!;
+                  const t = baseNodeMap.get(e.target)!;
+                  const sp = activeOverrides[s.id] ?? s;
+                  const tp = activeOverrides[t.id] ?? t;
+                  const highlighted = !!selectedId && (e.source === selectedId || e.target === selectedId);
                   return (
-                    <g key={`edge-${idx}`} className="transition-opacity duration-300">
-                      <path
-                        d={pathData}
-                        fill="none"
-                        stroke={edgeColor}
-                        strokeWidth={isHighlighted ? 2.5 : 1.2}
-                        strokeDasharray={edge.relationship === 'CO_LOCATED' ? '4 4' : undefined}
-                        strokeOpacity={isDimmed ? 0.15 : isHighlighted ? 1 : 0.45}
-                        markerEnd={`url(#arrow-${edgeColor.replace('#', '')})`}
-                      />
-                      {isHighlighted && (
-                        <text
-                          x={(s.x + t.x) / 2}
-                          y={(s.y + t.y) / 2 - 8}
-                          fill={edgeColor}
-                          fontSize="9"
-                          fontFamily="monospace"
-                          fontWeight="bold"
-                          textAnchor="middle"
-                          className="pointer-events-none select-none bg-slate-900 px-1"
-                        >
-                          {edge.relationship}
-                        </text>
-                      )}
-                    </g>
+                    <EdgeView
+                      key={`${e.source}->${e.target}:${e.relationship}`}
+                      sx={sp.x} sy={sp.y} sw={s.w} sh={s.h}
+                      tx={tp.x} ty={tp.y} tw={t.w} th={t.h}
+                      rel={e.relationship ?? 'RELATED'}
+                      confidence={e.confidence ?? 1}
+                      highlighted={highlighted}
+                      dimmed={!!selectedId && !highlighted}
+                      markerPrefix={markerPrefix}
+                    />
                   );
                 })}
               </g>
-
-              {/* Layer 2: Nodes */}
-              <g className="nodes-layer">
-                {simulatedNodes.map((node) => {
-                  const isSelected = selectedNodeId === node.id;
-                  const isNeighbor = neighborNodeIds.has(node.id);
-                  const isSearchMatch = searchMatchedIds ? searchMatchedIds.has(node.id) : true;
-                  const isDimmed = (selectedNodeId && !isNeighbor) || (searchMatchedIds && !isSearchMatch);
-                  const isHovered = hoveredNodeId === node.id;
-                  const colors = getNodeColor(node.type);
-
-                  const displayLabel = node.label.split('/').pop() || node.label;
-                  const dirPath = node.label.includes('/')
-                    ? node.label.substring(0, node.label.lastIndexOf('/'))
-                    : '';
-
-                  const boxWidth = (node.radius + 14) * 2;
-                  const boxHeight = node.radius * 1.5;
-                  const boxX = -node.radius - 14;
-                  const boxY = -node.radius + 6;
-
+              <g>
+                {baseNodes.map((n) => {
+                  const p = activeOverrides[n.id] ?? n;
+                  const dimmed = (!!selectedId && !neighborIds.has(n.id)) || (!!matchedIds && !matchedIds.has(n.id));
                   return (
-                    <g
-                      key={node.id}
-                      transform={`translate(${node.x}, ${node.y})`}
-                      className="cursor-pointer"
-                      style={{ opacity: isDimmed ? 0.22 : 1 }}
-                      onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
-                      onMouseEnter={() => setHoveredNodeId(node.id)}
-                      onMouseLeave={() => setHoveredNodeId(null)}
-                    >
-                      {/* Stable Invisible Hitbox - captures all mouse interactions with zero jitter */}
-                      <rect
-                        x={boxX - 6}
-                        y={boxY - 6}
-                        width={boxWidth + 12}
-                        height={boxHeight + 12}
-                        rx="16"
-                        fill="transparent"
-                        style={{ pointerEvents: 'all' }}
-                      />
-
-                      {/* Outer Ring on Hover / Selected */}
-                      <circle
-                        r={node.radius + 8}
-                        fill="none"
-                        stroke={colors.border}
-                        strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0}
-                        strokeDasharray="4 3"
-                        opacity={isSelected ? 0.9 : isHovered ? 0.65 : 0}
-                        style={{ pointerEvents: 'none' }}
-                        className={isSelected ? 'animate-spin-slow' : undefined}
-                      />
-
-                      {/* Main Node Card Body */}
-                      <rect
-                        x={boxX}
-                        y={boxY}
-                        width={boxWidth}
-                        height={boxHeight}
-                        rx="14"
-                        fill={isSelected ? '#1e293b' : isHovered ? '#0f172a' : '#0b1120'}
-                        stroke={isSelected ? '#ffffff' : isHovered ? colors.border : colors.border}
-                        strokeWidth={isSelected ? 2.2 : isHovered ? 1.8 : 1.2}
-                        style={{ pointerEvents: 'none' }}
-                      />
-
-                      {/* Node Icon / Type Badge Strip */}
-                      <circle
-                        cx="0"
-                        cy={-node.radius + 18}
-                        r="9"
-                        fill={colors.bg}
-                        stroke={colors.border}
-                        strokeWidth="1"
-                        style={{ pointerEvents: 'none' }}
-                      />
-
-                      {/* Node Label Text */}
-                      <text
-                        x="0"
-                        y={node.radius * 0.15}
-                        fill={isHovered ? '#38bdf8' : '#f8fafc'}
-                        fontSize="11"
-                        fontWeight="700"
-                        fontFamily="monospace"
-                        textAnchor="middle"
-                        style={{ pointerEvents: 'none', userSelect: 'none' }}
-                      >
-                        {displayLabel.length > 16 ? displayLabel.substring(0, 14) + '..' : displayLabel}
-                      </text>
-
-                      {/* Node Subtitle (Directory / Type) */}
-                      <text
-                        x="0"
-                        y={node.radius * 0.42}
-                        fill="#64748b"
-                        fontSize="8.5"
-                        fontFamily="monospace"
-                        textAnchor="middle"
-                        style={{ pointerEvents: 'none', userSelect: 'none' }}
-                      >
-                        {node.type === 'MODULE'
-                          ? dirPath ? `${dirPath}/` : 'root module'
-                          : node.type}
-                      </text>
-
-                      {/* Degree Badge Pill (Connections count) */}
-                      <g
-                        transform={`translate(${node.radius + 4}, ${-node.radius + 10})`}
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        <rect
-                          x="-10"
-                          y="-7"
-                          width="20"
-                          height="14"
-                          rx="7"
-                          fill="#1e293b"
-                          stroke={colors.border}
-                          strokeWidth="1"
-                        />
-                        <text
-                          x="0"
-                          y="3"
-                          fill={colors.border}
-                          fontSize="8"
-                          fontWeight="bold"
-                          fontFamily="monospace"
-                          textAnchor="middle"
-                        >
-                          {node.inDegree + node.outDegree}
-                        </text>
-                      </g>
-                    </g>
+                    <NodeView
+                      key={n.id}
+                      node={n}
+                      x={p.x}
+                      y={p.y}
+                      selected={selectedId === n.id}
+                      hovered={hoveredNodeId === n.id}
+                      dimmed={dimmed}
+                      showText={view.k >= 0.4}
+                      onPointerDown={handleNodePointerDown}
+                      onHover={setHoveredNodeId}
+                      onActivate={selectNode}
+                    />
                   );
                 })}
               </g>
             </g>
           </svg>
 
-          {/* Node Inspector Drawer */}
-          {selectedNode && (
-            <div className="absolute top-4 right-4 bottom-4 w-84 bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between z-20 space-y-4">
+          {/* Inspector */}
+          {selected && (
+            <aside
+              aria-label="Node details"
+              className="absolute top-4 right-4 bottom-4 w-80 max-w-[calc(100%-2rem)] bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between z-20 gap-4"
+            >
               <div className="space-y-4 overflow-y-auto pr-1">
-                <div className="flex items-start justify-between border-b border-slate-800 pb-3">
-                  <div className="space-y-1">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider border ${
-                        getNodeColor(selectedNode.type).text
-                      } border-current/20 bg-current/10`}
-                    >
-                      {selectedNode.type}
-                    </span>
-                    <h3 className="text-sm font-extrabold text-white font-mono break-all leading-tight">
-                      {selectedNode.label}
-                    </h3>
+                <div className="flex items-start justify-between border-b border-slate-800 pb-3 gap-2">
+                  <div className="space-y-1.5 min-w-0">
+                    <TypeBadge type={selected.type} />
+                    <h3 className="text-sm font-extrabold text-white font-mono break-all leading-tight">{selected.label}</h3>
                   </div>
-                  <button
-                    onClick={() => setSelectedNodeId(null)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <button onClick={() => setSelectedNodeId(null)} className={iconBtn} aria-label="Close details"><X className="w-4 h-4" /></button>
                 </div>
 
                 <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 space-y-2 text-xs font-mono">
                   <div className="flex items-center justify-between text-slate-400">
                     <span>Node ID:</span>
-                    <span className="text-slate-300 truncate max-w-[150px]" title={selectedNode.id}>
-                      {selectedNode.id}
-                    </span>
+                    <span className="text-slate-300 truncate max-w-[150px]" title={selected.id}>{selected.id}</span>
                   </div>
-                  {selectedNode.properties?.language && (
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>Language:</span>
-                      <span className="text-cyan-400 font-bold">{selectedNode.properties.language}</span>
-                    </div>
-                  )}
-                  {selectedNode.properties?.lines !== undefined && (
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>Lines of Code:</span>
-                      <span className="text-white font-bold">{selectedNode.properties.lines}</span>
-                    </div>
-                  )}
-                  {selectedNode.properties?.method && (
-                    <div className="flex items-center justify-between text-slate-400">
-                      <span>HTTP Method:</span>
-                      <span className="text-emerald-400 font-bold">{selectedNode.properties.method}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span>Dependencies:</span>
-                    <span className="text-indigo-400 font-bold">{selectedNode.outDegree} outgoing</span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span>Dependents:</span>
-                    <span className="text-indigo-400 font-bold">{selectedNode.inDegree} incoming</span>
-                  </div>
+                  {selected.properties?.language && <Row label="Language:" value={selected.properties.language} className="text-cyan-400" />}
+                  {selected.properties?.lines !== undefined && <Row label="Lines of code:" value={selected.properties.lines} />}
+                  {selected.properties?.method && <Row label="HTTP method:" value={selected.properties.method} className="text-emerald-400" />}
+                  <Row label="Dependencies:" value={`${selected.outDegree} outgoing`} className="text-indigo-400" />
+                  <Row label="Dependents:" value={`${selected.inDegree} incoming`} className="text-indigo-400" />
                 </div>
 
-                <div className="space-y-2">
-                  <h4 className="text-[11px] uppercase font-bold text-slate-400 flex items-center justify-between">
-                    <span>Inbound Connections ({selectedNode.inDegree})</span>
-                  </h4>
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                    {simulatedEdges
-                      .filter((e) => e.target === selectedNode.id)
-                      .map((e, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setSelectedNodeId(e.source);
-                            centerOnNode(e.sourceNode);
-                          }}
-                          className="w-full p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left text-xs font-mono flex items-center justify-between group transition-colors"
-                        >
-                          <div className="truncate max-w-[180px]">
-                            <span className="text-slate-300 group-hover:text-cyan-400 transition-colors">
-                              {e.sourceNode.label.split('/').pop()}
+                {([
+                  ['Inbound', inbound, 'source'],
+                  ['Outbound', outbound, 'target'],
+                ] as const).map(([title, list, end]) => (
+                  <div key={title} className="space-y-2">
+                    <h4 className="text-[11px] uppercase font-bold text-slate-400">{title} connections ({list.length})</h4>
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {list.map((e) => {
+                        const other = baseNodeMap.get(e[end])!;
+                        return (
+                          <button
+                            key={`${e.source}->${e.target}:${e.relationship}`}
+                            onClick={() => { selectNode(other.id); centerOn(other.id); }}
+                            className="w-full p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left text-xs font-mono flex items-center justify-between gap-2 group transition-colors"
+                          >
+                            <span className="truncate">
+                              <span className="text-slate-300 group-hover:text-cyan-400 transition-colors">{other.label.split('/').pop()}</span>
+                              <span className="text-[9px] text-slate-500 block truncate">{other.id}</span>
                             </span>
-                            <span className="text-[9px] text-slate-500 block truncate">{e.sourceNode.id}</span>
-                          </div>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                            {e.relationship}
-                          </span>
-                        </button>
-                      ))}
-                    {selectedNode.inDegree === 0 && (
-                      <p className="text-[11px] text-slate-500 italic">No inbound dependencies.</p>
-                    )}
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 shrink-0">{e.relationship}</span>
+                          </button>
+                        );
+                      })}
+                      {list.length === 0 && <p className="text-[11px] text-slate-500 italic">None.</p>}
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-[11px] uppercase font-bold text-slate-400 flex items-center justify-between">
-                    <span>Outbound Connections ({selectedNode.outDegree})</span>
-                  </h4>
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                    {simulatedEdges
-                      .filter((e) => e.source === selectedNode.id)
-                      .map((e, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setSelectedNodeId(e.target);
-                            centerOnNode(e.targetNode);
-                          }}
-                          className="w-full p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left text-xs font-mono flex items-center justify-between group transition-colors"
-                        >
-                          <div className="truncate max-w-[180px]">
-                            <span className="text-slate-300 group-hover:text-indigo-400 transition-colors">
-                              {e.targetNode.label.split('/').pop()}
-                            </span>
-                            <span className="text-[9px] text-slate-500 block truncate">{e.targetNode.id}</span>
-                          </div>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                            {e.relationship}
-                          </span>
-                        </button>
-                      ))}
-                    {selectedNode.outDegree === 0 && (
-                      <p className="text-[11px] text-slate-500 italic">No outbound dependencies.</p>
-                    )}
-                  </div>
-                </div>
+                ))}
               </div>
 
-              <div className="pt-2 border-t border-slate-800/80 flex items-center gap-2">
-                <button
-                  onClick={() => centerOnNode(selectedNode)}
-                  className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" /> Center on Node
-                </button>
-              </div>
-            </div>
+              <button
+                onClick={() => centerOn(selected.id)}
+                className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
+              >
+                <Maximize2 className="w-3.5 h-3.5" /> Center on node
+              </button>
+            </aside>
           )}
         </div>
       ) : (
         <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Knowledge Graph Index Registry ({processedGraph.nodes.length} Elements)
+              Knowledge graph index ({tableRows.length} of {rawNodes.length} elements)
             </h4>
-            <span className="text-xs font-mono text-indigo-400">{processedGraph.edges.length} total edges</span>
+            <span className="text-xs font-mono text-indigo-400">{rawEdges.length} total edges</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
               <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
                 <tr>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Label / Name</th>
-                  <th className="px-4 py-3">Identifier</th>
-                  <th className="px-4 py-3">Properties / Metadata</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th scope="col" className="px-4 py-3">Type</th>
+                  <th scope="col" className="px-4 py-3">Label / Name</th>
+                  <th scope="col" className="px-4 py-3">Identifier</th>
+                  <th scope="col" className="px-4 py-3">Properties</th>
+                  <th scope="col" className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {processedGraph.nodes
-                  .filter((n) =>
-                    searchQuery
-                      ? n.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        n.id.toLowerCase().includes(searchQuery.toLowerCase())
-                      : true
-                  )
-                  .map((node) => {
-                    const colors = getNodeColor(node.type);
-                    return (
-                      <tr key={node.id} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 rounded font-bold border text-[10px] ${colors.text} border-current/20 bg-current/10`}
-                          >
-                            {node.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-white font-bold max-w-[240px] truncate">
-                          {node.label}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 text-[11px] max-w-[200px] truncate">
-                          {node.id}
-                        </td>
-                        <td className="px-4 py-3 text-slate-400 text-[11px]">
-                          {node.properties?.language && (
-                            <span className="mr-2 text-cyan-400">{node.properties.language}</span>
-                          )}
-                          {node.properties?.lines !== undefined && (
-                            <span>{node.properties.lines} LOC</span>
-                          )}
-                          {node.properties?.method && (
-                            <span className="text-emerald-400 font-bold">{node.properties.method}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => {
-                              setViewMode('modules');
-                              setSelectedNodeId(node.id);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
-                          >
-                            View in Graph <ChevronRight className="w-3 h-3" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                {tableRows.slice(0, TABLE_ROW_LIMIT).map((node) => (
+                  <tr key={node.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3"><TypeBadge type={node.type} /></td>
+                    <td className="px-4 py-3 text-white font-bold max-w-[240px] truncate" title={node.label}>{node.label}</td>
+                    <td className="px-4 py-3 text-slate-500 text-[11px] max-w-[200px] truncate" title={node.id}>{node.id}</td>
+                    <td className="px-4 py-3 text-slate-400 text-[11px] space-x-2">
+                      {node.properties?.language && <span className="text-cyan-400">{node.properties.language}</span>}
+                      {node.properties?.lines !== undefined && <span>{node.properties.lines} LOC</span>}
+                      {node.properties?.method && <span className="text-emerald-400 font-bold">{node.properties.method}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => focusFromTable(node)}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                      >
+                        View in graph <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {tableRows.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">No matching elements.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
+          {tableRows.length > TABLE_ROW_LIMIT && (
+            <p className="px-4 py-3 text-[11px] text-slate-500 border-t border-slate-800">
+              Showing the first {TABLE_ROW_LIMIT} rows. Use search to narrow the list.
+            </p>
+          )}
         </div>
       )}
     </div>
   );
 };
+
+const EMPTY_POS: Overrides['pos'] = {};
+
+export default KnowledgeGraphVisualizer;
