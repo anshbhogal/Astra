@@ -13,6 +13,9 @@ import {
   List,
   Download,
   ChevronRight,
+  Flame,
+  Copy,
+  Check,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -34,7 +37,7 @@ export interface GraphNodeData {
 }
 
 export interface GraphEdgeData {
-  source: string;
+  source: string; // "source depends on / calls target"
   target: string;
   type?: string;
   relationship?: string;
@@ -48,243 +51,221 @@ interface KnowledgeGraphVisualizerProps {
   onSelectNode?: (nodeId: string) => void;
 }
 
-type ViewMode = 'modules' | 'full' | 'table';
+type ViewMode = 'map' | 'detailed' | 'table';
 type FilterableType = 'MODULE' | 'ENDPOINT' | 'FUNCTION';
+type Role = 'none' | 'selected' | 'affected' | 'uses';
+type EdgeKind = 'affected' | 'uses' | 'hover' | 'all';
 
 interface LayoutNode extends GraphNodeData {
-  x: number;
+  x: number; // centre
   y: number;
   w: number;
   h: number;
-  inDegree: number;
-  outDegree: number;
+  inDegree: number; // how many things use this
+  outDegree: number; // how many things this uses
   title: string;
   subtitle: string;
+  heat: 0 | 1 | 2; // 2 = high impact, 1 = medium
 }
 
-interface Overrides {
-  owner: LayoutNode[]; // overrides are only valid for the layout they were made on
-  pos: Record<string, { x: number; y: number }>;
+interface GroupBox {
+  key: string;
+  x: number; // top-left
+  y: number;
+  w: number;
+  h: number;
+  count: number;
 }
 
-type DragState =
-  | { kind: 'pan'; pointerId: number; sx: number; sy: number; ox: number; oy: number; moved: boolean }
-  | { kind: 'node'; pointerId: number; id: string; dx: number; dy: number };
+type Rect = { x: number; y: number; w: number; h: number };
+type Bounds = { minX: number; minY: number; maxX: number; maxY: number };
 
 /* ───────────────────────────── Constants ──────────────────────────── */
 
-const MIN_ZOOM = 0.2;
+const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.5;
+const NODE_W = 190;
 const NODE_H = 48;
+const GAP = 14;
+const PAD = 16;
+const HEAD = 30;
+const GROUP_GAP = 28;
 const TABLE_ROW_LIMIT = 500;
+const ENDPOINT_GROUP = 'API endpoints';
+const PROJECT_GROUP = 'Project';
+
+const AMBER = '#fbbf24';
+const CYAN = '#22d3ee';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const truncate = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 2)}..` : s);
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-const NODE_STYLE: Record<
-  string,
-  { border: string; badge: string; Icon: LucideIcon }
-> = {
-  PROJECT: { border: '#fbbf24', badge: 'text-amber-400 border-amber-400/30 bg-amber-400/10', Icon: Box },
-  MODULE: { border: '#22d3ee', badge: 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10', Icon: FileCode },
-  ENDPOINT: { border: '#34d399', badge: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10', Icon: Globe },
-  FUNCTION: { border: '#818cf8', badge: 'text-indigo-400 border-indigo-400/30 bg-indigo-400/10', Icon: Cpu },
+const NODE_STYLE: Record<string, { border: string; badge: string; Icon: LucideIcon; label: string }> = {
+  PROJECT: { border: '#fbbf24', badge: 'text-amber-400 border-amber-400/30 bg-amber-400/10', Icon: Box, label: 'Project' },
+  MODULE: { border: '#22d3ee', badge: 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10', Icon: FileCode, label: 'Module' },
+  ENDPOINT: { border: '#34d399', badge: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10', Icon: Globe, label: 'API endpoint' },
+  FUNCTION: { border: '#818cf8', badge: 'text-indigo-400 border-indigo-400/30 bg-indigo-400/10', Icon: Cpu, label: 'Function' },
 };
 const styleOf = (type: string) => NODE_STYLE[type] ?? NODE_STYLE.FUNCTION;
 
-const EDGE_COLORS: Record<string, string> = {
-  DEPENDS_ON: '#22d3ee',
-  IMPORTS: '#22d3ee',
-  HANDLED_BY: '#34d399',
-  EXPOSES: '#34d399',
-  CALLS: '#818cf8',
-  DEFINES: '#a78bfa',
-  CONTAINS: '#fbbf24',
+const EDGE_STYLE: Record<EdgeKind, { color: string; width: number; opacity: number }> = {
+  affected: { color: AMBER, width: 2, opacity: 0.9 },
+  uses: { color: CYAN, width: 2, opacity: 0.9 },
+  hover: { color: '#94a3b8', width: 2, opacity: 0.9 },
+  all: { color: '#64748b', width: 1, opacity: 0.25 },
 };
-const EDGE_FALLBACK = '#64748b';
-const edgeColor = (rel: string) => EDGE_COLORS[rel] ?? EDGE_FALLBACK;
-const ALL_EDGE_COLORS = Array.from(new Set([...Object.values(EDGE_COLORS), EDGE_FALLBACK]));
+const MARKER_COLORS = Array.from(new Set(Object.values(EDGE_STYLE).map((s) => s.color)));
 
-const FILTERS: { type: FilterableType; label: string; text: string }[] = [
-  { type: 'MODULE', label: 'Modules', text: 'text-cyan-400' },
-  { type: 'ENDPOINT', label: 'Endpoints', text: 'text-emerald-400' },
-  { type: 'FUNCTION', label: 'Functions', text: 'text-indigo-400' },
+const FILTERS: { type: FilterableType; label: string }[] = [
+  { type: 'MODULE', label: 'Modules' },
+  { type: 'ENDPOINT', label: 'API endpoints' },
+  { type: 'FUNCTION', label: 'Functions' },
 ];
 
 /* ──────────────────────── Pure graph helpers ──────────────────────── */
 
 const relOf = (e: GraphEdgeData) => (e.relationship || e.type || '').toUpperCase();
+const folderOf = (label: string) => (label.includes('/') ? label.slice(0, label.lastIndexOf('/')) : 'root');
 
-/** Collapse symbol-level edges into module → module dependencies. */
-function buildModuleGraph(rawNodes: GraphNodeData[], rawEdges: GraphEdgeData[]) {
-  const moduleNodes = rawNodes.filter((n) => n.type === 'MODULE');
-  const moduleIds = new Set(moduleNodes.map((n) => n.id));
-
-  const symbolToModule = new Map<string, string>();
-  for (const e of rawEdges) {
-    if (relOf(e) === 'DEFINES' && moduleIds.has(e.source)) symbolToModule.set(e.target, e.source);
+/** Which module owns each function/endpoint (via DEFINES edges, falling back to "kind:path:name" ids). */
+function mapSymbolsToModules(nodes: GraphNodeData[], edges: GraphEdgeData[]) {
+  const moduleIds = new Set(nodes.filter((n) => n.type === 'MODULE').map((n) => n.id));
+  const map = new Map<string, string>();
+  for (const e of edges) {
+    if (relOf(e) === 'DEFINES' && moduleIds.has(e.source)) map.set(e.target, e.source);
   }
-  // Fallback: function ids look like "function:<relative/path>:<name>"
-  for (const n of rawNodes) {
-    if (n.type !== 'FUNCTION' || symbolToModule.has(n.id)) continue;
+  for (const n of nodes) {
+    if (n.type === 'MODULE' || map.has(n.id)) continue;
     const parts = n.id.split(':');
     if (parts.length >= 3) {
       const modId = `module:${parts[1].replace(/\\/g, '/')}`;
-      if (moduleIds.has(modId)) symbolToModule.set(n.id, modId);
+      if (moduleIds.has(modId)) map.set(n.id, modId);
     }
   }
-
-  const edgeMap = new Map<string, GraphEdgeData>();
-  for (const e of rawEdges) {
-    const rel = relOf(e);
-    if (moduleIds.has(e.source) && moduleIds.has(e.target)) {
-      if (e.source === e.target) continue;
-      edgeMap.set(`${e.source}->${e.target}`, {
-        source: e.source,
-        target: e.target,
-        relationship: rel === 'CONTAINS' || !rel ? 'DEPENDS_ON' : rel,
-        confidence: e.confidence ?? 1,
-      });
-    } else if (rel === 'CALLS') {
-      const s = symbolToModule.get(e.source);
-      const t = symbolToModule.get(e.target);
-      const key = s && t ? `${s}->${t}` : '';
-      if (s && t && s !== t && !edgeMap.has(key)) {
-        edgeMap.set(key, { source: s, target: t, relationship: 'DEPENDS_ON', confidence: 0.9 });
-      }
-    }
-  }
-
-  // No real dependencies found: chain modules that share a directory so the view isn't empty.
-  if (edgeMap.size === 0 && moduleNodes.length > 1) {
-    const dirs = new Map<string, string[]>();
-    for (const m of moduleNodes) {
-      const parts = (m.label || m.id).split('/');
-      const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : 'root';
-      dirs.set(dir, [...(dirs.get(dir) ?? []), m.id]);
-    }
-    dirs.forEach((ids) => {
-      for (let i = 0; i < ids.length - 1; i++) {
-        edgeMap.set(`${ids[i]}->${ids[i + 1]}`, {
-          source: ids[i],
-          target: ids[i + 1],
-          relationship: 'CO_LOCATED',
-          confidence: 0.7,
-        });
-      }
-    });
-  }
-
-  return { nodes: moduleNodes, edges: Array.from(edgeMap.values()) };
+  return map;
 }
 
-/** Force-directed layout on typed arrays. Iterations scale down as the graph grows. */
-function computeLayout(
-  nodes: GraphNodeData[],
-  edges: GraphEdgeData[],
-  width = 900,
-  height = 560
-): LayoutNode[] {
-  const n = nodes.length;
-  if (n === 0) return [];
+/** Project map: modules + API endpoints, with function-level calls rolled up to module level. */
+function buildMapGraph(nodes: GraphNodeData[], edges: GraphEdgeData[], symbolToModule: Map<string, string>) {
+  const kept = nodes.filter((n) => n.type === 'MODULE' || n.type === 'ENDPOINT');
+  const moduleIds = new Set(kept.filter((n) => n.type === 'MODULE').map((n) => n.id));
+  const endpointIds = new Set(kept.filter((n) => n.type === 'ENDPOINT').map((n) => n.id));
+  const moduleOf = (id: string) => (moduleIds.has(id) ? id : symbolToModule.get(id));
 
-  const idx = new Map(nodes.map((nd, i) => [nd.id, i]));
-  const inDeg = new Int32Array(n);
-  const outDeg = new Int32Array(n);
-  const links: [number, number][] = [];
+  const out = new Map<string, GraphEdgeData>();
+  const add = (s: string | undefined, t: string | undefined, rel: string, confidence: number) => {
+    if (!s || !t || s === t) return;
+    const key = `${s}->${t}`;
+    if (!out.has(key)) out.set(key, { source: s, target: t, relationship: rel, confidence });
+  };
+
   for (const e of edges) {
-    const a = idx.get(e.source);
-    const b = idx.get(e.target);
-    if (a === undefined || b === undefined) continue;
-    links.push([a, b]);
-    outDeg[a]++;
-    inDeg[b]++;
+    const rel = relOf(e);
+    const sEnd = endpointIds.has(e.source);
+    const tEnd = endpointIds.has(e.target);
+    if (sEnd || tEnd) {
+      // An endpoint "depends on" the module that handles it, whichever way the edge was stored.
+      add(sEnd ? e.source : e.target, moduleOf(sEnd ? e.target : e.source), 'HANDLED_BY', 1);
+    } else if (moduleIds.has(e.source) && moduleIds.has(e.target)) {
+      add(e.source, e.target, !rel || rel === 'CONTAINS' ? 'DEPENDS_ON' : rel, e.confidence ?? 1);
+    } else if (rel === 'CALLS') {
+      add(moduleOf(e.source), moduleOf(e.target), 'DEPENDS_ON', 0.9);
+    }
+  }
+  return { nodes: kept, edges: Array.from(out.values()) };
+}
+
+const groupSort = (a: string, b: string) => {
+  const rank = (k: string) => (k === ENDPOINT_GROUP ? 0 : k === PROJECT_GROUP ? 1 : k === 'Other' ? 3 : 2);
+  return rank(a) - rank(b) || a.localeCompare(b);
+};
+
+/** Deterministic "folder box" layout: one box per folder, cards in a grid, boxes shelf-packed. */
+function computeLayout(nodes: GraphNodeData[], edges: GraphEdgeData[], groupOf: (n: GraphNodeData) => string) {
+  const inDeg = new Map<string, number>();
+  const outDeg = new Map<string, number>();
+  for (const e of edges) {
+    outDeg.set(e.source, (outDeg.get(e.source) ?? 0) + 1);
+    inDeg.set(e.target, (inDeg.get(e.target) ?? 0) + 1);
   }
 
-  const cx = width / 2;
-  const cy = height / 2;
-  const ring = Math.min(width, height) * 0.38 * Math.max(1, Math.sqrt(n / 12));
-  const x = new Float64Array(n);
-  const y = new Float64Array(n);
-  const vx = new Float64Array(n);
-  const vy = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * 2 * Math.PI;
-    const r = ring * (i % 2 === 0 ? 1 : 0.85);
-    x[i] = cx + r * Math.cos(a);
-    y[i] = cy + r * Math.sin(a);
+  // "Heat": top slice of most-used items = high impact. Endpoints are entry points, so they're excluded.
+  const used = nodes.filter((n) => n.type !== 'ENDPOINT').map((n) => inDeg.get(n.id) ?? 0).sort((a, b) => b - a);
+  const highCut = Math.max(3, used[Math.floor(used.length * 0.1)] ?? 0);
+  const medCut = Math.max(2, used[Math.floor(used.length * 0.3)] ?? 0);
+
+  const buckets = new Map<string, GraphNodeData[]>();
+  for (const n of nodes) {
+    const k = groupOf(n);
+    const list = buckets.get(k);
+    if (list) list.push(n);
+    else buckets.set(k, [n]);
   }
 
-  const kRepel = 12000;
-  const kSpring = 0.04;
-  const targetDist = 180;
-  const iterations = clamp(Math.floor(6e6 / (n * n)), 25, 120);
+  const maxRowW = clamp(Math.sqrt(nodes.length) * 300, 900, 2600);
+  const laidOut: LayoutNode[] = [];
+  const groups: GroupBox[] = [];
+  let cx = 0, cy = 0, rowH = 0;
 
-  for (let it = 0; it < iterations; it++) {
-    const cool = 1 - (it / iterations) * 0.7;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const dx = x[j] - x[i];
-        const dy = y[j] - y[i];
-        const distSq = dx * dx + dy * dy + 100;
-        const dist = Math.sqrt(distSq);
-        const f = kRepel / distSq;
-        const fx = (dx / dist) * f;
-        const fy = (dy / dist) * f;
-        vx[i] -= fx;
-        vy[i] -= fy;
-        vx[j] += fx;
-        vy[j] += fy;
+  for (const key of Array.from(buckets.keys()).sort(groupSort)) {
+    const items = buckets
+      .get(key)!
+      .sort((a, b) => (inDeg.get(b.id) ?? 0) - (inDeg.get(a.id) ?? 0) || a.label.localeCompare(b.label));
+    const cols = clamp(Math.ceil(Math.sqrt(items.length)), 1, 4);
+    const rows = Math.ceil(items.length / cols);
+    const gw = cols * NODE_W + (cols - 1) * GAP + PAD * 2;
+    const gh = HEAD + rows * NODE_H + (rows - 1) * GAP + PAD * 2;
+    if (cx > 0 && cx + gw > maxRowW) {
+      cx = 0;
+      cy += rowH + GROUP_GAP;
+      rowH = 0;
+    }
+    groups.push({ key, x: cx, y: cy, w: gw, h: gh, count: items.length });
+
+    items.forEach((n, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const iD = inDeg.get(n.id) ?? 0;
+      const oD = outDeg.get(n.id) ?? 0;
+      const label = n.label || n.id;
+      const method = typeof n.properties?.method === 'string' ? n.properties.method : '';
+      laidOut.push({
+        ...n,
+        x: cx + PAD + col * (NODE_W + GAP) + NODE_W / 2,
+        y: cy + HEAD + PAD + row * (NODE_H + GAP) + NODE_H / 2,
+        w: NODE_W,
+        h: NODE_H,
+        inDegree: iD,
+        outDegree: oD,
+        title: truncate(label.split('/').pop() || label, 22),
+        subtitle:
+          n.type === 'ENDPOINT' ? method || 'API endpoint' : n.type === 'PROJECT' ? 'Project' : `Used by ${iD} · Uses ${oD}`,
+        heat: n.type === 'ENDPOINT' ? 0 : iD >= highCut ? 2 : iD >= medCut ? 1 : 0,
+      });
+    });
+
+    cx += gw + GROUP_GAP;
+    rowH = Math.max(rowH, gh);
+  }
+  return { nodes: laidOut, groups };
+}
+
+/** Everything reachable from `start` by following `adj` (excluding start). */
+function reach(start: string, adj: Map<string, string[]>) {
+  const seen = new Set<string>();
+  const stack = [start];
+  while (stack.length) {
+    for (const next of adj.get(stack.pop()!) ?? []) {
+      if (next !== start && !seen.has(next)) {
+        seen.add(next);
+        stack.push(next);
       }
     }
-    for (const [a, b] of links) {
-      const dx = x[b] - x[a];
-      const dy = y[b] - y[a];
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const f = (dist - targetDist) * kSpring;
-      const fx = (dx / dist) * f;
-      const fy = (dy / dist) * f;
-      vx[a] += fx;
-      vy[a] += fy;
-      vx[b] -= fx;
-      vy[b] -= fy;
-    }
-    for (let i = 0; i < n; i++) {
-      vx[i] += (cx - x[i]) * 0.01;
-      vy[i] += (cy - y[i]) * 0.01;
-      x[i] += vx[i] * 0.15 * cool;
-      y[i] += vy[i] * 0.15 * cool;
-      vx[i] *= 0.75;
-      vy[i] *= 0.75;
-    }
   }
-
-  return nodes.map((nd, i) => {
-    const label = nd.label || nd.id;
-    const title = label.split('/').pop() || label;
-    const dir = label.includes('/') ? label.slice(0, label.lastIndexOf('/')) : '';
-    const subtitle = nd.type === 'MODULE' ? (dir ? `${dir}/` : 'root module') : nd.type;
-    const shownTitle = truncate(title, 24);
-    const shownSub = truncate(subtitle, 26);
-    const w = clamp(Math.max(shownTitle.length * 6.6, shownSub.length * 5.2) + 52, 110, 220);
-    return {
-      ...nd,
-      x: x[i],
-      y: y[i],
-      w,
-      h: NODE_H,
-      inDegree: inDeg[i],
-      outDegree: outDeg[i],
-      title: shownTitle,
-      subtitle: shownSub,
-    };
-  });
+  return seen;
 }
 
-function truncate(s: string, max: number) {
-  return s.length > max ? `${s.slice(0, max - 2)}..` : s;
-}
-
-/** Point where a ray from the rect's centre toward (dx, dy) leaves the rect, pushed out by `gap`. */
 function clipToRect(cx: number, cy: number, hw: number, hh: number, dx: number, dy: number, gap: number) {
   const len = Math.hypot(dx, dy);
   if (len === 0) return { x: cx, y: cy };
@@ -292,115 +273,85 @@ function clipToRect(cx: number, cy: number, hw: number, hh: number, dx: number, 
   return { x: cx + dx * k + (dx / len) * gap, y: cy + dy * k + (dy / len) * gap };
 }
 
-function edgeGeometry(
-  sx: number, sy: number, sw: number, sh: number,
-  tx: number, ty: number, tw: number, th: number
-) {
-  const dx = tx - sx;
-  const dy = ty - sy;
-  const cx = (sx + tx) / 2 - dy * 0.18;
-  const cy = (sy + ty) / 2 + dx * 0.18;
-  const a = clipToRect(sx, sy, sw / 2, sh / 2, cx - sx, cy - sy, 2);
-  const b = clipToRect(tx, ty, tw / 2, th / 2, cx - tx, cy - ty, 4);
-  return {
-    d: `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`,
-    lx: 0.25 * a.x + 0.5 * cx + 0.25 * b.x,
-    ly: 0.25 * a.y + 0.5 * cy + 0.25 * b.y,
-  };
+function edgePath(s: Rect, t: Rect) {
+  const dx = t.x - s.x;
+  const dy = t.y - s.y;
+  const cx = (s.x + t.x) / 2 - dy * 0.15;
+  const cy = (s.y + t.y) / 2 + dx * 0.15;
+  const a = clipToRect(s.x, s.y, s.w / 2, s.h / 2, cx - s.x, cy - s.y, 2);
+  const b = clipToRect(t.x, t.y, t.w / 2, t.h / 2, cx - t.x, cy - t.y, 4);
+  return `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
 }
 
-function boundsOf(items: { x: number; y: number; w: number; h: number }[]) {
-  if (items.length === 0) return { minX: 0, minY: 0, maxX: 900, maxY: 560 };
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const i of items) {
-    minX = Math.min(minX, i.x - i.w / 2);
-    maxX = Math.max(maxX, i.x + i.w / 2);
-    minY = Math.min(minY, i.y - i.h / 2);
-    maxY = Math.max(maxY, i.y + i.h / 2);
+function boundsOf(rects: Rect[]): Bounds {
+  if (rects.length === 0) return { minX: 0, minY: 0, maxX: 900, maxY: 560 };
+  const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const r of rects) {
+    b.minX = Math.min(b.minX, r.x - r.w / 2);
+    b.maxX = Math.max(b.maxX, r.x + r.w / 2);
+    b.minY = Math.min(b.minY, r.y - r.h / 2);
+    b.maxY = Math.max(b.maxY, r.y + r.h / 2);
   }
-  return { minX, minY, maxX, maxY };
+  return b;
 }
 
 /* ──────────────────────── Memoised SVG parts ──────────────────────── */
 
 interface EdgeViewProps {
-  sx: number; sy: number; sw: number; sh: number;
-  tx: number; ty: number; tw: number; th: number;
+  s: Rect;
+  t: Rect;
+  kind: EdgeKind;
   rel: string;
-  confidence: number;
-  highlighted: boolean;
-  dimmed: boolean;
   markerPrefix: string;
 }
 
-const EdgeView = memo(function EdgeView(p: EdgeViewProps) {
-  const color = edgeColor(p.rel);
-  const { d, lx, ly } = edgeGeometry(p.sx, p.sy, p.sw, p.sh, p.tx, p.ty, p.tw, p.th);
-  const opacity = p.dimmed ? 0.12 : p.highlighted ? 1 : 0.3 + 0.3 * p.confidence;
+const EdgeView = memo(function EdgeView({ s, t, kind, rel, markerPrefix }: EdgeViewProps) {
+  const st = EDGE_STYLE[kind];
   return (
-    <g>
-      <path
-        d={d}
-        fill="none"
-        stroke={color}
-        strokeWidth={p.highlighted ? 2.5 : 1.2}
-        strokeDasharray={p.rel === 'CO_LOCATED' ? '4 4' : undefined}
-        strokeOpacity={opacity}
-        markerEnd={`url(#${p.markerPrefix}-${color.slice(1)})`}
-      >
-        <title>{`${p.rel} (${Math.round(p.confidence * 100)}% confidence)`}</title>
-      </path>
-      {p.highlighted && (
-        <text
-          x={lx}
-          y={ly - 6}
-          fill={color}
-          fontSize={9}
-          fontFamily="monospace"
-          fontWeight="bold"
-          textAnchor="middle"
-          stroke="#020617"
-          strokeWidth={3}
-          paintOrder="stroke"
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >
-          {p.rel}
-        </text>
-      )}
-    </g>
+    <path
+      d={edgePath(s, t)}
+      fill="none"
+      stroke={st.color}
+      strokeWidth={st.width}
+      strokeOpacity={st.opacity}
+      markerEnd={`url(#${markerPrefix}-${st.color.slice(1)})`}
+    >
+      <title>{rel.replace(/_/g, ' ').toLowerCase()}</title>
+    </path>
   );
 });
 
 interface NodeViewProps {
   node: LayoutNode;
-  x: number;
-  y: number;
-  selected: boolean;
+  role: Role;
   hovered: boolean;
   dimmed: boolean;
   showText: boolean;
-  onPointerDown: (id: string, e: React.PointerEvent<SVGGElement>) => void;
+  onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
-  onActivate: (id: string) => void;
 }
 
-const NodeView = memo(function NodeView({
-  node, x, y, selected, hovered, dimmed, showText, onPointerDown, onHover, onActivate,
-}: NodeViewProps) {
-  const { border, Icon } = styleOf(node.type);
+const HEAT_STYLE = { 1: { text: 'MED', fill: AMBER }, 2: { text: 'HIGH', fill: '#f87171' } } as const;
+
+const NodeView = memo(function NodeView({ node, role, hovered, dimmed, showText, onSelect, onHover }: NodeViewProps) {
+  const { border, Icon, label: typeLabel } = styleOf(node.type);
+  const stroke = role === 'selected' ? '#ffffff' : role === 'affected' ? AMBER : role === 'uses' ? CYAN : border;
+  const fill =
+    role === 'selected' ? '#1e293b' : role === 'affected' ? '#2a1d06' : role === 'uses' ? '#06292e' : hovered ? '#0f172a' : '#0b1120';
   const hw = node.w / 2;
   const hh = node.h / 2;
-  const degree = node.inDegree + node.outDegree;
+  const heat = node.heat ? HEAT_STYLE[node.heat] : null;
 
   return (
     <g
-      transform={`translate(${x}, ${y})`}
-      style={{ opacity: dimmed ? 0.22 : 1, cursor: 'pointer' }}
+      transform={`translate(${node.x}, ${node.y})`}
+      style={{ opacity: dimmed ? 0.2 : 1, cursor: 'pointer' }}
       role="button"
       tabIndex={0}
-      aria-label={`${node.type} ${node.label}, ${degree} connections`}
-      aria-pressed={selected}
-      onPointerDown={(e) => onPointerDown(node.id, e)}
+      aria-pressed={role === 'selected'}
+      aria-label={`${typeLabel} ${node.label}. Used by ${node.inDegree}, uses ${node.outDegree}.`}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => onSelect(node.id)}
       onPointerEnter={() => onHover(node.id)}
       onPointerLeave={() => onHover(null)}
       onFocus={() => onHover(node.id)}
@@ -408,67 +359,78 @@ const NodeView = memo(function NodeView({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onActivate(node.id);
+          onSelect(node.id);
         }
       }}
     >
-      {selected && (
-        <rect
-          x={-hw - 6} y={-hh - 6} width={node.w + 12} height={node.h + 12} rx={18}
-          fill="none" stroke={border} strokeWidth={1.5} strokeDasharray="4 3" opacity={0.9}
-          style={{ pointerEvents: 'none' }}
-        />
-      )}
+      <title>{`${node.label} (${typeLabel})`}</title>
       <rect
-        x={-hw} y={-hh} width={node.w} height={node.h} rx={14}
-        fill={selected ? '#1e293b' : hovered ? '#0f172a' : '#0b1120'}
-        stroke={selected ? '#ffffff' : border}
-        strokeWidth={selected ? 2.2 : hovered ? 1.8 : 1.2}
+        x={-hw} y={-hh} width={node.w} height={node.h} rx={12}
+        fill={fill} stroke={stroke} strokeWidth={role === 'none' ? (hovered ? 1.8 : 1.2) : 2.2}
       />
-      <circle cx={-hw + 20} cy={0} r={12} fill={border} fillOpacity={0.15} stroke={border} style={{ pointerEvents: 'none' }} />
-      <Icon x={-hw + 13} y={-7} size={14} color={border} style={{ pointerEvents: 'none' }} />
+      <circle cx={-hw + 22} cy={0} r={12} fill={border} fillOpacity={0.15} stroke={border} style={{ pointerEvents: 'none' }} />
+      <Icon x={-hw + 15} y={-7} size={14} color={border} style={{ pointerEvents: 'none' }} />
       {showText && (
         <>
-          <text
-            x={-hw + 40} y={-3}
-            fill={hovered ? '#38bdf8' : '#f8fafc'}
-            fontSize={11} fontWeight={700} fontFamily="monospace"
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-          >
+          <text x={-hw + 42} y={-3} fill={hovered ? '#38bdf8' : '#f8fafc'} fontSize={11} fontWeight={700} fontFamily="monospace" style={{ pointerEvents: 'none', userSelect: 'none' }}>
             {node.title}
           </text>
-          <text
-            x={-hw + 40} y={11}
-            fill="#64748b" fontSize={8.5} fontFamily="monospace"
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
-          >
+          <text x={-hw + 42} y={11} fill="#94a3b8" fontSize={8.5} fontFamily="monospace" style={{ pointerEvents: 'none', userSelect: 'none' }}>
             {node.subtitle}
           </text>
         </>
       )}
-      <g transform={`translate(${hw}, ${-hh})`} style={{ pointerEvents: 'none' }}>
-        <rect x={-12} y={-7} width={24} height={14} rx={7} fill="#1e293b" stroke={border} />
-        <text x={0} y={3} fill={border} fontSize={8} fontWeight="bold" fontFamily="monospace" textAnchor="middle">
-          {degree}
-        </text>
-      </g>
+      {heat && (
+        <g transform={`translate(${hw - 34}, ${-hh - 7})`} style={{ pointerEvents: 'none' }}>
+          <rect width={heat.text === 'HIGH' ? 34 : 28} height={14} rx={7} fill={heat.fill} />
+          <text x={heat.text === 'HIGH' ? 17 : 14} y={10} fill="#0b1120" fontSize={8} fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+            {heat.text}
+          </text>
+        </g>
+      )}
     </g>
   );
 });
 
 /* ─────────────────────────── Small UI parts ───────────────────────── */
 
-const Row: React.FC<{ label: string; value: React.ReactNode; className?: string }> = ({ label, value, className = 'text-white' }) => (
-  <div className="flex items-center justify-between text-slate-400">
-    <span>{label}</span>
-    <span className={`font-bold truncate max-w-[150px] ${className}`}>{value}</span>
+const TypeBadge: React.FC<{ type: string }> = ({ type }) => (
+  <span className={`px-2 py-0.5 rounded font-bold border text-[10px] font-mono uppercase tracking-wider ${styleOf(type).badge}`}>
+    {styleOf(type).label}
+  </span>
+);
+
+const Stat: React.FC<{ label: string; value: number; tone: string }> = ({ label, value, tone }) => (
+  <div className="rounded-xl bg-slate-900/60 border border-slate-800 px-4 py-2.5 min-w-[110px]">
+    <div className={`text-xl font-extrabold font-mono leading-none ${tone}`}>{value}</div>
+    <div className="text-[11px] text-slate-400 mt-1">{label}</div>
   </div>
 );
 
-const TypeBadge: React.FC<{ type: string }> = ({ type }) => (
-  <span className={`px-2 py-0.5 rounded font-bold border text-[10px] font-mono uppercase tracking-wider ${styleOf(type).badge}`}>
-    {type}
-  </span>
+const NodeLink: React.FC<{ node: LayoutNode; onClick: (id: string) => void }> = ({ node, onClick }) => {
+  const { Icon, border } = styleOf(node.type);
+  return (
+    <button
+      onClick={() => onClick(node.id)}
+      className="w-full px-2 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left text-xs font-mono flex items-center gap-2 transition-colors"
+    >
+      <Icon size={13} color={border} className="shrink-0" />
+      <span className="truncate text-slate-200">{node.label.split('/').pop()}</span>
+      {node.type === 'ENDPOINT' && typeof node.properties?.method === 'string' && (
+        <span className="ml-auto text-[9px] text-emerald-400 font-bold">{node.properties.method}</span>
+      )}
+    </button>
+  );
+};
+
+const Section: React.FC<{ title: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, defaultOpen, children }) => (
+  <details open={defaultOpen} className="group rounded-xl bg-slate-900/60 border border-slate-800 p-3">
+    <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-bold text-slate-200">
+      {title}
+      <ChevronRight className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90" />
+    </summary>
+    <div className="mt-3 space-y-1.5">{children}</div>
+  </details>
 );
 
 /* ───────────────────────────── Component ──────────────────────────── */
@@ -478,24 +440,25 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
   projectName = 'Repository',
   onSelectNode,
 }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>('modules');
+  const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [show, setShow] = useState<Record<FilterableType, boolean>>({ MODULE: true, ENDPOINT: true, FUNCTION: false });
+  const [show, setShow] = useState<Record<FilterableType, boolean>>({ MODULE: true, ENDPOINT: true, FUNCTION: true });
+  const [showAllLinks, setShowAllLinks] = useState(false);
   const [view, setView] = useState({ k: 1, x: 0, y: 0 });
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [overrides, setOverrides] = useState<Overrides>({ owner: [], pos: {} });
+  const [copied, setCopied] = useState(false);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<DragState | null>(null);
+  const panRef = useRef<{ pointerId: number; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
   const pendingFocus = useRef<string | null>(null);
   const markerPrefix = `kg${useId().replace(/:/g, '')}`;
 
   const showCanvas = viewMode !== 'table';
 
-  /* 1. Derive the graph for the current view */
+  /* 1. Normalise input and derive the graph for the current view */
   const { rawNodes, rawEdges } = useMemo(
     () => ({
       rawNodes: graph?.nodes ?? [],
@@ -503,72 +466,119 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     }),
     [graph]
   );
+  const symbolToModule = useMemo(() => mapSymbolsToModules(rawNodes, rawEdges), [rawNodes, rawEdges]);
+  const rawNodeById = useMemo(() => new Map(rawNodes.map((n) => [n.id, n])), [rawNodes]);
 
-  const moduleCount = useMemo(() => rawNodes.filter((n) => n.type === 'MODULE').length, [rawNodes]);
+  const totals = useMemo(() => {
+    const count = (t: string) => rawNodes.filter((n) => n.type === t).length;
+    return { modules: count('MODULE'), endpoints: count('ENDPOINT'), functions: count('FUNCTION'), links: rawEdges.length };
+  }, [rawNodes, rawEdges]);
 
-  const processedGraph = useMemo(() => {
+  const processed = useMemo(() => {
     if (viewMode === 'table') return { nodes: rawNodes, edges: rawEdges };
-    if (viewMode === 'modules') return buildModuleGraph(rawNodes, rawEdges);
-
+    if (viewMode === 'map') return buildMapGraph(rawNodes, rawEdges, symbolToModule);
     const allowed = new Set<string>(['PROJECT']);
     (Object.keys(show) as FilterableType[]).forEach((t) => show[t] && allowed.add(t));
     const nodes = rawNodes.filter((n) => allowed.has(n.type));
     const ids = new Set(nodes.map((n) => n.id));
-    const edges = rawEdges.filter((e) => e.source !== e.target && ids.has(e.source) && ids.has(e.target));
-    return { nodes, edges };
-  }, [rawNodes, rawEdges, viewMode, show]);
+    return { nodes, edges: rawEdges.filter((e) => e.source !== e.target && ids.has(e.source) && ids.has(e.target)) };
+  }, [rawNodes, rawEdges, symbolToModule, viewMode, show]);
 
-  /* 2. Layout (skipped entirely in table mode) */
-  const baseNodes = useMemo(
-    () => (showCanvas ? computeLayout(processedGraph.nodes, processedGraph.edges) : []),
-    [processedGraph, showCanvas]
-  );
+  /* 2. Layout */
+  const layout = useMemo(() => {
+    if (!showCanvas) return { nodes: [] as LayoutNode[], groups: [] as GroupBox[] };
+    const groupOf = (n: GraphNodeData) => {
+      if (n.type === 'ENDPOINT') return ENDPOINT_GROUP;
+      if (n.type === 'PROJECT') return PROJECT_GROUP;
+      const mod = n.type === 'MODULE' ? n : rawNodeById.get(symbolToModule.get(n.id) ?? '');
+      return mod ? folderOf(mod.label || mod.id) : 'Other';
+    };
+    return computeLayout(processed.nodes, processed.edges, groupOf);
+  }, [processed, showCanvas, rawNodeById, symbolToModule]);
+
+  const baseNodes = layout.nodes;
   const baseNodeMap = useMemo(() => new Map(baseNodes.map((n) => [n.id, n])), [baseNodes]);
   const edges = useMemo(
-    () => (showCanvas ? processedGraph.edges.filter((e) => baseNodeMap.has(e.source) && baseNodeMap.has(e.target)) : []),
-    [processedGraph.edges, baseNodeMap, showCanvas]
+    () => (showCanvas ? processed.edges.filter((e) => baseNodeMap.has(e.source) && baseNodeMap.has(e.target)) : []),
+    [processed.edges, baseNodeMap, showCanvas]
+  );
+  const bounds = useMemo(
+    () => boundsOf(layout.groups.map((g) => ({ x: g.x + g.w / 2, y: g.y + g.h / 2, w: g.w, h: g.h }))),
+    [layout.groups]
   );
 
-  const activeOverrides = overrides.owner === baseNodes ? overrides.pos : EMPTY_POS;
+  const live = useRef({ view, size, baseNodeMap, bounds });
+  live.current = { view, size, baseNodeMap, bounds };
 
-  // Latest values for stable event handlers (avoids stale closures without re-creating callbacks)
-  const live = useRef({ view, size, baseNodes, baseNodeMap, activeOverrides });
-  live.current = { view, size, baseNodes, baseNodeMap, activeOverrides };
-
-  /* 3. Selection, neighbours, search */
-  const selected = selectedNodeId ? baseNodeMap.get(selectedNodeId) ?? null : null;
-  const selectedId = selected?.id ?? null; // ignores a stale id after a view switch, so nothing gets dimmed
-
-  const neighborIds = useMemo(() => {
-    const set = new Set<string>();
-    if (!selectedId) return set;
-    set.add(selectedId);
+  /* 3. Impact analysis: what is affected if X changes, and what X depends on */
+  const { inAdj, outAdj } = useMemo(() => {
+    const i = new Map<string, string[]>();
+    const o = new Map<string, string[]>();
     for (const e of edges) {
-      if (e.source === selectedId) set.add(e.target);
-      if (e.target === selectedId) set.add(e.source);
+      (o.get(e.source) ?? o.set(e.source, []).get(e.source)!).push(e.target);
+      (i.get(e.target) ?? i.set(e.target, []).get(e.target)!).push(e.source);
     }
-    return set;
-  }, [selectedId, edges]);
+    return { inAdj: i, outAdj: o };
+  }, [edges]);
 
-  const { inbound, outbound } = useMemo(
-    () => ({
-      inbound: selectedId ? edges.filter((e) => e.target === selectedId) : [],
-      outbound: selectedId ? edges.filter((e) => e.source === selectedId) : [],
-    }),
-    [selectedId, edges]
-  );
+  const selected = selectedNodeId ? baseNodeMap.get(selectedNodeId) ?? null : null;
+  const selectedId = selected?.id ?? null;
 
+  const impact = useMemo(() => {
+    if (!selectedId) return null;
+    const affected = reach(selectedId, inAdj);
+    const uses = reach(selectedId, outAdj);
+    const toNodes = (set: Set<string>) =>
+      Array.from(set)
+        .map((id) => baseNodeMap.get(id))
+        .filter((n): n is LayoutNode => !!n)
+        .sort((a, b) => Number(b.type === 'ENDPOINT') - Number(a.type === 'ENDPOINT') || b.inDegree - a.inDegree);
+    return { affected, uses, affectedNodes: toNodes(affected), usesNodes: toNodes(uses) };
+  }, [selectedId, inAdj, outAdj, baseNodeMap]);
+
+  /** Links are hidden by default and revealed on demand, so the map stays readable. */
+  const drawnEdges = useMemo(() => {
+    const keyOf = (e: GraphEdgeData) => `${e.source}->${e.target}`;
+    if (selectedId && impact) {
+      const aff = new Set([selectedId, ...impact.affected]);
+      const use = new Set([selectedId, ...impact.uses]);
+      return edges.flatMap((e) =>
+        aff.has(e.source) && aff.has(e.target) ? [{ e, kind: 'affected' as EdgeKind, key: keyOf(e) }]
+        : use.has(e.source) && use.has(e.target) ? [{ e, kind: 'uses' as EdgeKind, key: keyOf(e) }]
+        : []
+      );
+    }
+    if (hoveredNodeId) {
+      return edges
+        .filter((e) => e.source === hoveredNodeId || e.target === hoveredNodeId)
+        .map((e) => ({ e, kind: 'hover' as EdgeKind, key: keyOf(e) }));
+    }
+    if (showAllLinks) return edges.map((e) => ({ e, kind: 'all' as EdgeKind, key: keyOf(e) }));
+    return [];
+  }, [selectedId, impact, hoveredNodeId, showAllLinks, edges]);
+
+  /* 4. Search + sidebar data */
   const query = searchQuery.trim().toLowerCase();
   const matches = useCallback(
     (n: GraphNodeData) => n.label.toLowerCase().includes(query) || n.id.toLowerCase().includes(query),
     [query]
   );
-  const matchedIds = useMemo(
-    () => (query ? new Set(baseNodes.filter(matches).map((n) => n.id)) : null),
-    [query, baseNodes, matches]
+  const matchedIds = useMemo(() => (query ? new Set(baseNodes.filter(matches).map((n) => n.id)) : null), [query, baseNodes, matches]);
+
+  const hotSpots = useMemo(
+    () => baseNodes.filter((n) => n.type !== 'ENDPOINT' && n.inDegree > 0).sort((a, b) => b.inDegree - a.inDegree).slice(0, 6),
+    [baseNodes]
+  );
+  const endpointNodes = useMemo(
+    () => baseNodes.filter((n) => n.type === 'ENDPOINT').sort((a, b) => a.label.localeCompare(b.label)),
+    [baseNodes]
+  );
+  const unlinkedCount = useMemo(
+    () => baseNodes.filter((n) => n.type === 'MODULE' && n.inDegree + n.outDegree === 0).length,
+    [baseNodes]
   );
 
-  /* 4. Viewport helpers */
+  /* 5. Viewport */
   const zoomAt = useCallback((px: number, py: number, factor: number) => {
     setView((v) => {
       const k = clamp(v.k * factor, MIN_ZOOM, MAX_ZOOM);
@@ -577,35 +587,46 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     });
   }, []);
 
-  const fitView = useCallback((nodes: LayoutNode[]) => {
+  const fitView = useCallback((b: Bounds) => {
     const { w, h } = live.current.size;
     if (!w || !h) return;
-    const b = boundsOf(nodes);
-    const pad = 70;
-    const k = clamp(Math.min(w / (b.maxX - b.minX + pad * 2), h / (b.maxY - b.minY + pad * 2), 1.2), MIN_ZOOM, MAX_ZOOM);
+    const pad = 40;
+    const k = clamp(Math.min(w / (b.maxX - b.minX + pad * 2), h / (b.maxY - b.minY + pad * 2), 1), MIN_ZOOM, MAX_ZOOM);
     setView({ k, x: w / 2 - ((b.minX + b.maxX) / 2) * k, y: h / 2 - ((b.minY + b.maxY) / 2) * k });
   }, []);
 
   const centerOn = useCallback((id: string) => {
-    const { baseNodeMap: map, activeOverrides: ov, size: s, view: v } = live.current;
+    const { baseNodeMap: map, size: s, view: v } = live.current;
     const n = map.get(id);
     if (!n) return;
-    const p = ov[id] ?? n;
-    setView({ k: v.k, x: s.w / 2 - p.x * v.k, y: s.h / 2 - p.y * v.k });
+    const k = Math.max(v.k, 0.8); // zoom in enough that the text is readable
+    setView({ k, x: s.w / 2 - n.x * k, y: s.h / 2 - n.y * k });
   }, []);
+
+  const selectNode = useCallback(
+    (id: string) => {
+      setSelectedNodeId(id);
+      onSelectNode?.(id);
+    },
+    [onSelectNode]
+  );
+  const selectAndCenter = useCallback(
+    (id: string) => {
+      selectNode(id);
+      centerOn(id);
+    },
+    [selectNode, centerOn]
+  );
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setSize({ w: width, h: height });
-    });
+    const ro = new ResizeObserver(([entry]) => setSize({ w: entry.contentRect.width, h: entry.contentRect.height }));
     ro.observe(el);
     return () => ro.disconnect();
   }, [showCanvas]);
 
-  // React's onWheel is passive, so preventDefault only works through a native listener.
+  // React's onWheel is passive, so preventDefault needs a native listener.
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -623,186 +644,149 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     if (!showCanvas || !hasSize) return;
     const target = pendingFocus.current;
     pendingFocus.current = null;
-    if (target && baseNodeMap.has(target)) {
-      const n = baseNodeMap.get(target)!;
-      setView({ k: 1, x: live.current.size.w / 2 - n.x, y: live.current.size.h / 2 - n.y });
-    } else {
-      fitView(baseNodes);
-    }
-  }, [baseNodes, baseNodeMap, showCanvas, hasSize, fitView]);
+    const n = target ? baseNodeMap.get(target) : undefined;
+    if (n) setView({ k: 1, x: live.current.size.w / 2 - n.x, y: live.current.size.h / 2 - n.y });
+    else fitView(bounds);
+  }, [baseNodeMap, bounds, showCanvas, hasSize, fitView]);
 
-  /* 5. Pointer interaction (mouse + touch + pen) */
-  const toWorld = (clientX: number, clientY: number) => {
-    const r = svgRef.current!.getBoundingClientRect();
-    const v = live.current.view;
-    return { x: (clientX - r.left - v.x) / v.k, y: (clientY - r.top - v.y) / v.k };
-  };
-
-  const selectNode = useCallback(
-    (id: string) => {
-      setSelectedNodeId(id);
-      onSelectNode?.(id);
-    },
-    [onSelectNode]
-  );
-
-  const handleNodePointerDown = useCallback(
-    (id: string, e: React.PointerEvent<SVGGElement>) => {
-      e.stopPropagation();
-      const svg = svgRef.current;
-      const n = live.current.baseNodeMap.get(id);
-      if (!svg || !n) return;
-      svg.setPointerCapture(e.pointerId);
-      const p = live.current.activeOverrides[id] ?? n;
-      const w = toWorld(e.clientX, e.clientY);
-      dragRef.current = { kind: 'node', pointerId: e.pointerId, id, dx: p.x - w.x, dy: p.y - w.y };
-      selectNode(id);
-    },
-    [selectNode] // eslint-disable-line react-hooks/exhaustive-deps
-  );
-
-  const handleCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+  /* 6. Pan (mouse, touch, pen) */
+  const onCanvasPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     const v = live.current.view;
-    dragRef.current = { kind: 'pan', pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, ox: v.x, oy: v.y, moved: false };
+    panRef.current = { pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, ox: v.x, oy: v.y, moved: false };
   };
-
-  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    const d = dragRef.current;
-    if (!d || d.pointerId !== e.pointerId) return;
-    if (d.kind === 'pan') {
-      const mx = e.clientX - d.sx;
-      const my = e.clientY - d.sy;
-      if (Math.hypot(mx, my) > 3) d.moved = true;
-      setView((v) => ({ ...v, x: d.ox + mx, y: d.oy + my }));
-    } else {
-      const w = toWorld(e.clientX, e.clientY);
-      const owner = live.current.baseNodes;
-      setOverrides((prev) => ({
-        owner,
-        pos: { ...(prev.owner === owner ? prev.pos : {}), [d.id]: { x: w.x + d.dx, y: w.y + d.dy } },
-      }));
-    }
+  const onCanvasPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const p = panRef.current;
+    if (!p || p.pointerId !== e.pointerId) return;
+    const mx = e.clientX - p.sx;
+    const my = e.clientY - p.sy;
+    if (Math.hypot(mx, my) > 3) p.moved = true;
+    setView((v) => ({ ...v, x: p.ox + mx, y: p.oy + my }));
   };
-
-  const handlePointerEnd = (e: React.PointerEvent<SVGSVGElement>) => {
-    const d = dragRef.current;
-    if (!d || d.pointerId !== e.pointerId) return;
-    if (d.kind === 'pan' && !d.moved) setSelectedNodeId(null); // plain click on empty canvas
-    dragRef.current = null;
+  const onCanvasPointerEnd = (e: React.PointerEvent<SVGSVGElement>) => {
+    const p = panRef.current;
+    if (!p || p.pointerId !== e.pointerId) return;
+    if (!p.moved) setSelectedNodeId(null); // click on empty space
+    panRef.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   };
 
-  const zoomBy = (factor: number) => zoomAt(live.current.size.w / 2, live.current.size.h / 2, factor);
-  const resetView = () => {
-    setSelectedNodeId(null);
-    setOverrides({ owner: [], pos: {} });
-    fitView(live.current.baseNodes);
-  };
+  const zoomBy = (f: number) => zoomAt(live.current.size.w / 2, live.current.size.h / 2, f);
 
-  /* 6. Actions */
+  /* 7. Actions */
   const focusFromTable = (node: GraphNodeData) => {
     pendingFocus.current = node.id;
-    if (node.type === 'MODULE') {
-      setViewMode('modules');
-    } else {
-      if (node.type in show) setShow((s) => ({ ...s, [node.type as FilterableType]: true }));
-      setViewMode('full');
-    }
+    setViewMode(node.type === 'MODULE' || node.type === 'ENDPOINT' ? 'map' : 'detailed');
     setSelectedNodeId(node.id);
   };
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && showCanvas) {
-      const first = baseNodes.find(matches);
-      if (first) {
-        selectNode(first.id);
-        centerOn(first.id);
-      }
-    }
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !showCanvas) return;
+    const first = baseNodes.find(matches);
+    if (first) selectAndCenter(first.id);
   };
 
-  const handleExportSvg = () => {
+  const copyRetestList = () => {
+    if (!selected || !impact) return;
+    const lines = [`Re-test if "${selected.label}" changes:`, ...impact.affectedNodes.map((n) => `- [${styleOf(n.type).label}] ${n.label}`)];
+    navigator.clipboard?.writeText(lines.join('\n')).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const exportSvg = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const positioned = baseNodes.map((n) => activeOverrides[n.id] ? { ...n, ...activeOverrides[n.id] } : n);
-    const b = boundsOf(positioned);
     const pad = 40;
-    const width = b.maxX - b.minX + pad * 2;
-    const height = b.maxY - b.minY + pad * 2;
-
+    const { minX, minY, maxX, maxY } = bounds;
+    const w = maxX - minX + pad * 2;
+    const h = maxY - minY + pad * 2;
     const clone = svg.cloneNode(true) as SVGSVGElement;
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    clone.setAttribute('viewBox', `${b.minX - pad} ${b.minY - pad} ${width} ${height}`);
-    clone.setAttribute('width', String(Math.round(width)));
-    clone.setAttribute('height', String(Math.round(height)));
+    clone.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${w} ${h}`);
+    clone.setAttribute('width', String(Math.round(w)));
+    clone.setAttribute('height', String(Math.round(h)));
     clone.removeAttribute('class');
     clone.removeAttribute('style');
     clone.querySelector('[data-world]')?.removeAttribute('transform');
     clone.querySelector('[data-grid]')?.remove();
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    for (const [k, v] of Object.entries({ x: b.minX - pad, y: b.minY - pad, width, height, fill: '#020617' })) {
-      bg.setAttribute(k, String(v));
-    }
+    for (const [k, v] of Object.entries({ x: minX - pad, y: minY - pad, width: w, height: h, fill: '#020617' })) bg.setAttribute(k, String(v));
     clone.insertBefore(bg, clone.firstChild);
 
     const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_knowledge_graph.svg`;
+    a.download = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_project_map.svg`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  /* 7. Render */
+  /* 8. Table data */
+  const rawDegree = useMemo(() => {
+    const d = new Map<string, { in: number; out: number }>();
+    const get = (id: string) => d.get(id) ?? d.set(id, { in: 0, out: 0 }).get(id)!;
+    for (const e of rawEdges) {
+      get(e.source).out++;
+      get(e.target).in++;
+    }
+    return d;
+  }, [rawEdges]);
   const tableRows = useMemo(
-    () => (viewMode === 'table' ? processedGraph.nodes.filter((n) => !query || matches(n)) : []),
-    [viewMode, processedGraph.nodes, query, matches]
+    () => (viewMode === 'table' ? rawNodes.filter((n) => !query || matches(n)) : []),
+    [viewMode, rawNodes, query, matches]
   );
 
+  /* 9. Render */
   const tabs: { mode: ViewMode; label: string; Icon: LucideIcon }[] = [
-    { mode: 'modules', label: `Module Architecture (${moduleCount})`, Icon: Layers },
-    { mode: 'full', label: `Full Knowledge Graph (${rawNodes.length})`, Icon: Network },
-    { mode: 'table', label: 'Table List', Icon: List },
+    { mode: 'map', label: 'Project map', Icon: Layers },
+    { mode: 'detailed', label: 'Detailed graph', Icon: Network },
+    { mode: 'table', label: 'Table', Icon: List },
   ];
-
   const tabClass = (active: boolean) =>
     `px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
       active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
     }`;
   const iconBtn = 'p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors';
+  const maxUsed = hotSpots[0]?.inDegree || 1;
 
   return (
     <div className="space-y-4">
+      {/* Summary: the whole project in one row */}
+      <div className="glass-card rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center gap-3">
+        <div className="mr-2">
+          <h2 className="text-sm font-extrabold text-white">{projectName}</h2>
+          <p className="text-[11px] text-slate-400 max-w-[260px]">Click any box to see what it uses and what to re-test if it changes.</p>
+        </div>
+        <Stat label="Modules" value={totals.modules} tone="text-cyan-400" />
+        <Stat label="API endpoints" value={totals.endpoints} tone="text-emerald-400" />
+        <Stat label="Functions" value={totals.functions} tone="text-indigo-400" />
+        <Stat label="Dependencies" value={totals.links} tone="text-amber-400" />
+      </div>
+
       {/* Controls */}
-      <div className="glass-card rounded-2xl p-4 border border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div role="tablist" aria-label="Graph view" className="flex flex-wrap items-center bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
-            {tabs.map(({ mode, label, Icon }) => (
-              <button key={mode} role="tab" aria-selected={viewMode === mode} onClick={() => setViewMode(mode)} className={tabClass(viewMode === mode)}>
-                <Icon className="w-3.5 h-3.5" /> {label}
-              </button>
-            ))}
-          </div>
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] font-mono text-slate-400">
-            <span>Nodes: <strong className="text-white">{processedGraph.nodes.length}</strong></span>
-            <span aria-hidden>•</span>
-            <span>Connections: <strong className="text-indigo-400">{processedGraph.edges.length}</strong></span>
-          </div>
+      <div className="glass-card rounded-2xl p-3 border border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div role="tablist" aria-label="Graph view" className="flex flex-wrap items-center bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
+          {tabs.map(({ mode, label, Icon }) => (
+            <button key={mode} role="tab" aria-selected={viewMode === mode} onClick={() => setViewMode(mode)} className={tabClass(viewMode === mode)}>
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 sm:w-60">
+          <div className="relative flex-1 sm:w-64">
             <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Search module or symbol…  (Enter to jump)"
-              aria-label="Search nodes"
+              onKeyDown={onSearchKeyDown}
+              placeholder="Find a module, endpoint or function…"
+              aria-label="Search"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50"
             />
             {searchQuery && (
@@ -812,9 +796,9 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
             )}
           </div>
 
-          {viewMode === 'full' && (
-            <div className="flex items-center gap-2 text-[11px] font-semibold">
-              {FILTERS.map(({ type, label, text }) => (
+          {viewMode === 'detailed' && (
+            <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-300">
+              {FILTERS.map(({ type, label }) => (
                 <label key={type} className="flex items-center gap-1 cursor-pointer">
                   <input
                     type="checkbox"
@@ -822,18 +806,25 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                     onChange={(e) => setShow((s) => ({ ...s, [type]: e.target.checked }))}
                     className="rounded bg-slate-900 border-slate-700 focus:ring-0"
                   />
-                  <span className={text}>{label}</span>
+                  {label}
                 </label>
               ))}
             </div>
           )}
 
+          {showCanvas && (
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={showAllLinks} onChange={(e) => setShowAllLinks(e.target.checked)} className="rounded bg-slate-900 border-slate-700 focus:ring-0" />
+              Show all links
+            </label>
+          )}
+
           <button
-            onClick={handleExportSvg}
+            onClick={exportSvg}
             disabled={!showCanvas || baseNodes.length === 0}
             className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            title="Export diagram (SVG)"
-            aria-label="Export diagram as SVG"
+            title="Export as SVG"
+            aria-label="Export as SVG"
           >
             <Download className="w-4 h-4" />
           </button>
@@ -841,224 +832,249 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
       </div>
 
       {showCanvas ? (
-        <div
-          ref={containerRef}
-          className="relative w-full h-[580px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl select-none"
-          onKeyDown={(e) => e.key === 'Escape' && setSelectedNodeId(null)}
-        >
-          <div className="absolute top-4 left-4 z-10 pointer-events-none">
-            <span className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-400 backdrop-blur-md">
-              {viewMode === 'modules' ? 'Module Dependency Architecture' : 'Semantic Knowledge Graph'} • Drag to move • Click to inspect • Esc to clear
-            </span>
-          </div>
-
-          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-1 shadow-xl backdrop-blur-md">
-            <button onClick={() => zoomBy(1.2)} className={iconBtn} title="Zoom in" aria-label="Zoom in"><ZoomIn className="w-4 h-4" /></button>
-            <button onClick={() => zoomBy(1 / 1.2)} className={iconBtn} title="Zoom out" aria-label="Zoom out"><ZoomOut className="w-4 h-4" /></button>
-            <button onClick={resetView} className={iconBtn} title="Fit to screen" aria-label="Fit to screen"><Maximize2 className="w-4 h-4" /></button>
-          </div>
-
-          {baseNodes.length === 0 && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-slate-500 pointer-events-none">
-              {viewMode === 'full' ? 'Nothing to show. Enable a node type above.' : 'No modules found in this graph.'}
-            </div>
-          )}
-
-          <svg
-            ref={svgRef}
-            role="group"
-            aria-label={`${projectName} dependency graph`}
-            className="w-full h-full cursor-grab active:cursor-grabbing"
-            style={{ touchAction: 'none' }}
-            onPointerDown={handleCanvasPointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
-          >
-            <defs>
-              <pattern id={`${markerPrefix}-grid`} width="30" height="30" patternUnits="userSpaceOnUse">
-                <circle cx="2" cy="2" r="1" fill="#1e293b" opacity="0.6" />
-              </pattern>
-              {ALL_EDGE_COLORS.map((c) => (
-                <marker
-                  key={c}
-                  id={`${markerPrefix}-${c.slice(1)}`}
-                  viewBox="0 0 10 10"
-                  refX="9"
-                  refY="5"
-                  markerWidth="8"
-                  markerHeight="8"
-                  markerUnits="userSpaceOnUse"
-                  orient="auto"
-                >
-                  <path d="M 0 1 L 10 5 L 0 9 z" fill={c} />
-                </marker>
-              ))}
-            </defs>
-
-            <rect data-grid width="100%" height="100%" fill={`url(#${markerPrefix}-grid)`} />
-
-            <g data-world transform={`translate(${view.x}, ${view.y}) scale(${view.k})`}>
-              <g>
-                {edges.map((e) => {
-                  const s = baseNodeMap.get(e.source)!;
-                  const t = baseNodeMap.get(e.target)!;
-                  const sp = activeOverrides[s.id] ?? s;
-                  const tp = activeOverrides[t.id] ?? t;
-                  const highlighted = !!selectedId && (e.source === selectedId || e.target === selectedId);
-                  return (
-                    <EdgeView
-                      key={`${e.source}->${e.target}:${e.relationship}`}
-                      sx={sp.x} sy={sp.y} sw={s.w} sh={s.h}
-                      tx={tp.x} ty={tp.y} tw={t.w} th={t.h}
-                      rel={e.relationship ?? 'RELATED'}
-                      confidence={e.confidence ?? 1}
-                      highlighted={highlighted}
-                      dimmed={!!selectedId && !highlighted}
-                      markerPrefix={markerPrefix}
-                    />
-                  );
-                })}
-              </g>
-              <g>
-                {baseNodes.map((n) => {
-                  const p = activeOverrides[n.id] ?? n;
-                  const dimmed = (!!selectedId && !neighborIds.has(n.id)) || (!!matchedIds && !matchedIds.has(n.id));
-                  return (
-                    <NodeView
-                      key={n.id}
-                      node={n}
-                      x={p.x}
-                      y={p.y}
-                      selected={selectedId === n.id}
-                      hovered={hoveredNodeId === n.id}
-                      dimmed={dimmed}
-                      showText={view.k >= 0.4}
-                      onPointerDown={handleNodePointerDown}
-                      onHover={setHoveredNodeId}
-                      onActivate={selectNode}
-                    />
-                  );
-                })}
-              </g>
-            </g>
-          </svg>
-
-          {/* Inspector */}
-          {selected && (
-            <aside
-              aria-label="Node details"
-              className="absolute top-4 right-4 bottom-4 w-80 max-w-[calc(100%-2rem)] bg-slate-900/95 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between z-20 gap-4"
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Sidebar */}
+          <aside className="lg:w-64 shrink-0 space-y-3 lg:max-h-[620px] lg:overflow-y-auto">
+            <Section
+              defaultOpen
+              title={<span className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-red-400" /> Test these first</span>}
             >
-              <div className="space-y-4 overflow-y-auto pr-1">
-                <div className="flex items-start justify-between border-b border-slate-800 pb-3 gap-2">
+              <p className="text-[11px] text-slate-500 pb-1">Most-used parts. A bug here reaches the most places.</p>
+              {hotSpots.map((n) => (
+                <button key={n.id} onClick={() => selectAndCenter(n.id)} className="w-full text-left group">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="truncate text-slate-200 group-hover:text-cyan-400">{n.label.split('/').pop()}</span>
+                    <span className="text-slate-400 ml-2">{n.inDegree}</span>
+                  </div>
+                  <div className="h-1 rounded bg-slate-800 mt-1">
+                    <div className="h-1 rounded" style={{ width: `${(n.inDegree / maxUsed) * 100}%`, background: n.heat === 2 ? '#f87171' : n.heat === 1 ? AMBER : '#64748b' }} />
+                  </div>
+                </button>
+              ))}
+              {hotSpots.length === 0 && <p className="text-[11px] text-slate-500 italic">No dependencies found.</p>}
+              {unlinkedCount > 0 && (
+                <p className="text-[11px] text-slate-500 pt-1">{plural(unlinkedCount, 'module')} with no links (unused, or only reached at runtime).</p>
+              )}
+            </Section>
+
+            {endpointNodes.length > 0 && (
+              <Section title={`API endpoints (${endpointNodes.length})`}>
+                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                  {endpointNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
+                </div>
+              </Section>
+            )}
+
+            <Section title="How to read this">
+              <ul className="text-[11px] text-slate-400 space-y-1.5">
+                <li>Each outlined area is a folder.</li>
+                <li><span className="text-red-400 font-bold">HIGH</span> / <span className="text-amber-400 font-bold">MED</span> tags mark parts many others rely on.</li>
+                <li><span className="text-amber-400 font-bold">Amber</span>: re-test if the selected item changes.</li>
+                <li><span className="text-cyan-400 font-bold">Cyan</span>: what the selected item depends on.</li>
+                <li>Arrows point from the user to the thing it uses.</li>
+              </ul>
+            </Section>
+          </aside>
+
+          {/* Canvas */}
+          <div
+            ref={containerRef}
+            className="relative flex-1 min-w-0 h-[620px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl select-none"
+            onKeyDown={(e) => e.key === 'Escape' && setSelectedNodeId(null)}
+          >
+            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-1 shadow-xl backdrop-blur-md">
+              <button onClick={() => zoomBy(1.2)} className={iconBtn} title="Zoom in" aria-label="Zoom in"><ZoomIn className="w-4 h-4" /></button>
+              <button onClick={() => zoomBy(1 / 1.2)} className={iconBtn} title="Zoom out" aria-label="Zoom out"><ZoomOut className="w-4 h-4" /></button>
+              <button onClick={() => { setSelectedNodeId(null); fitView(live.current.bounds); }} className={iconBtn} title="Show whole project" aria-label="Show whole project"><Maximize2 className="w-4 h-4" /></button>
+            </div>
+
+            {baseNodes.length === 0 && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-slate-500 pointer-events-none">
+                {viewMode === 'detailed' ? 'Nothing to show. Turn on a type above.' : 'No modules or endpoints found.'}
+              </div>
+            )}
+
+            <svg
+              ref={svgRef}
+              role="group"
+              aria-label={`${projectName} project map`}
+              className="w-full h-full cursor-grab active:cursor-grabbing"
+              style={{ touchAction: 'none' }}
+              onPointerDown={onCanvasPointerDown}
+              onPointerMove={onCanvasPointerMove}
+              onPointerUp={onCanvasPointerEnd}
+              onPointerCancel={onCanvasPointerEnd}
+            >
+              <defs>
+                <pattern id={`${markerPrefix}-grid`} width="30" height="30" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1" fill="#1e293b" opacity="0.6" />
+                </pattern>
+                {MARKER_COLORS.map((c) => (
+                  <marker key={c} id={`${markerPrefix}-${c.slice(1)}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill={c} />
+                  </marker>
+                ))}
+              </defs>
+              <rect data-grid width="100%" height="100%" fill={`url(#${markerPrefix}-grid)`} />
+
+              <g data-world transform={`translate(${view.x}, ${view.y}) scale(${view.k})`}>
+                {/* Folder boxes */}
+                <g>
+                  {layout.groups.map((g) => (
+                    <g key={g.key} style={{ pointerEvents: 'none' }}>
+                      <rect
+                        x={g.x} y={g.y} width={g.w} height={g.h} rx={18}
+                        fill="#0f172a" fillOpacity={0.55}
+                        stroke={g.key === ENDPOINT_GROUP ? '#065f46' : '#1e293b'} strokeWidth={1.2}
+                      />
+                      <text x={g.x + PAD} y={g.y + 21} fill="#94a3b8" fontSize={12} fontWeight={700} fontFamily="monospace">
+                        {truncate(g.key, 34)}
+                        <tspan fill="#475569" fontWeight={400}>{`  (${g.count})`}</tspan>
+                      </text>
+                    </g>
+                  ))}
+                </g>
+
+                {/* Links (only the relevant ones) */}
+                <g>
+                  {drawnEdges.map(({ e, kind, key }) => {
+                    const s = baseNodeMap.get(e.source)!;
+                    const t = baseNodeMap.get(e.target)!;
+                    return <EdgeView key={`${key}:${kind}`} s={s} t={t} kind={kind} rel={e.relationship ?? 'RELATED'} markerPrefix={markerPrefix} />;
+                  })}
+                </g>
+
+                {/* Cards */}
+                <g>
+                  {baseNodes.map((n) => {
+                    const role: Role =
+                      selectedId === n.id ? 'selected'
+                      : impact?.affected.has(n.id) ? 'affected'
+                      : impact?.uses.has(n.id) ? 'uses'
+                      : 'none';
+                    const dimmed = impact ? role === 'none' : !!matchedIds && !matchedIds.has(n.id);
+                    return (
+                      <NodeView
+                        key={n.id}
+                        node={n}
+                        role={role}
+                        hovered={hoveredNodeId === n.id}
+                        dimmed={dimmed}
+                        showText={view.k >= 0.35}
+                        onSelect={selectNode}
+                        onHover={setHoveredNodeId}
+                      />
+                    );
+                  })}
+                </g>
+              </g>
+            </svg>
+
+            {/* Inspector */}
+            {selected && impact && (
+              <aside
+                aria-label="Details"
+                className="absolute top-4 right-4 bottom-4 w-72 max-w-[calc(100%-2rem)] bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col gap-3 z-20 overflow-y-auto"
+              >
+                <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-3">
                   <div className="space-y-1.5 min-w-0">
                     <TypeBadge type={selected.type} />
                     <h3 className="text-sm font-extrabold text-white font-mono break-all leading-tight">{selected.label}</h3>
+                    {(selected.properties?.language || selected.properties?.lines !== undefined) && (
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        {[selected.properties?.language, selected.properties?.lines !== undefined ? `${selected.properties.lines} lines` : null].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                   </div>
                   <button onClick={() => setSelectedNodeId(null)} className={iconBtn} aria-label="Close details"><X className="w-4 h-4" /></button>
                 </div>
 
-                <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 space-y-2 text-xs font-mono">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span>Node ID:</span>
-                    <span className="text-slate-300 truncate max-w-[150px]" title={selected.id}>{selected.id}</span>
+                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                  {impact.affectedNodes.length === 0
+                    ? 'Nothing else depends on this, so a change here stays local.'
+                    : `A change here could affect ${plural(impact.affectedNodes.length, 'item')}, including ${plural(impact.affectedNodes.filter((n) => n.type === 'ENDPOINT').length, 'API endpoint')}.`}
+                </p>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[11px] font-bold text-amber-400">Re-test if this changes ({impact.affectedNodes.length})</h4>
+                    {impact.affectedNodes.length > 0 && (
+                      <button onClick={copyRetestList} className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1">
+                        {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />} {copied ? 'Copied' : 'Copy list'}
+                      </button>
+                    )}
                   </div>
-                  {selected.properties?.language && <Row label="Language:" value={selected.properties.language} className="text-cyan-400" />}
-                  {selected.properties?.lines !== undefined && <Row label="Lines of code:" value={selected.properties.lines} />}
-                  {selected.properties?.method && <Row label="HTTP method:" value={selected.properties.method} className="text-emerald-400" />}
-                  <Row label="Dependencies:" value={`${selected.outDegree} outgoing`} className="text-indigo-400" />
-                  <Row label="Dependents:" value={`${selected.inDegree} incoming`} className="text-indigo-400" />
+                  <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+                    {impact.affectedNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
+                    {impact.affectedNodes.length === 0 && <p className="text-[11px] text-slate-500 italic">None.</p>}
+                  </div>
                 </div>
 
-                {([
-                  ['Inbound', inbound, 'source'],
-                  ['Outbound', outbound, 'target'],
-                ] as const).map(([title, list, end]) => (
-                  <div key={title} className="space-y-2">
-                    <h4 className="text-[11px] uppercase font-bold text-slate-400">{title} connections ({list.length})</h4>
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {list.map((e) => {
-                        const other = baseNodeMap.get(e[end])!;
-                        return (
-                          <button
-                            key={`${e.source}->${e.target}:${e.relationship}`}
-                            onClick={() => { selectNode(other.id); centerOn(other.id); }}
-                            className="w-full p-2 rounded-lg bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left text-xs font-mono flex items-center justify-between gap-2 group transition-colors"
-                          >
-                            <span className="truncate">
-                              <span className="text-slate-300 group-hover:text-cyan-400 transition-colors">{other.label.split('/').pop()}</span>
-                              <span className="text-[9px] text-slate-500 block truncate">{other.id}</span>
-                            </span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 shrink-0">{e.relationship}</span>
-                          </button>
-                        );
-                      })}
-                      {list.length === 0 && <p className="text-[11px] text-slate-500 italic">None.</p>}
-                    </div>
+                <div className="space-y-1.5">
+                  <h4 className="text-[11px] font-bold text-cyan-400">Depends on ({impact.usesNodes.length})</h4>
+                  <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+                    {impact.usesNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
+                    {impact.usesNodes.length === 0 && <p className="text-[11px] text-slate-500 italic">None.</p>}
                   </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => centerOn(selected.id)}
-                className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5"
-              >
-                <Maximize2 className="w-3.5 h-3.5" /> Center on node
-              </button>
-            </aside>
-          )}
+                </div>
+              </aside>
+            )}
+          </div>
         </div>
       ) : (
         <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
           <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Knowledge graph index ({tableRows.length} of {rawNodes.length} elements)
+            <h4 className="text-xs font-bold text-slate-300">
+              {tableRows.length} of {rawNodes.length} items
             </h4>
-            <span className="text-xs font-mono text-indigo-400">{rawEdges.length} total edges</span>
+            <span className="text-xs font-mono text-indigo-400">{rawEdges.length} dependencies</span>
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
+              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px]">
                 <tr>
                   <th scope="col" className="px-4 py-3">Type</th>
-                  <th scope="col" className="px-4 py-3">Label / Name</th>
-                  <th scope="col" className="px-4 py-3">Identifier</th>
-                  <th scope="col" className="px-4 py-3">Properties</th>
-                  <th scope="col" className="px-4 py-3 text-right">Actions</th>
+                  <th scope="col" className="px-4 py-3">Name</th>
+                  <th scope="col" className="px-4 py-3">Used by</th>
+                  <th scope="col" className="px-4 py-3">Uses</th>
+                  <th scope="col" className="px-4 py-3">Details</th>
+                  <th scope="col" className="px-4 py-3 text-right"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {tableRows.slice(0, TABLE_ROW_LIMIT).map((node) => (
-                  <tr key={node.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3"><TypeBadge type={node.type} /></td>
-                    <td className="px-4 py-3 text-white font-bold max-w-[240px] truncate" title={node.label}>{node.label}</td>
-                    <td className="px-4 py-3 text-slate-500 text-[11px] max-w-[200px] truncate" title={node.id}>{node.id}</td>
-                    <td className="px-4 py-3 text-slate-400 text-[11px] space-x-2">
-                      {node.properties?.language && <span className="text-cyan-400">{node.properties.language}</span>}
-                      {node.properties?.lines !== undefined && <span>{node.properties.lines} LOC</span>}
-                      {node.properties?.method && <span className="text-emerald-400 font-bold">{node.properties.method}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => focusFromTable(node)}
-                        className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
-                      >
-                        View in graph <ChevronRight className="w-3 h-3" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {tableRows.slice(0, TABLE_ROW_LIMIT).map((node) => {
+                  const d = rawDegree.get(node.id);
+                  return (
+                    <tr key={node.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3"><TypeBadge type={node.type} /></td>
+                      <td className="px-4 py-3 text-white font-bold max-w-[280px] truncate" title={node.id}>{node.label}</td>
+                      <td className="px-4 py-3">{d?.in ?? 0}</td>
+                      <td className="px-4 py-3">{d?.out ?? 0}</td>
+                      <td className="px-4 py-3 text-slate-400 text-[11px] space-x-2">
+                        {node.properties?.language && <span className="text-cyan-400">{node.properties.language}</span>}
+                        {node.properties?.lines !== undefined && <span>{node.properties.lines} lines</span>}
+                        {node.properties?.method && <span className="text-emerald-400 font-bold">{node.properties.method}</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => focusFromTable(node)}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                        >
+                          Show on map <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {tableRows.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">No matching elements.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No matches.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
           {tableRows.length > TABLE_ROW_LIMIT && (
             <p className="px-4 py-3 text-[11px] text-slate-500 border-t border-slate-800">
-              Showing the first {TABLE_ROW_LIMIT} rows. Use search to narrow the list.
+              Showing the first {TABLE_ROW_LIMIT} rows. Search to narrow the list.
             </p>
           )}
         </div>
@@ -1066,7 +1082,5 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     </div>
   );
 };
-
-const EMPTY_POS: Overrides['pos'] = {};
 
 export default KnowledgeGraphVisualizer;
