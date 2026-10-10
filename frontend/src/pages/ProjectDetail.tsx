@@ -162,6 +162,60 @@ const getStageStatus = (stageKey: string, currentStage?: string, overallStatus?:
   }
 };
 
+const formatFrameworkName = (raw?: string | null): string => {
+  if (!raw) return 'Not Detected';
+  const MAP: Record<string, string> = {
+    PYTHON_FASTAPI: 'FastAPI',
+    PYTHON_FLASK: 'Flask',
+    PYTHON_DJANGO: 'Django',
+    PYTHON_TORNADO: 'Tornado',
+    PYTHON_SANIC: 'Sanic',
+    PYTHON_PYSIDE_QT: 'PySide / Qt (Desktop GUI)',
+    PYTHON_TKINTER: 'Tkinter (Desktop GUI)',
+    PYTHON_KIVY: 'Kivy (GUI)',
+    PYTHON_STREAMLIT: 'Streamlit (Data App)',
+    PYTHON_GRADIO: 'Gradio (ML App)',
+    PYTHON_ML_HUGGINGFACE: 'HuggingFace / PyTorch (ML)',
+    PYTHON_ML_PYTORCH: 'PyTorch (Deep Learning)',
+    PYTHON_ML_TENSORFLOW: 'TensorFlow / Keras',
+    PYTHON_CELERY: 'Celery (Worker)',
+    PYTHON_GENERIC: 'Python (Generic)',
+    JAVA_SPRING: 'Spring Boot',
+    JAVA_QUARKUS: 'Quarkus',
+    JAVA_MICRONAUT: 'Micronaut',
+    JAVA_JAKARTA: 'Jakarta EE / JAX-RS',
+    JAVA_PLAY: 'Play Framework',
+    JAVA_VERTX: 'Eclipse Vert.x',
+    JAVA_GENERIC: 'Java (Generic)',
+    CPP_DROGON: 'Drogon (C++ Web)',
+    CPP_CROW: 'Crow (C++ Micro)',
+    CPP_OATPP: 'Oat++ (C++ Web)',
+    CPP_PISTACHE: 'Pistache (C++ REST)',
+    CPP_BOOST_BEAST: 'Boost.Beast (C++)',
+    CPP_GRPC: 'gRPC (C++)',
+    CPP_QT: 'Qt (C++ Desktop)',
+    CPP_WXWIDGETS: 'wxWidgets (C++ GUI)',
+    CPP_IMGUI: 'Dear ImGui (C++)',
+    CPP_CMAKE_NATIVE: 'CMake (Native C++)',
+    CPP_GENERIC: 'C/C++ (Generic)',
+    REACT: 'React',
+    NEXTJS: 'Next.js',
+    VUE: 'Vue.js',
+    NUXT: 'Nuxt.js',
+    ANGULAR: 'Angular',
+    SVELTE: 'Svelte',
+    SVELTEKIT: 'SvelteKit',
+    NODE_EXPRESS: 'Express.js',
+    NODE_NESTJS: 'NestJS',
+    NODE_FASTIFY: 'Fastify',
+    ELECTRON: 'Electron (Desktop)',
+    TAURI: 'Tauri (Desktop)',
+    REACT_NATIVE: 'React Native',
+    OTHER: 'Other / Custom Stack',
+  };
+  return MAP[raw] || raw;
+};
+
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -411,7 +465,7 @@ export const ProjectDetail: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-extrabold text-white">{project.name}</h1>
               <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                {project.language_framework}
+                {formatFrameworkName(project.language_framework)}
               </span>
             </div>
             <p className="text-xs text-slate-400">{project.description || 'No description provided.'}</p>
@@ -477,7 +531,7 @@ export const ProjectDetail: React.FC = () => {
           <div>
             <span className="text-slate-500 block text-[10px] uppercase">Detected Framework</span>
             <span className="text-indigo-400 font-semibold mt-0.5 block">
-              {analysis?.detected_framework || 'Unknown'}
+              {formatFrameworkName(analysis?.detected_framework)}
             </span>
           </div>
         </div>
@@ -753,7 +807,7 @@ export const ProjectDetail: React.FC = () => {
                   <span className="text-slate-200 font-bold">{analysis.detected_language || 'Python'}</span>
                   <span className="text-slate-600">•</span>
                   <span className="text-slate-500">Framework:</span>
-                  <span className="text-indigo-400 font-bold">{analysis.detected_framework || 'Unknown'}</span>
+                  <span className="text-indigo-400 font-bold">{formatFrameworkName(analysis.detected_framework)}</span>
                 </div>
               </div>
 

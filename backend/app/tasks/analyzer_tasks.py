@@ -91,7 +91,7 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
 
                 # Extract API Endpoints
                 extractor = EndpointExtractor()
-                api_endpoints = extractor.extract(all_functions, framework=f_result.framework)
+                api_endpoints = extractor.extract(all_functions, framework=f_result.framework, source_files=source_files)
                 analysis.endpoint_count = len(api_endpoints)
 
                 # Stage 4: GRAPH_BUILDING

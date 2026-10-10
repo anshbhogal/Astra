@@ -19,6 +19,12 @@ class EndpointExtractor:
         re.IGNORECASE
     )
 
+    # Match Django URL pattern declarations: path('path/', views.func), re_path(...)
+    DJANGO_PATH_PATTERN = re.compile(
+        r"(?:path|re_path)\(\s*['\"]([^'\"]*)['\"]\s*,\s*([a-zA-Z0-9_\.]+)",
+        re.IGNORECASE
+    )
+
     def extract_endpoints(self, functions: List[FunctionInfo], framework: str = "PYTHON_FASTAPI") -> List[APIEndpoint]:
         discovered_endpoints: List[APIEndpoint] = []
 
@@ -29,8 +35,55 @@ class EndpointExtractor:
 
         return discovered_endpoints
 
-    def extract(self, functions: List[FunctionInfo], framework: str = "PYTHON_FASTAPI") -> List[APIEndpoint]:
-        return self.extract_endpoints(functions, framework)
+    def extract(self, functions: List[FunctionInfo], framework: str = "PYTHON_FASTAPI", source_files: Optional[List[Any]] = None) -> List[APIEndpoint]:
+        endpoints = self.extract_endpoints(functions, framework)
+        if framework == "PYTHON_DJANGO" and source_files:
+            endpoints.extend(self.extract_django_endpoints(source_files))
+        return endpoints
+
+    def extract_django_endpoints(self, source_files: List[Any]) -> List[APIEndpoint]:
+        from pathlib import Path
+        django_endpoints: List[APIEndpoint] = []
+        for sf in source_files:
+            if not str(sf.path).endswith("urls.py"):
+                continue
+            try:
+                content = Path(sf.path).read_text(encoding="utf-8", errors="ignore")
+                for i, line in enumerate(content.splitlines(), start=1):
+                    match = self.DJANGO_PATH_PATTERN.search(line)
+                    if match:
+                        raw_path = match.group(1).strip()
+                        handler = match.group(2).strip()
+                        clean_path = ("/" + raw_path.lstrip("/")).rstrip("/") or "/"
+
+                        path_vars = re.findall(r"<(?:\w+:)?(\w+)>", clean_path)
+                        params = [
+                            APIParameter(
+                                name=pv,
+                                type="int" if "int" in pv else "str",
+                                required=True,
+                                location="path",
+                                source="ast"
+                            ) for pv in path_vars
+                        ]
+
+                        django_endpoints.append(
+                            APIEndpoint(
+                                method="GET",
+                                path=clean_path,
+                                function_name=handler.split(".")[-1],
+                                qualified_function_name=handler,
+                                parameters=params,
+                                response_model="HttpResponse",
+                                file_path=sf.path,
+                                line_number=i,
+                                framework="PYTHON_DJANGO",
+                                confidence=0.95,
+                            )
+                        )
+            except Exception:
+                pass
+        return django_endpoints
 
     def _parse_decorator(self, decorator_str: str, func: FunctionInfo, framework: str) -> List[APIEndpoint]:
         endpoints: List[APIEndpoint] = []

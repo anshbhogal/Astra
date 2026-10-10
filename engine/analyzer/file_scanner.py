@@ -23,7 +23,18 @@ EXTENSION_LANGUAGE_MAP = {
     ".jsx": "JavaScript",
     ".ts": "TypeScript",
     ".tsx": "TypeScript",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+    ".astro": "Astro",
+    ".html": "HTML",
     ".java": "Java",
+    ".cpp": "C++",
+    ".cc": "C++",
+    ".cxx": "C++",
+    ".c": "C",
+    ".h": "C/C++ Header",
+    ".hpp": "C++ Header",
+    ".hxx": "C++ Header",
 }
 
 

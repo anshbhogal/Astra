@@ -10,7 +10,14 @@ class LanguageDetector:
         if not source_files:
             return "UNKNOWN", 0.0
 
-        counts = Counter(sf.language for sf in source_files)
+        def normalize_language(lang: str) -> str:
+            if lang in ["C++", "C", "C/C++ Header", "C++ Header"]:
+                return "C++"
+            if lang in ["Vue", "Svelte", "Astro"]:
+                return "JavaScript"
+            return lang
+
+        counts = Counter(normalize_language(sf.language) for sf in source_files)
         total_files = len(source_files)
         primary_lang, count = counts.most_common(1)[0]
         confidence = round(count / total_files, 2)
