@@ -4,16 +4,11 @@ import {
   Server,
   RefreshCw,
   Search,
-  Command,
-  Sun,
-  Moon,
-  Activity,
   CheckCircle2,
   XCircle,
-  Radio
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { useThemeStore } from '../../store/themeStore';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface NavbarProps {
   onOpenCommandPalette?: () => void;
@@ -23,7 +18,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
   const [dbReady, setDbReady] = useState<boolean | null>(null);
   const [redisReady, setRedisReady] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
-  const { theme, toggleTheme } = useThemeStore();
 
   const checkHealth = async () => {
     setChecking(true);
@@ -46,57 +40,57 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
   }, []);
 
   return (
-    <header className="h-16 bg-surface border-b border-border px-6 flex items-center justify-between shrink-0 select-none z-10">
-      {/* Left: Mission Console Title & Command Search Bar */}
+    <header className="h-16 bg-sidebar border-b border-black/20 px-6 flex items-center justify-between shrink-0 select-none z-10 transition-colors duration-150">
+      {/* Left: Quick Search / Command Launcher */}
       <div className="flex items-center gap-4 min-w-0">
         <button
           onClick={onOpenCommandPalette}
-          className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-raised border border-border text-xs text-muted hover:text-primary hover:border-brand/40 transition-all shadow-sm group"
-          title="Open Command Palette (Ctrl+K or ⌘K)"
+          className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-xs text-white/90 hover:text-white transition-all shadow-sm group"
+          title="Open Command Palette (Ctrl+K, ⌘K, or click)"
         >
-          <Search className="w-3.5 h-3.5 text-muted group-hover:text-brand transition-colors" />
+          <Search className="w-4 h-4 text-white/70 group-hover:text-white transition-colors" />
           <span className="hidden sm:inline font-medium">Quick search or command...</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-mono text-muted group-hover:border-brand/30">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/15 border border-white/20 text-[10px] font-mono text-white/80">
             ⌘K
           </kbd>
         </button>
       </div>
 
-      {/* Right: Mission Control Telemetry Strip & Theme Toggle */}
-      <div className="flex items-center gap-3 text-xs font-mono">
+      {/* Right: Telemetry & Theme Switcher */}
+      <div className="flex items-center gap-3">
         {/* System Health Indicators */}
-        <div className="hidden md:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2 text-xs font-sans">
           {/* PostgreSQL Status */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-raised border border-border">
-            <Database className="w-3.5 h-3.5 text-secondary" />
-            <span className="text-muted text-[11px]">DB</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15">
+            <Database className="w-3.5 h-3.5 text-white/80" />
+            <span className="text-white/70 text-xs font-medium">Postgres:</span>
             {dbReady ? (
-              <span className="flex items-center gap-1 text-[11px] font-bold text-status-passed">
-                <CheckCircle2 className="w-3 h-3 text-status-passed" /> ONLINE
+              <span className="flex items-center gap-1 font-semibold text-emerald-300">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Healthy
               </span>
             ) : dbReady === false ? (
-              <span className="flex items-center gap-1 text-[11px] font-bold text-status-failed">
-                <XCircle className="w-3 h-3 text-status-failed" /> OFFLINE
+              <span className="flex items-center gap-1 font-semibold text-rose-300">
+                <XCircle className="w-3.5 h-3.5" /> Offline
               </span>
             ) : (
-              <span className="text-[11px] text-muted">...</span>
+              <span className="text-white/60">Checking...</span>
             )}
           </div>
 
           {/* Redis Status */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-raised border border-border">
-            <Server className="w-3.5 h-3.5 text-secondary" />
-            <span className="text-muted text-[11px]">REDIS</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15">
+            <Server className="w-3.5 h-3.5 text-white/80" />
+            <span className="text-white/70 text-xs font-medium">Redis:</span>
             {redisReady ? (
-              <span className="flex items-center gap-1 text-[11px] font-bold text-status-passed">
-                <CheckCircle2 className="w-3 h-3 text-status-passed" /> READY
+              <span className="flex items-center gap-1 font-semibold text-emerald-300">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Healthy
               </span>
             ) : redisReady === false ? (
-              <span className="flex items-center gap-1 text-[11px] font-bold text-status-failed">
-                <XCircle className="w-3 h-3 text-status-failed" /> OFFLINE
+              <span className="flex items-center gap-1 font-semibold text-rose-300">
+                <XCircle className="w-3.5 h-3.5" /> Offline
               </span>
             ) : (
-              <span className="text-[11px] text-muted">...</span>
+              <span className="text-white/60">Checking...</span>
             )}
           </div>
 
@@ -104,26 +98,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
           <button
             onClick={checkHealth}
             disabled={checking}
-            className="p-1.5 text-muted hover:text-primary hover:bg-raised rounded-lg transition-colors border border-transparent hover:border-border"
-            title="Refresh system telemetry"
+            className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            title="Refresh health status"
+            aria-label="Refresh status"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Theme Toggle Button (Voltage Dark <-> Polished Light) */}
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-xl bg-raised border border-border text-secondary hover:text-primary transition-all hover:border-brand/40 shadow-sm"
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-4 h-4 text-amber-400" />
-          ) : (
-            <Moon className="w-4 h-4 text-brand" />
-          )}
-        </button>
+        {/* Section 6 Theme Toggle Button (36px, Sun in dark mode, Moon in light mode) */}
+        <ThemeToggle />
       </div>
     </header>
   );

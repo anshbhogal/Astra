@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Terminal, Lock, Mail, User as UserIcon, Shield, ArrowRight, Zap } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Shield, ArrowRight, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore, UserRole } from '../store/authStore';
 import { Button } from '../components/common/Button';
@@ -71,36 +71,36 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-base flex items-center justify-center p-4 selection:bg-brand selection:text-white relative overflow-hidden transition-colors duration-200">
-      {/* Background glowing gradients */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-brand/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-app flex items-center justify-center p-4 selection:bg-brand selection:text-on-brand relative overflow-hidden transition-colors duration-150">
+      {/* Subtle background ambient accents */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-brand/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-secondaryAccent/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md glass-card rounded-2xl p-8 border border-border shadow-2xl space-y-6">
+      <div className="relative w-full max-w-md bg-card rounded-2xl p-8 border border-border-card shadow-card space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 text-brand items-center justify-center shadow-brand-glow mb-2">
-            <Zap className="w-6 h-6 text-accent" />
+          <div className="inline-flex w-12 h-12 rounded-2xl bg-brand text-on-brand items-center justify-center shadow-sm mb-2">
+            <Sparkles className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-primary tracking-tight">ASTRA Mission Control</h1>
+          <h1 className="text-2xl font-bold text-primary tracking-tight">ASTRA QA Cockpit</h1>
           <p className="text-xs text-secondary">
             {isRegister ? 'Enroll your credentials to manage software pipelines' : 'Authenticate to access the autonomous quality cockpit'}
           </p>
         </div>
 
         {/* Tab Toggle */}
-        <div className="grid grid-cols-2 p-1 bg-surface rounded-xl border border-border text-xs font-semibold">
+        <div className="grid grid-cols-2 p-1 bg-field rounded-xl border border-border-card text-xs font-semibold">
           <button
             type="button"
             onClick={() => { setIsRegister(false); setError(null); }}
-            className={`py-2 rounded-lg transition-all ${!isRegister ? 'bg-brand text-white shadow-brand-glow' : 'text-secondary hover:text-primary'}`}
+            className={`py-2 rounded-lg transition-all ${!isRegister ? 'bg-brand text-on-brand shadow-sm' : 'text-secondary hover:text-primary'}`}
           >
             Sign In
           </button>
           <button
             type="button"
             onClick={() => { setIsRegister(true); setError(null); }}
-            className={`py-2 rounded-lg transition-all ${isRegister ? 'bg-brand text-white shadow-brand-glow' : 'text-secondary hover:text-primary'}`}
+            className={`py-2 rounded-lg transition-all ${isRegister ? 'bg-brand text-on-brand shadow-sm' : 'text-secondary hover:text-primary'}`}
           >
             Register
           </button>
@@ -108,34 +108,34 @@ export const Login: React.FC = () => {
 
         {/* Quick Test Credential Presets */}
         {!isRegister && (
-          <div className="p-3 rounded-xl bg-surface border border-border space-y-2">
+          <div className="p-3 rounded-xl bg-field border border-border-card space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Quick Test Presets</p>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
                 onClick={() => { setEmail('admin@astra.local'); setPassword('Admin123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-status-failed-bg text-status-failed border border-status-failed-border text-[11px] font-semibold hover:opacity-80 transition-colors"
+                className="px-2.5 py-1 rounded-lg bg-status-failed-bg text-status-failed border border-status-failed/30 text-[11px] font-semibold hover:opacity-85 transition-opacity"
               >
                 Admin
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('dev@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-brand/10 text-brand border border-brand/20 text-[11px] font-semibold hover:bg-brand/20 transition-colors"
+                className="px-2.5 py-1 rounded-lg bg-brand/10 text-brand border border-brand/30 text-[11px] font-semibold hover:bg-brand/20 transition-colors"
               >
                 Developer
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('tester@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-status-flaky-bg text-status-flaky border border-status-flaky-border text-[11px] font-semibold hover:opacity-80 transition-colors"
+                className="px-2.5 py-1 rounded-lg bg-status-flaky-bg text-status-flaky border border-status-flaky/30 text-[11px] font-semibold hover:opacity-85 transition-opacity"
               >
                 Tester
               </button>
               <button
                 type="button"
                 onClick={() => { setEmail('viewer@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-raised text-muted border border-border text-[11px] font-semibold hover:text-primary transition-colors"
+                className="px-2.5 py-1 rounded-lg bg-card text-secondary border border-border-field text-[11px] font-semibold hover:text-primary transition-colors"
               >
                 Viewer
               </button>
@@ -145,7 +145,7 @@ export const Login: React.FC = () => {
 
         {/* Error Notification */}
         {error && (
-          <div className="p-3 rounded-xl bg-status-failed-bg border border-status-failed-border text-status-failed text-xs font-medium">
+          <div className="p-3 rounded-xl bg-status-failed-bg border border-status-failed/30 text-status-failed text-xs font-medium">
             {typeof error === 'string' ? error : JSON.stringify(error)}
           </div>
         )}
@@ -186,7 +186,7 @@ export const Login: React.FC = () => {
 
           {isRegister && (
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-secondary">
+              <label className="block text-xs font-semibold text-secondary">
                 Workspace Role
               </label>
               <div className="relative">
@@ -196,7 +196,7 @@ export const Login: React.FC = () => {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as UserRole)}
-                  className="w-full bg-surface text-primary text-sm rounded-lg border border-border hover:border-brand/40 focus:ring-2 focus:ring-brand pl-10 pr-3.5 py-2.5 outline-none transition-colors"
+                  className="w-full h-10 bg-field text-primary text-sm rounded-lg border border-border-field hover:border-brand focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-card pl-10 pr-3.5 outline-none transition-colors"
                 >
                   <option value="DEVELOPER">Developer (Create & Manage Projects)</option>
                   <option value="TESTER">QA Tester (Trigger & Run Tests)</option>
@@ -206,11 +206,10 @@ export const Login: React.FC = () => {
             </div>
           )}
 
-          {/* Single Volt Lime Highlight CTA on this page */}
           <Button
             type="submit"
-            variant="accent"
-            className="w-full py-3"
+            variant="primary"
+            className="w-full py-3 h-11"
             isLoading={loading}
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
@@ -218,7 +217,7 @@ export const Login: React.FC = () => {
           </Button>
         </form>
 
-        <div className="text-center text-[11px] text-muted font-mono">
+        <div className="text-center text-xs text-muted">
           ASTRA Automated Software Quality Engine &copy; 2026
         </div>
       </div>

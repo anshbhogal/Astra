@@ -2,23 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   BarChart3,
-  TrendingUp,
-  Award,
-  ShieldCheck,
   FileText,
   Download,
   RefreshCw,
   FolderGit2,
-  Calendar,
   ExternalLink,
-  ChevronRight,
   Layers,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { QualityScorecard } from '../components/QualityScorecard';
-import { MetricsTrendChart, TrendPoint } from '../components/MetricsTrendChart';
-import { FailureCategoryPie, FailureCategoryItem } from '../components/FailureCategoryPie';
+import { MetricsTrendChart } from '../components/MetricsTrendChart';
+import { FailureCategoryPie } from '../components/FailureCategoryPie';
 import { ReportExportModal } from '../components/ReportExportModal';
+import { Button } from '../components/common/Button';
 
 export const AnalyticsDashboard: React.FC = () => {
   const { projectId: routeProjectId } = useParams<{ projectId?: string }>();
@@ -87,30 +83,30 @@ export const AnalyticsDashboard: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Top Header & Project Selector */}
-      <div className="glass-card rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-2 text-xs text-brand font-semibold uppercase tracking-wider mb-1">
             <BarChart3 className="w-4 h-4" /> Executive Analytics & Quality Intelligence
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-primary tracking-tight">
             Software Quality & Reliability Dashboard
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Phase 10 empirical quality metrics, defect clustering, and formal audit documentation.
+          <p className="text-xs text-secondary mt-0.5">
+            Empirical quality metrics, defect clustering, and formal audit documentation.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Project Selector Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
-            <FolderGit2 className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center gap-2 bg-field border border-border-field rounded-lg px-3 h-10 text-xs">
+            <FolderGit2 className="w-4 h-4 text-secondary" />
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
+              className="bg-transparent text-primary font-medium focus:outline-none cursor-pointer"
             >
               {projects.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-900 text-white">
+                <option key={p.id} value={p.id} className="bg-card text-primary">
                   {p.name}
                 </option>
               ))}
@@ -118,42 +114,74 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
 
           {/* Export Report Button */}
-          <button
+          <Button
+            variant="primary"
             onClick={() => setIsExportModalOpen(true)}
             disabled={!selectedProjectId}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2 shrink-0 disabled:opacity-50"
+            leftIcon={<FileText className="w-4 h-4" />}
           >
-            <FileText className="w-4 h-4" /> Generate Audit Report
-          </button>
+            Generate Audit Report
+          </Button>
         </div>
       </div>
 
-      {/* Platform-Wide Overview Strip */}
+      {/* Platform-Wide Overview Strip with 32px Icon Chips */}
       {platformOverview && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Repositories</span>
-            <p className="text-2xl font-extrabold text-white font-mono">{platformOverview.total_projects ?? 0}</p>
-            <span className="text-[11px] text-slate-500">Tracked Microservices</span>
+          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Total Repositories</span>
+              <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+                <FolderGit2 className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-primary">{platformOverview.total_projects ?? 0}</p>
+              <span className="text-[11px] text-muted">Tracked Microservices</span>
+            </div>
           </div>
-          <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Execution Pipeline</span>
-            <p className="text-2xl font-extrabold text-indigo-400 font-mono">{platformOverview.total_test_runs ?? 0}</p>
-            <span className="text-[11px] text-slate-500">Total Test Runs</span>
+
+          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Execution Pipeline</span>
+              <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+                <Layers className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-brand">{platformOverview.total_test_runs ?? 0}</p>
+              <span className="text-[11px] text-muted">Total Test Runs</span>
+            </div>
           </div>
-          <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pass Rate Average</span>
-            <p className="text-2xl font-extrabold text-emerald-400 font-mono">
-              {Number(platformOverview.overall_pass_rate ?? 0).toFixed(1)}%
-            </p>
-            <span className="text-[11px] text-slate-500">Across {platformOverview.total_tests_executed ?? 0} tests</span>
+
+          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Pass Rate Average</span>
+              <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed">
+                <BarChart3 className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-status-passed">
+                {Number(platformOverview.overall_pass_rate ?? 0).toFixed(1)}%
+              </p>
+              <span className="text-[11px] text-muted">Across {platformOverview.total_tests_executed ?? 0} tests</span>
+            </div>
           </div>
-          <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mean Latency</span>
-            <p className="text-2xl font-extrabold text-teal-400 font-mono">
-              {Number(platformOverview.mean_test_duration_ms ?? platformOverview.mean_execution_time_ms ?? 0).toFixed(0)} ms
-            </p>
-            <span className="text-[11px] text-slate-500">Target Sandbox Runtime</span>
+
+          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Mean Latency</span>
+              <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent">
+                <BarChart3 className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-primary font-mono">
+                {Number(platformOverview.mean_test_duration_ms ?? platformOverview.mean_execution_time_ms ?? 0).toFixed(0)} ms
+              </p>
+              <span className="text-[11px] text-muted">Target Sandbox Runtime</span>
+            </div>
           </div>
         </div>
       )}
@@ -189,20 +217,20 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
 
           {/* Saved Quality Reports & Audit Trail */}
-          <div className="glass-card rounded-2xl border border-slate-800 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+          <div className="bg-card rounded-2xl border border-border-card p-6 space-y-4 shadow-card">
+            <div className="flex items-center justify-between border-b border-border-card pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <div className="p-2 rounded-xl bg-brand/10 text-brand border border-brand/20">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Generated Executive Audit Artifacts</h3>
-                  <p className="text-xs text-slate-400">Cryptographically signed reports ready for export</p>
+                  <h3 className="text-base font-bold text-primary">Generated Executive Audit Artifacts</h3>
+                  <p className="text-xs text-secondary">Cryptographically signed reports ready for export</p>
                 </div>
               </div>
               <button
                 onClick={() => fetchSavedReports(selectedProjectId)}
-                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-colors"
+                className="p-2 text-secondary hover:text-primary hover:bg-hover rounded-xl transition-colors"
                 title="Refresh audit reports"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -210,55 +238,55 @@ export const AnalyticsDashboard: React.FC = () => {
             </div>
 
             {savedReports.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 text-xs">
+              <div className="text-center py-8 text-muted text-xs">
                 No audit reports generated for this project yet. Click "Generate Audit Report" above to compile one.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase text-[10px]">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
                     <tr>
-                      <th className="px-4 py-3">Report Title</th>
-                      <th className="px-4 py-3">Quality Score</th>
-                      <th className="px-4 py-3">SHA256 Fingerprint</th>
-                      <th className="px-4 py-3">Generated Date</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th className="px-5 py-3">Report Title</th>
+                      <th className="px-5 py-3">Quality Score</th>
+                      <th className="px-5 py-3">SHA256 Fingerprint</th>
+                      <th className="px-5 py-3">Generated Date</th>
+                      <th className="px-5 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  <tbody className="divide-y divide-border-card text-secondary">
                     {savedReports.map((report) => (
-                      <tr key={report.id} className="hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3 font-bold text-white max-w-[200px] truncate">
+                      <tr key={report.id} className="hover:bg-hover transition-colors">
+                        <td className="px-5 py-3 font-semibold text-primary max-w-[200px] truncate">
                           {report.title}
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        <td className="px-5 py-3">
+                          <span className="px-2.5 py-0.5 rounded-full font-bold bg-brand/10 text-brand border border-brand/20">
                             {Number(report.quality_score ?? 0).toFixed(1)} / 100
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-slate-400 text-[11px] truncate max-w-[140px]" title={report.sha256_hash}>
+                        <td className="px-5 py-3 text-muted font-mono text-[11px] truncate max-w-[140px]" title={report.sha256_hash}>
                           {report.sha256_hash ? report.sha256_hash.substring(0, 16) + '...' : 'N/A'}
                         </td>
-                        <td className="px-4 py-3 text-slate-500">
+                        <td className="px-5 py-3 text-muted">
                           {new Date(report.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <a
                               href={`/api/v1/analytics/reports/${report.id}/export?format=html`}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-lg bg-card border border-border-field hover:bg-hover text-primary text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
                             >
-                              <ExternalLink className="w-3 h-3 text-indigo-400" /> HTML
+                              <ExternalLink className="w-3 h-3 text-brand" /> HTML
                             </a>
                             <a
                               href={`/api/v1/analytics/reports/${report.id}/export?format=pdf`}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                              className="px-3 py-1.5 rounded-lg bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
                             >
-                              <Download className="w-3 h-3 text-indigo-400" /> PDF
+                              <Download className="w-3 h-3 text-brand" /> PDF
                             </a>
                           </div>
                         </td>
@@ -271,7 +299,7 @@ export const AnalyticsDashboard: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-2xl p-12 text-center text-slate-500 text-sm border border-slate-800">
+        <div className="bg-card rounded-2xl p-12 text-center text-muted text-sm border border-border-card shadow-card">
           Loading project analytics and telemetry...
         </div>
       )}

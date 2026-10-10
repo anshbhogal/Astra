@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ExternalLink,
   GitBranch,
-  Calendar,
   Shield,
   Cpu,
   Activity,
@@ -21,8 +20,7 @@ import {
   ChevronRight,
   Zap,
   Check,
-  Clock,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
@@ -270,8 +268,6 @@ export const ProjectDetail: React.FC = () => {
         const res = await api.get(`/projects/${id}`);
         if (!isMounted) return;
         setProject(res.data);
-
-        // Project exists and is loaded successfully; now fetch child telemetry
         loadChildResources();
       } catch (err: any) {
         if (!isMounted) return;
@@ -307,21 +303,6 @@ export const ProjectDetail: React.FC = () => {
       if (timer) clearInterval(timer);
     };
   }, [analysis?.status, id]);
-
-  const fetchProjectDetail = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const res = await api.get(`/projects/${id}`);
-      setProject(res.data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Project not found or accessible.');
-      setProject(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchLatestAnalysis = async () => {
     if (!id) return;
@@ -417,7 +398,7 @@ export const ProjectDetail: React.FC = () => {
     setGeneratingSuite(true);
     try {
       const res = await api.post(`/projects/${id}/test-suites/generate`, {
-        name: `Synthetic Suite v${suites.length + 1}`
+        name: `Synthetic Suite v${suites.length + 1}`,
       });
       fetchTestSuites();
       alert(`Successfully generated synthetic test suite '${res.data.name}' with ${res.data.total_cases} test cases!`);
@@ -431,11 +412,11 @@ export const ProjectDetail: React.FC = () => {
   const dispatchRun = async (suiteId: string) => {
     setDispatchingRun(true);
     try {
-      const res = await api.post(`/projects/${id}/test-runs`, {
+      await api.post(`/projects/${id}/test-runs`, {
         suite_id: suiteId,
         target_base_url: 'http://localhost:8000',
         environment_type: 'LOCAL_SANDBOX',
-        health_check_path: '/health'
+        health_check_path: '/health',
       });
       fetchTestRuns();
       setActiveTab('testruns');
@@ -447,16 +428,21 @@ export const ProjectDetail: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-16 text-slate-500 text-sm">Loading project details...</div>;
+    return (
+      <div className="text-center py-20 text-muted text-sm flex flex-col items-center gap-3">
+        <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+        <span>Loading project details...</span>
+      </div>
+    );
   }
 
   if (error || !project) {
     return (
-      <div className="glass-card rounded-2xl p-8 text-center space-y-4 border border-slate-800 max-w-md mx-auto">
-        <Info className="w-10 h-10 text-rose-400 mx-auto" />
-        <h3 className="text-lg font-bold text-slate-200">Project Not Found</h3>
-        <p className="text-xs text-slate-400">{error}</p>
-        <Link to="/projects" className="inline-block text-xs font-semibold text-indigo-400 hover:underline">
+      <div className="bg-card rounded-2xl p-8 text-center space-y-4 border border-border-card shadow-card max-w-md mx-auto">
+        <Info className="w-10 h-10 text-status-failed mx-auto" />
+        <h3 className="text-lg font-bold text-primary">Project Not Found</h3>
+        <p className="text-xs text-secondary">{error}</p>
+        <Link to="/projects" className="inline-block text-xs font-semibold text-brand hover:underline">
           &larr; Return to Projects List
         </Link>
       </div>
@@ -465,19 +451,24 @@ export const ProjectDetail: React.FC = () => {
 
   const getMethodBadgeClass = (method: string) => {
     switch (method.toUpperCase()) {
-      case 'GET': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'POST': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
-      case 'PUT': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'DELETE': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+      case 'GET':
+        return 'bg-status-passed-bg text-status-passed border border-status-passed/30';
+      case 'POST':
+        return 'bg-brand/10 text-brand border border-brand/30';
+      case 'PUT':
+        return 'bg-status-flaky-bg text-status-flaky border border-status-flaky/30';
+      case 'DELETE':
+        return 'bg-status-failed-bg text-status-failed border border-status-failed/30';
+      default:
+        return 'bg-status-skipped-bg text-status-skipped border border-status-skipped/30';
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Top Breadcrumb Header */}
-      <div className="flex items-center gap-3 text-xs text-muted">
-        <Link to="/projects" className="hover:text-primary transition-colors flex items-center gap-1">
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <Link to="/projects" className="hover:text-primary transition-colors flex items-center gap-1 font-medium">
           <ArrowLeft className="w-3.5 h-3.5" /> Projects
         </Link>
         <span>/</span>
@@ -485,22 +476,21 @@ export const ProjectDetail: React.FC = () => {
       </div>
 
       {/* Project Banner Card */}
-      <div className="glass-card rounded-2xl p-6 border border-border space-y-4">
+      <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold text-primary">{project.name}</h1>
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-brand/10 text-brand border border-brand/20">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-bold text-primary tracking-tight">{project.name}</h1>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
                 {formatFrameworkName(project.language_framework)}
               </span>
             </div>
             <p className="text-xs text-secondary">{project.description || 'No description provided.'}</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* The single Volt Lime highlight action button on this screen */}
+          <div className="flex items-center gap-3 flex-wrap">
             <Button
-              variant="accent"
+              variant="primary"
               size="md"
               onClick={triggerAnalysis}
               disabled={analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
@@ -528,76 +518,93 @@ export const ProjectDetail: React.FC = () => {
               href={project.repository_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface border border-border hover:bg-raised text-xs font-medium text-secondary hover:text-primary transition-colors shrink-0"
+              className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-lg bg-card border border-border-field hover:bg-hover text-xs font-semibold text-primary transition-colors shrink-0"
             >
               <ExternalLink className="w-3.5 h-3.5 text-brand" /> View Repository
             </a>
           </div>
         </div>
 
-        {/* Metadata Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-border text-xs font-mono text-secondary">
-          <div>
-            <span className="text-muted block text-[10px] uppercase">Default Branch</span>
-            <span className="text-primary flex items-center gap-1 font-semibold mt-0.5">
-              <GitBranch className="w-3.5 h-3.5 text-muted" /> {project.default_branch}
-            </span>
+        {/* Metadata Strip with 32px Icon Chips */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-border-card text-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+              <GitBranch className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-muted block text-[10px] uppercase font-semibold">Default Branch</span>
+              <span className="text-primary font-semibold truncate block mt-0.5">{project.default_branch}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-muted block text-[10px] uppercase">Project Owner</span>
-            <span className="text-primary font-semibold mt-0.5 block truncate">
-              {project.owner?.full_name || 'System'}
-            </span>
+
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent shrink-0">
+              <Shield className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-muted block text-[10px] uppercase font-semibold">Project Owner</span>
+              <span className="text-primary font-semibold truncate block mt-0.5">
+                {project.owner?.full_name || 'System Admin'}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="text-muted block text-[10px] uppercase">Latest Analysis SHA</span>
-            <span className="text-primary font-semibold mt-0.5 block font-mono text-[11px] truncate">
-              {analysis?.commit_sha ? analysis.commit_sha.substring(0, 8) : 'Not Analyzed'}
-            </span>
+
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+              <FileCode className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-muted block text-[10px] uppercase font-semibold">Latest Analysis SHA</span>
+              <span className="text-primary font-mono text-[11px] font-semibold truncate block mt-0.5">
+                {analysis?.commit_sha ? analysis.commit_sha.substring(0, 8) : 'Not Analyzed'}
+              </span>
+            </div>
           </div>
-          <div>
-            <span className="text-muted block text-[10px] uppercase">Detected Framework</span>
-            <span className="text-brand font-semibold mt-0.5 block">
-              {formatFrameworkName(analysis?.detected_framework)}
-            </span>
+
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent shrink-0">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-muted block text-[10px] uppercase font-semibold">Detected Stack</span>
+              <span className="text-primary font-semibold truncate block mt-0.5">
+                {formatFrameworkName(analysis?.detected_framework)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Real-time Analysis Progress Banner Card - Always Visible */}
-      <div className={`glass-card rounded-2xl p-6 border transition-all duration-300 relative overflow-hidden ${
+      <div className={`bg-card rounded-2xl p-6 border shadow-card transition-all duration-300 relative overflow-hidden ${
         analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing
-          ? 'border-brand/40 bg-surface shadow-brand-glow'
-          : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-          ? 'border-border bg-surface'
-          : analysis?.status === 'FAILED'
-          ? 'border-status-failed-border bg-surface'
-          : 'border-border bg-surface'
+          ? 'border-brand ring-1 ring-brand/30'
+          : 'border-border-card'
       }`}>
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
           <div className="flex items-center gap-3">
             {analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing ? (
-              <span className="relative flex h-3.5 w-3.5">
+              <span className="relative flex h-4 w-4">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-brand shadow-[0_0_8px_var(--brand)]"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-brand"></span>
               </span>
             ) : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
-              <div className="w-5 h-5 rounded-full bg-status-passed-bg border border-status-passed-border flex items-center justify-center text-status-passed">
-                <Check className="w-3 h-3 stroke-[3]" />
+              <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed">
+                <Check className="w-4 h-4 stroke-[2.5]" />
               </div>
             ) : analysis?.status === 'FAILED' ? (
-              <div className="w-5 h-5 rounded-full bg-status-failed-bg border border-status-failed-border flex items-center justify-center text-status-failed">
-                <AlertTriangle className="w-3 h-3" />
+              <div className="w-8 h-8 rounded-lg bg-status-failed-bg border border-status-failed/30 flex items-center justify-center text-status-failed">
+                <AlertTriangle className="w-4 h-4" />
               </div>
             ) : (
-              <div className="w-5 h-5 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
-                <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+              <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+                <Play className="w-3 h-3 fill-current ml-0.5" />
               </div>
             )}
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-primary tracking-wide">
+                <h3 className="text-base font-bold text-primary">
                   Repository Static Analysis Pipeline
                 </h3>
                 <TestStatusBadge
@@ -613,7 +620,7 @@ export const ProjectDetail: React.FC = () => {
                   label={analyzing ? 'RUNNING' : analysis?.status || 'IDLE • READY'}
                 />
               </div>
-              <p className="text-xs text-secondary mt-0.5 font-medium">
+              <p className="text-xs text-secondary mt-0.5">
                 {getStageInfo(analysis?.current_stage, analysis?.status).desc}
               </p>
             </div>
@@ -622,8 +629,8 @@ export const ProjectDetail: React.FC = () => {
           {/* Percentage & Quick Action */}
           <div className="flex items-center gap-4 self-start sm:self-auto">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[11px] uppercase font-mono text-muted">Progress</span>
-              <span className="text-2xl font-black font-mono text-accent">
+              <span className="text-[11px] uppercase font-semibold text-muted">Progress</span>
+              <span className="text-2xl font-extrabold text-primary">
                 {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
                   ? 100
                   : analysis?.progress_percent || (analyzing ? 15 : 0)}%
@@ -631,7 +638,7 @@ export const ProjectDetail: React.FC = () => {
             </div>
 
             <Button
-              variant={analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? 'secondary' : 'accent'}
+              variant={analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? 'secondary' : 'primary'}
               size="sm"
               onClick={triggerAnalysis}
               disabled={analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
@@ -645,20 +652,20 @@ export const ProjectDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Animated Gradient Progress Bar */}
+        {/* Animated Progress Bar */}
         <div className="relative z-10 space-y-1.5 mt-4">
-          <div className="w-full bg-raised rounded-full h-2.5 p-0.5 overflow-hidden border border-border">
+          <div className="w-full bg-field rounded-full h-2.5 p-0.5 overflow-hidden border border-border-card">
             <div
               className={`h-full rounded-full transition-all duration-700 ease-out relative ${
                 analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                  ? 'bg-status-passed shadow-[0_0_12px_var(--status-passed)]'
-                  : 'bg-brand shadow-brand-glow'
+                  ? 'bg-status-passed'
+                  : 'bg-brand'
               }`}
               style={{
                 width: `${
                   analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
                     ? 100
-                    : Math.max(analysis?.progress_percent || 0, analyzing ? 15 : 0)}%`
+                    : Math.max(analysis?.progress_percent || 0, analyzing ? 15 : 0)}%`,
               }}
             >
               {(analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED') && (
@@ -669,7 +676,7 @@ export const ProjectDetail: React.FC = () => {
         </div>
 
         {/* 5-Stage Stepper Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 relative z-10">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 relative z-10">
           {PIPELINE_STAGES.map((stg, idx) => {
             const stageStatus = getStageStatus(stg.key, analysis?.current_stage, analysis?.status);
             const isCompleted = stageStatus === 'completed';
@@ -680,10 +687,10 @@ export const ProjectDetail: React.FC = () => {
                 key={stg.key}
                 className={`rounded-xl p-3 border transition-all ${
                   isActive
-                    ? 'bg-brand/10 border-brand/50 shadow-brand-glow ring-1 ring-brand/30'
+                    ? 'bg-brand/10 border-brand shadow-sm ring-1 ring-brand/30'
                     : isCompleted
-                    ? 'bg-status-passed-bg border-status-passed-border'
-                    : 'bg-raised border-border opacity-70'
+                    ? 'bg-status-passed-bg border-status-passed/30'
+                    : 'bg-field border-border-card'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -692,19 +699,19 @@ export const ProjectDetail: React.FC = () => {
                   ) : isActive ? (
                     <RefreshCw className="w-4 h-4 text-brand animate-spin shrink-0" />
                   ) : (
-                    <div className="w-4 h-4 rounded-full border border-border flex items-center justify-center text-[9px] font-mono text-muted shrink-0">
+                    <div className="w-4 h-4 rounded-full border border-border-card flex items-center justify-center text-[9px] font-semibold text-muted shrink-0">
                       {idx + 1}
                     </div>
                   )}
                   <span
-                    className={`text-xs font-bold truncate ${
-                      isActive ? 'text-primary' : isCompleted ? 'text-status-passed' : 'text-muted'
+                    className={`text-xs font-semibold truncate ${
+                      isActive ? 'text-brand' : isCompleted ? 'text-status-passed' : 'text-secondary'
                     }`}
                   >
                     {stg.label}
                   </span>
                 </div>
-                <p className="text-[10px] text-secondary leading-tight truncate">
+                <p className="text-[10px] text-muted leading-tight truncate">
                   {stg.desc}
                 </p>
               </div>
@@ -713,48 +720,67 @@ export const ProjectDetail: React.FC = () => {
         </div>
 
         {/* Live Discovered Telemetry Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border relative z-10 text-xs font-mono">
-          <div className="p-2.5 rounded-xl bg-raised border border-border">
-            <span className="text-muted block text-[10px] uppercase">Scanned Files</span>
-            <span className="text-primary font-bold text-sm mt-0.5 flex items-center gap-1.5">
-              <FileCode className="w-3.5 h-3.5 text-brand" />
-              {analysis?.scanned_files_count || 0}
-            </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-border-card relative z-10 text-xs">
+          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+              <FileCode className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-muted block text-[10px] uppercase font-semibold">Scanned Files</span>
+              <span className="text-primary font-bold text-base mt-0.5 block">
+                {analysis?.scanned_files_count || 0}
+              </span>
+            </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-raised border border-border">
-            <span className="text-muted block text-[10px] uppercase">Parsed Modules</span>
-            <span className="text-primary font-bold text-sm mt-0.5 flex items-center gap-1.5">
-              <Code2 className="w-3.5 h-3.5 text-brand" />
-              {analysis?.parsed_files_count || 0}
-            </span>
+
+          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+              <Code2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-muted block text-[10px] uppercase font-semibold">Parsed Modules</span>
+              <span className="text-primary font-bold text-base mt-0.5 block">
+                {analysis?.parsed_files_count || 0}
+              </span>
+            </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-raised border border-border">
-            <span className="text-muted block text-[10px] uppercase">Discovered Endpoints</span>
-            <span className="text-status-passed font-bold text-sm mt-0.5 flex items-center gap-1.5">
-              <Cpu className="w-3.5 h-3.5 text-status-passed" />
-              {analysis?.endpoint_count || 0}
-            </span>
+
+          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed shrink-0">
+              <Cpu className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-muted block text-[10px] uppercase font-semibold">Discovered Endpoints</span>
+              <span className="text-status-passed font-bold text-base mt-0.5 block">
+                {analysis?.endpoint_count || 0}
+              </span>
+            </div>
           </div>
-          <div className="p-2.5 rounded-xl bg-raised border border-border">
-            <span className="text-muted block text-[10px] uppercase">Knowledge Graph Nodes</span>
-            <span className="text-brand font-bold text-sm mt-0.5 flex items-center gap-1.5">
-              <Network className="w-3.5 h-3.5 text-brand" />
-              {analysis?.graph_node_count || 0}
-            </span>
+
+          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+              <Network className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-muted block text-[10px] uppercase font-semibold">Knowledge Graph Nodes</span>
+              <span className="text-brand font-bold text-base mt-0.5 block">
+                {analysis?.graph_node_count || 0}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Failure message if FAILED */}
         {analysis?.status === 'FAILED' && analysis?.error_message && (
-          <div className="mt-3 p-3 rounded-xl bg-status-failed-bg border border-status-failed-border text-xs font-mono text-status-failed">
+          <div className="mt-4 p-3.5 rounded-xl bg-status-failed-bg border border-status-failed/30 text-xs text-status-failed">
             <span className="font-bold block mb-1">Execution Failure:</span>
-            <pre className="whitespace-pre-wrap">{analysis.error_message}</pre>
+            <pre className="font-mono whitespace-pre-wrap">{analysis.error_message}</pre>
           </div>
         )}
       </div>
 
       {/* Tabs Navigation */}
-      <div className="flex border-b border-border gap-6 text-sm font-medium text-secondary">
+      <div className="flex border-b border-border-card gap-6 text-sm font-semibold text-secondary">
         <button
           onClick={() => setActiveTab('overview')}
           className={`pb-3 transition-all relative ${
@@ -793,10 +819,10 @@ export const ProjectDetail: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {analysis && (analysis.status === 'COMPLETED' || analysis.status === 'COMPLETED_WITH_WARNINGS') && (
-            <div className="glass-card rounded-2xl p-6 border border-border bg-surface space-y-4">
+            <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-status-passed-bg border border-status-passed-border flex items-center justify-center text-status-passed">
+                  <div className="w-9 h-9 rounded-xl bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <div>
@@ -810,26 +836,26 @@ export const ProjectDetail: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="text-muted">Language:</span>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted font-medium">Language:</span>
                   <span className="text-primary font-bold">{analysis.detected_language || 'Python'}</span>
-                  <span className="text-border">•</span>
-                  <span className="text-muted">Framework:</span>
+                  <span className="text-muted">•</span>
+                  <span className="text-muted font-medium">Framework:</span>
                   <span className="text-brand font-bold">{formatFrameworkName(analysis.detected_framework)}</span>
                 </div>
               </div>
 
               {/* Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs font-mono">
-                <div className="p-3 rounded-xl bg-raised border border-border">
-                  <span className="text-muted block text-[10px] uppercase">Scanned Files</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
+                <div className="p-3.5 rounded-xl bg-field border border-border-card">
+                  <span className="text-muted block text-[10px] uppercase font-semibold">Scanned Files</span>
                   <span className="text-primary font-bold text-base mt-1 flex items-center gap-2">
                     <FileCode className="w-4 h-4 text-brand" />
                     {analysis.scanned_files_count}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-raised border border-border">
-                  <span className="text-muted block text-[10px] uppercase">Parsed Modules</span>
+                <div className="p-3.5 rounded-xl bg-field border border-border-card">
+                  <span className="text-muted block text-[10px] uppercase font-semibold">Parsed Modules</span>
                   <span className="text-primary font-bold text-base mt-1 flex items-center gap-2">
                     <Code2 className="w-4 h-4 text-brand" />
                     {analysis.parsed_files_count}
@@ -837,11 +863,11 @@ export const ProjectDetail: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setActiveTab('endpoints')}
-                  className="p-3 rounded-xl bg-raised border border-border hover:border-brand/40 text-left transition-all group"
+                  className="p-3.5 rounded-xl bg-field border border-border-card hover:border-brand text-left transition-colors group"
                 >
-                  <span className="text-muted block text-[10px] uppercase flex items-center justify-between">
+                  <span className="text-muted block text-[10px] uppercase font-semibold flex items-center justify-between">
                     <span>Discovered Routes</span>
-                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform text-brand" />
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform text-brand" />
                   </span>
                   <span className="text-status-passed font-bold text-base mt-1 flex items-center gap-2">
                     <Cpu className="w-4 h-4 text-status-passed" />
@@ -850,11 +876,11 @@ export const ProjectDetail: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('graph')}
-                  className="p-3 rounded-xl bg-raised border border-border hover:border-brand/40 text-left transition-all group"
+                  className="p-3.5 rounded-xl bg-field border border-border-card hover:border-brand text-left transition-colors group"
                 >
-                  <span className="text-muted block text-[10px] uppercase flex items-center justify-between">
+                  <span className="text-muted block text-[10px] uppercase font-semibold flex items-center justify-between">
                     <span>Knowledge Nodes</span>
-                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform text-brand" />
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform text-brand" />
                   </span>
                   <span className="text-brand font-bold text-base mt-1 flex items-center gap-2">
                     <Network className="w-4 h-4 text-brand" />
@@ -866,8 +892,10 @@ export const ProjectDetail: React.FC = () => {
           )}
 
           {!analysis && (
-            <div className="glass-card rounded-2xl p-8 border border-border text-center space-y-4">
-              <Sparkles className="w-10 h-10 text-brand mx-auto" />
+            <div className="bg-card rounded-2xl p-8 border border-border-card shadow-card text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand mx-auto">
+                <Sparkles className="w-6 h-6" />
+              </div>
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-primary">Repository Not Yet Analyzed</h3>
                 <p className="text-xs text-secondary max-w-md mx-auto">
@@ -875,7 +903,7 @@ export const ProjectDetail: React.FC = () => {
                 </p>
               </div>
               <Button
-                variant="accent"
+                variant="primary"
                 onClick={triggerAnalysis}
                 isLoading={analyzing}
                 leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
@@ -885,10 +913,10 @@ export const ProjectDetail: React.FC = () => {
             </div>
           )}
 
-          <div className="glass-card rounded-2xl p-6 border border-border space-y-4">
+          <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card space-y-2">
             <h3 className="text-base font-bold text-primary">Project Infrastructure & Execution Platform</h3>
             <p className="text-xs text-secondary leading-relaxed">
-              Astra executes synthetic HTTP test cases deterministically against target applications with full SSRF protection and secret redaction.
+              Astra executes synthetic HTTP test cases deterministically against target applications with full SSRF protection, secret redaction, and deep knowledge graph trace analysis.
             </p>
           </div>
         </div>
@@ -897,32 +925,33 @@ export const ProjectDetail: React.FC = () => {
       {activeTab === 'endpoints' && (
         <div className="space-y-4">
           {endpoints.length === 0 ? (
-            <div className="glass-card rounded-2xl p-8 text-center space-y-3 border border-border">
+            <div className="bg-card rounded-2xl p-8 text-center space-y-3 border border-border-card shadow-card">
               <Cpu className="w-10 h-10 text-muted mx-auto" />
               <h3 className="text-base font-bold text-primary">No Endpoints Discovered Yet</h3>
+              <p className="text-xs text-secondary">Run analysis on this repository to extract route endpoints.</p>
             </div>
           ) : (
-            <div className="glass-card rounded-2xl border border-border overflow-hidden">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-raised text-muted border-b border-border uppercase text-[10px]">
+            <div className="bg-card rounded-2xl border border-border-card shadow-card overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
                   <tr>
-                    <th className="px-4 py-3">Method</th>
-                    <th className="px-4 py-3">Path</th>
-                    <th className="px-4 py-3">Handler Function</th>
-                    <th className="px-4 py-3">Source Location</th>
+                    <th className="px-5 py-3">Method</th>
+                    <th className="px-5 py-3">Path</th>
+                    <th className="px-5 py-3">Handler Function</th>
+                    <th className="px-5 py-3">Source Location</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border text-secondary">
+                <tbody className="divide-y divide-border-card text-secondary">
                   {endpoints.map((ep) => (
-                    <tr key={ep.id} className="hover:bg-raised/60 transition-colors">
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded font-bold border ${getMethodBadgeClass(ep.method)}`}>
+                    <tr key={ep.id} className="hover:bg-hover transition-colors">
+                      <td className="px-5 py-3 font-mono">
+                        <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold ${getMethodBadgeClass(ep.method)}`}>
                           {ep.method}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-primary font-semibold">{ep.path}</td>
-                      <td className="px-4 py-3 text-brand">{ep.function_name}()</td>
-                      <td className="px-4 py-3 text-muted flex items-center gap-1">
+                      <td className="px-5 py-3 text-primary font-mono font-semibold">{ep.path}</td>
+                      <td className="px-5 py-3 text-brand font-mono">{ep.function_name}()</td>
+                      <td className="px-5 py-3 text-muted font-mono flex items-center gap-1.5">
                         <FileCode className="w-3.5 h-3.5 text-muted" />
                         {ep.file_path}:{ep.line_number}
                       </td>
@@ -938,7 +967,7 @@ export const ProjectDetail: React.FC = () => {
       {activeTab === 'graph' && (
         <div className="space-y-4">
           {!graph || graph.nodes.length === 0 ? (
-            <div className="glass-card rounded-2xl p-8 text-center space-y-3 border border-border">
+            <div className="bg-card rounded-2xl p-8 text-center space-y-3 border border-border-card shadow-card">
               <Network className="w-10 h-10 text-muted mx-auto" />
               <h3 className="text-base font-bold text-primary">Knowledge Graph Not Available</h3>
               <p className="text-xs text-secondary max-w-md mx-auto">
@@ -964,31 +993,31 @@ export const ProjectDetail: React.FC = () => {
             </div>
 
             <Button
-              variant="secondary"
+              variant="primary"
               onClick={generateTestSuite}
               disabled={generatingSuite || endpoints.length === 0}
               isLoading={generatingSuite}
-              leftIcon={<Zap className="w-4 h-4 text-accent" />}
+              leftIcon={<Zap className="w-4 h-4 fill-current" />}
             >
               Generate Synthetic Suite
             </Button>
           </div>
 
           {/* Generated Test Suites */}
-          <div className="glass-card rounded-2xl p-5 border border-border space-y-3">
+          <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-3">
             <h4 className="text-sm font-bold text-primary">Generated Test Suites ({suites.length})</h4>
             {suites.length === 0 ? (
               <p className="text-xs text-muted">No test suites generated yet. Click "Generate Synthetic Suite" above.</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {suites.map(s => (
-                  <div key={s.id} className="p-4 rounded-xl bg-raised border border-border flex items-center justify-between text-xs font-mono">
+                {suites.map((s) => (
+                  <div key={s.id} className="p-4 rounded-xl bg-field border border-border-card flex items-center justify-between text-xs">
                     <div className="space-y-1">
                       <span className="text-primary font-bold block">{s.name}</span>
-                      <span className="text-muted text-[10px] block">{s.total_cases} test cases • v{s.version}</span>
+                      <span className="text-muted text-[11px] block">{s.total_cases} test cases • v{s.version}</span>
                     </div>
                     <Button
-                      variant="accent"
+                      variant="primary"
                       size="sm"
                       onClick={() => dispatchRun(s.id)}
                       disabled={dispatchingRun}
@@ -1003,13 +1032,13 @@ export const ProjectDetail: React.FC = () => {
           </div>
 
           {/* Past Execution Runs Table */}
-          <div className="glass-card rounded-2xl border border-border overflow-hidden space-y-3 p-5">
+          <div className="bg-card rounded-2xl border border-border-card shadow-card overflow-hidden space-y-3 p-5">
             <h4 className="text-sm font-bold text-primary">Execution History ({testRuns.length})</h4>
             {testRuns.length === 0 ? (
               <p className="text-xs text-muted">No test runs executed yet.</p>
             ) : (
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-raised text-muted border-b border-border uppercase text-[10px]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
                   <tr>
                     <th className="px-4 py-3">Run ID</th>
                     <th className="px-4 py-3">Status</th>
@@ -1019,9 +1048,9 @@ export const ProjectDetail: React.FC = () => {
                     <th className="px-4 py-3">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border text-secondary">
-                  {testRuns.map(run => (
-                    <tr key={run.id} className="hover:bg-raised/60 transition-colors">
+                <tbody className="divide-y divide-border-card text-secondary">
+                  {testRuns.map((run) => (
+                    <tr key={run.id} className="hover:bg-hover transition-colors">
                       <td className="px-4 py-3 font-bold text-primary font-mono">#{run.id.substring(0, 8)}</td>
                       <td className="px-4 py-3">
                         <TestStatusBadge
@@ -1032,12 +1061,12 @@ export const ProjectDetail: React.FC = () => {
                       <td className="px-4 py-3 text-primary font-bold">
                         <span className="text-status-passed">{run.passed_tests}</span> / {run.total_tests}
                       </td>
-                      <td className="px-4 py-3 text-secondary">{Number(run.duration_ms ?? 0).toFixed(0)} ms</td>
+                      <td className="px-4 py-3 text-secondary font-mono">{Number(run.duration_ms ?? 0).toFixed(0)} ms</td>
                       <td className="px-4 py-3 text-muted">{new Date(run.created_at).toLocaleTimeString()}</td>
                       <td className="px-4 py-3">
                         <Link
                           to={`/projects/${project.id}/test-runs/${run.id}`}
-                          className="inline-flex items-center gap-1 text-brand hover:text-brand-hover font-bold transition-colors"
+                          className="inline-flex items-center gap-1 text-brand hover:text-brand-hover font-semibold transition-colors"
                         >
                           View Results <ChevronRight className="w-3.5 h-3.5" />
                         </Link>
@@ -1050,6 +1079,7 @@ export const ProjectDetail: React.FC = () => {
           </div>
         </div>
       )}
+
       {/* Advanced Test Suite Generation Drawer */}
       {id && (
         <TestGenerationDrawer

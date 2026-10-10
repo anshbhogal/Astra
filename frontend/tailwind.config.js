@@ -8,87 +8,80 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Semantic Token Mapping
-        base: 'var(--bg-base)',
-        surface: 'var(--bg-surface)',
-        raised: 'var(--bg-raised)',
-        border: 'var(--border)',
+        // App Core Layers
+        app: 'var(--bg-app)',
+        sidebar: 'var(--bg-sidebar)',
+        card: 'var(--bg-card)',
+        field: 'var(--bg-field)',
+        hover: 'var(--bg-hover)',
+        // Compatibility Aliases
+        base: 'var(--bg-app)',
+        surface: 'var(--bg-card)',
+        raised: 'var(--bg-field)',
+        slate: {
+          50: 'var(--text-primary)',
+          100: 'var(--text-primary)',
+          200: 'var(--text-primary)',
+          300: 'var(--text-primary)',
+          400: 'var(--text-secondary)',
+          500: 'var(--text-muted)',
+          600: 'var(--text-muted)',
+          700: 'var(--border-field)',
+          800: 'var(--border-card)',
+          900: 'var(--bg-card)',
+          950: 'var(--bg-field)',
+        },
+
+        // Borders
+        border: 'var(--border-card)',
+        'border-card': 'var(--border-card)',
+        'border-field': 'var(--border-field)',
+
+        // Typography
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',
         muted: 'var(--text-muted)',
-        
+        'on-sidebar': 'var(--text-on-sidebar)',
+        'on-sidebar-muted': 'var(--text-on-sidebar-muted)',
+
+        // Brand Action
         brand: {
           DEFAULT: 'var(--brand)',
           hover: 'var(--brand-hover)',
         },
-        accent: {
-          DEFAULT: 'var(--accent)',
-          fg: 'var(--accent-fg)',
-        },
+        'on-brand': 'var(--on-brand)',
+        secondaryAccent: 'var(--secondary)',
 
-        // Status Tokens
+        // Status Colors
         status: {
           passed: 'var(--status-passed)',
+          'passed-bg': 'var(--status-passed-bg)',
           failed: 'var(--status-failed)',
+          'failed-bg': 'var(--status-failed-bg)',
           flaky: 'var(--status-flaky)',
+          'flaky-bg': 'var(--status-flaky-bg)',
           running: 'var(--status-running)',
+          'running-bg': 'var(--status-running-bg)',
           error: 'var(--status-error)',
+          'error-bg': 'var(--status-error-bg)',
           skipped: 'var(--status-skipped)',
-        },
-
-        // Graph Semantic Colors
-        graph: {
-          module: '#22D3EE',
-          endpoint: '#34D399',
-          function: '#818CF8',
-          project: '#FBBF24',
-          impact: '#FBBF24',
-          depends: '#22D3EE',
-          riskHigh: '#F87171',
-          riskMed: '#FBBF24',
-        },
-
-        // Preserve slate scale with theme-adaptive hexes
-        slate: {
-          950: '#080B14',
-          900: '#0F1424',
-          850: '#13192B',
-          800: '#161C31',
-          750: '#1C243D',
-          700: '#232B45',
-          600: '#475170',
-          500: '#6A7597',
-          400: '#9AA6C7',
-          300: '#C7D0E8',
-          200: '#E2E7F5',
-          100: '#EEF2FF',
+          'skipped-bg': 'var(--status-skipped-bg)',
         },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
-      fontSize: {
-        '2xs': ['11px', '14px'],
-        xs: ['12px', '16px'],
-        sm: ['14px', '20px'],
-        base: ['16px', '24px'],
-        lg: ['20px', '28px'],
-        xl: ['28px', '36px'],
-        '2xl': ['40px', '48px'],
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        'brand-glow': '0 0 0 1px var(--brand), 0 4px 14px rgba(91, 61, 245, 0.25)',
       },
       borderRadius: {
         DEFAULT: '8px',
         md: '8px',
-        lg: '12px',
-        xl: '16px',
-        '2xl': '20px',
-      },
-      boxShadow: {
-        glow: '0 0 0 1px var(--brand), 0 8px 24px rgba(124, 92, 255, 0.15)',
-        'glow-accent': '0 0 0 1px var(--accent), 0 8px 20px rgba(198, 255, 61, 0.2)',
-        'glow-status-pass': '0 0 12px rgba(34, 229, 143, 0.25)',
-        'glow-status-fail': '0 0 12px rgba(255, 77, 106, 0.25)',
+        lg: '10px',
+        xl: '12px',
+        '2xl': '16px',
       },
     },
   },

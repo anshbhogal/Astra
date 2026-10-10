@@ -2,20 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
-  Command,
   FolderGit2,
   BarChart3,
   FlaskConical,
   Sun,
   Moon,
-  Plus,
-  Play,
   Layers,
   ArrowRight,
-  X
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { useThemeStore } from '../../store/themeStore';
+import { useTheme } from '../../hooks/useTheme';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -36,7 +32,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [projects, setProjects] = useState<any[]>([]);
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useThemeStore();
+  const { theme, toggleTheme } = useTheme();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -61,7 +57,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     {
       id: 'nav-overview',
       title: 'Workspace Overview',
-      subtitle: 'System dashboard & metrics overview',
+      subtitle: 'System dashboard & platform metrics overview',
       category: 'NAVIGATION',
       icon: Layers,
       action: () => {
@@ -72,7 +68,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     {
       id: 'nav-projects',
       title: 'Repositories Registry',
-      subtitle: 'Browse all connected Git repositories',
+      subtitle: 'Browse all connected target repositories',
       category: 'NAVIGATION',
       icon: FolderGit2,
       action: () => {
@@ -82,7 +78,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     },
     {
       id: 'nav-analytics',
-      title: 'Executive Quality Intelligence',
+      title: 'Quality Analytics & Reports',
       subtitle: 'Defect clustering & formal audit reports',
       category: 'NAVIGATION',
       icon: BarChart3,
@@ -93,7 +89,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     },
     {
       id: 'nav-benchmarks',
-      title: 'Ablation Benchmark Suite',
+      title: 'Research Benchmarks',
       subtitle: 'Empirical bug-detection accuracy matrix',
       category: 'NAVIGATION',
       icon: FlaskConical,
@@ -104,8 +100,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     },
     {
       id: 'action-theme',
-      title: `Switch Theme to ${theme === 'dark' ? 'Light' : 'Dark'}`,
-      subtitle: `Current active theme: ${theme.toUpperCase()}`,
+      title: 'Toggle theme',
+      subtitle: `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode (Shortcut: 't')`,
       category: 'ACTIONS',
       icon: theme === 'dark' ? Sun : Moon,
       action: () => {
@@ -138,10 +134,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % Math.max(1, filteredItems.length));
+      setSelectedIndex((prev) => (prev < filteredItems.length - 1 ? prev + 1 : 0));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + filteredItems.length) % Math.max(1, filteredItems.length));
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : filteredItems.length - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filteredItems[selectedIndex]) {
@@ -156,17 +152,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-20 p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-primary/40 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl glass-panel bg-surface border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 flex flex-col max-h-[520px]"
+        className="w-full max-w-xl bg-card rounded-2xl shadow-xl border border-border-card overflow-hidden flex flex-col max-h-[480px]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        {/* Search Input Bar */}
-        <div className="p-4 border-b border-border flex items-center gap-3">
-          <Search className="w-5 h-5 text-muted shrink-0" />
+        {/* Search Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border-card bg-field">
+          <Search className="w-4 h-4 text-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -178,7 +174,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
             placeholder="Type a command, project, or view... (ESC to exit)"
             className="w-full bg-transparent text-primary text-sm placeholder-muted focus:outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-raised border border-border text-[10px] font-mono text-muted">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-card border border-border-field text-[10px] font-mono text-muted">
             ESC
           </kbd>
         </div>
@@ -199,22 +195,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                   key={item.id}
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
                     isSelected
-                      ? 'bg-raised text-primary border border-brand/40 shadow-sm'
-                      : 'text-secondary hover:text-primary hover:bg-raised/50 border border-transparent'
+                      ? 'bg-hover text-primary border border-brand/40 shadow-sm'
+                      : 'text-secondary hover:text-primary hover:bg-hover border border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={`p-2 rounded-lg shrink-0 ${
-                        isSelected ? 'bg-brand/20 text-brand' : 'bg-surface border border-border text-muted'
+                        isSelected ? 'bg-brand/15 text-brand' : 'bg-field border border-border-card text-muted'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-primary truncate">{item.title}</p>
+                      <p className="text-xs font-semibold text-primary truncate">{item.title}</p>
                       <p className="text-[11px] text-muted truncate">{item.subtitle}</p>
                     </div>
                   </div>
@@ -231,17 +227,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         </div>
 
         {/* Keyboard Hint Footer */}
-        <div className="p-3 bg-surface/80 border-t border-border flex items-center justify-between text-[11px] font-mono text-muted">
+        <div className="p-3 bg-field border-t border-border-card flex items-center justify-between text-[11px] text-muted">
           <div className="flex items-center gap-3">
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-raised border border-border">↑</kbd>{' '}
-              <kbd className="px-1.5 py-0.5 rounded bg-raised border border-border">↓</kbd> to navigate
+              <kbd className="px-1.5 py-0.5 rounded bg-card border border-border-card">↑</kbd>{' '}
+              <kbd className="px-1.5 py-0.5 rounded bg-card border border-border-card">↓</kbd> to navigate
             </span>
             <span>
-              <kbd className="px-1.5 py-0.5 rounded bg-raised border border-border">↵</kbd> to select
+              <kbd className="px-1.5 py-0.5 rounded bg-card border border-border-card">↵</kbd> to select
             </span>
           </div>
-          <span className="text-[10px] uppercase font-semibold text-brand">ASTRA Console</span>
+          <span className="text-xs font-semibold text-brand">ASTRA Quick Actions</span>
         </div>
       </div>
     </div>

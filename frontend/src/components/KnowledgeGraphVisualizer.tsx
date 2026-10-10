@@ -95,25 +95,25 @@ const ENDPOINT_GROUP = 'API endpoints';
 const PROJECT_GROUP = 'Project';
 
 const AMBER = '#fbbf24';
-const CYAN = '#22d3ee';
+const CYAN = '#0891b2';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const truncate = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 2)}..` : s);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 const NODE_STYLE: Record<string, { border: string; badge: string; Icon: LucideIcon; label: string }> = {
-  PROJECT: { border: '#fbbf24', badge: 'text-amber-400 border-amber-400/30 bg-amber-400/10', Icon: Box, label: 'Project' },
-  MODULE: { border: '#22d3ee', badge: 'text-cyan-400 border-cyan-400/30 bg-cyan-400/10', Icon: FileCode, label: 'Module' },
-  ENDPOINT: { border: '#34d399', badge: 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10', Icon: Globe, label: 'API endpoint' },
-  FUNCTION: { border: '#818cf8', badge: 'text-indigo-400 border-indigo-400/30 bg-indigo-400/10', Icon: Cpu, label: 'Function' },
+  PROJECT: { border: '#5b3df5', badge: 'text-brand border-brand/30 bg-brand/10', Icon: Box, label: 'Project' },
+  MODULE: { border: '#0891b2', badge: 'text-secondaryAccent border-secondaryAccent/30 bg-secondaryAccent/10', Icon: FileCode, label: 'Module' },
+  ENDPOINT: { border: '#10b981', badge: 'text-status-passed border-status-passed/30 bg-status-passed-bg', Icon: Globe, label: 'API endpoint' },
+  FUNCTION: { border: '#8b5cf6', badge: 'text-brand border-brand/30 bg-brand/10', Icon: Cpu, label: 'Function' },
 };
 const styleOf = (type: string) => NODE_STYLE[type] ?? NODE_STYLE.FUNCTION;
 
 const EDGE_STYLE: Record<EdgeKind, { color: string; width: number; opacity: number }> = {
-  affected: { color: AMBER, width: 2, opacity: 0.9 },
-  uses: { color: CYAN, width: 2, opacity: 0.9 },
-  hover: { color: '#94a3b8', width: 2, opacity: 0.9 },
-  all: { color: '#64748b', width: 1, opacity: 0.25 },
+  affected: { color: AMBER, width: 2, opacity: 0.95 },
+  uses: { color: CYAN, width: 2, opacity: 0.95 },
+  hover: { color: '#5b3df5', width: 2, opacity: 0.95 },
+  all: { color: '#8690b4', width: 1, opacity: 0.4 },
 };
 const MARKER_COLORS = Array.from(new Set(Object.values(EDGE_STYLE).map((s) => s.color)));
 
@@ -335,9 +335,17 @@ const HEAT_STYLE = { 1: { text: 'MED', fill: AMBER }, 2: { text: 'HIGH', fill: '
 
 const NodeView = memo(function NodeView({ node, role, hovered, dimmed, showText, onSelect, onHover }: NodeViewProps) {
   const { border, Icon, label: typeLabel } = styleOf(node.type);
-  const stroke = role === 'selected' ? '#ffffff' : role === 'affected' ? AMBER : role === 'uses' ? CYAN : border;
+  const stroke = role === 'selected' ? 'var(--brand)' : role === 'affected' ? AMBER : role === 'uses' ? CYAN : border;
   const fill =
-    role === 'selected' ? '#1e293b' : role === 'affected' ? '#2a1d06' : role === 'uses' ? '#06292e' : hovered ? '#0f172a' : '#0b1120';
+    role === 'selected'
+      ? 'var(--bg-hover)'
+      : role === 'affected'
+      ? 'var(--status-flaky-bg)'
+      : role === 'uses'
+      ? 'var(--status-running-bg)'
+      : hovered
+      ? 'var(--bg-hover)'
+      : 'var(--bg-card)';
   const hw = node.w / 2;
   const hh = node.h / 2;
   const heat = node.heat ? HEAT_STYLE[node.heat] : null;
@@ -345,7 +353,7 @@ const NodeView = memo(function NodeView({ node, role, hovered, dimmed, showText,
   return (
     <g
       transform={`translate(${node.x}, ${node.y})`}
-      style={{ opacity: dimmed ? 0.2 : 1, cursor: 'pointer' }}
+      style={{ opacity: dimmed ? 0.25 : 1, cursor: 'pointer' }}
       role="button"
       tabIndex={0}
       aria-pressed={role === 'selected'}
@@ -372,10 +380,10 @@ const NodeView = memo(function NodeView({ node, role, hovered, dimmed, showText,
       <Icon x={-hw + 15} y={-7} size={14} color={border} style={{ pointerEvents: 'none' }} />
       {showText && (
         <>
-          <text x={-hw + 42} y={-3} fill={hovered ? '#38bdf8' : '#f8fafc'} fontSize={11} fontWeight={700} fontFamily="monospace" style={{ pointerEvents: 'none', userSelect: 'none' }}>
+          <text x={-hw + 42} y={-3} fill="var(--text-primary)" fontSize={11} fontWeight={600} fontFamily="Inter, system-ui, sans-serif" style={{ pointerEvents: 'none', userSelect: 'none' }}>
             {node.title}
           </text>
-          <text x={-hw + 42} y={11} fill="#94a3b8" fontSize={8.5} fontFamily="monospace" style={{ pointerEvents: 'none', userSelect: 'none' }}>
+          <text x={-hw + 42} y={11} fill="var(--text-muted)" fontSize={9} fontFamily="Inter, system-ui, sans-serif" style={{ pointerEvents: 'none', userSelect: 'none' }}>
             {node.subtitle}
           </text>
         </>
@@ -383,7 +391,7 @@ const NodeView = memo(function NodeView({ node, role, hovered, dimmed, showText,
       {heat && (
         <g transform={`translate(${hw - 34}, ${-hh - 7})`} style={{ pointerEvents: 'none' }}>
           <rect width={heat.text === 'HIGH' ? 34 : 28} height={14} rx={7} fill={heat.fill} />
-          <text x={heat.text === 'HIGH' ? 17 : 14} y={10} fill="#0b1120" fontSize={8} fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+          <text x={heat.text === 'HIGH' ? 17 : 14} y={10} fill="#ffffff" fontSize={8} fontWeight="bold" fontFamily="Inter, system-ui, sans-serif" textAnchor="middle">
             {heat.text}
           </text>
         </g>
@@ -401,9 +409,9 @@ const TypeBadge: React.FC<{ type: string }> = ({ type }) => (
 );
 
 const Stat: React.FC<{ label: string; value: number; tone: string }> = ({ label, value, tone }) => (
-  <div className="rounded-xl bg-slate-900/60 border border-slate-800 px-4 py-2.5 min-w-[110px]">
-    <div className={`text-xl font-extrabold font-mono leading-none ${tone}`}>{value}</div>
-    <div className="text-[11px] text-slate-400 mt-1">{label}</div>
+  <div className="rounded-xl bg-field border border-border-card px-4 py-2.5 min-w-[110px]">
+    <div className={`text-xl font-bold font-mono leading-none ${tone}`}>{value}</div>
+    <div className="text-[11px] text-muted mt-1">{label}</div>
   </div>
 );
 
@@ -412,22 +420,22 @@ const NodeLink: React.FC<{ node: LayoutNode; onClick: (id: string) => void }> = 
   return (
     <button
       onClick={() => onClick(node.id)}
-      className="w-full px-2 py-1.5 rounded-lg bg-slate-950/60 hover:bg-slate-800/80 border border-slate-800/60 text-left text-xs font-mono flex items-center gap-2 transition-colors"
+      className="w-full px-2.5 py-1.5 rounded-lg bg-field hover:bg-hover border border-border-card text-left text-xs flex items-center gap-2 transition-colors"
     >
       <Icon size={13} color={border} className="shrink-0" />
-      <span className="truncate text-slate-200">{node.label.split('/').pop()}</span>
+      <span className="truncate text-primary font-medium">{node.label.split('/').pop()}</span>
       {node.type === 'ENDPOINT' && typeof node.properties?.method === 'string' && (
-        <span className="ml-auto text-[9px] text-emerald-400 font-bold">{node.properties.method}</span>
+        <span className="ml-auto text-[9px] text-status-passed font-bold">{node.properties.method}</span>
       )}
     </button>
   );
 };
 
 const Section: React.FC<{ title: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }> = ({ title, defaultOpen, children }) => (
-  <details open={defaultOpen} className="group rounded-xl bg-slate-900/60 border border-slate-800 p-3">
-    <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-bold text-slate-200">
+  <details open={defaultOpen} className="group rounded-xl bg-field border border-border-card p-3">
+    <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-bold text-primary">
       {title}
-      <ChevronRight className="w-3.5 h-3.5 text-slate-500 transition-transform group-open:rotate-90" />
+      <ChevronRight className="w-3.5 h-3.5 text-muted transition-transform group-open:rotate-90" />
     </summary>
     <div className="mt-3 space-y-1.5">{children}</div>
   </details>
@@ -747,29 +755,29 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     { mode: 'table', label: 'Table', Icon: List },
   ];
   const tabClass = (active: boolean) =>
-    `px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
-      active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'text-slate-400 hover:text-slate-200'
+    `px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all ${
+      active ? 'bg-brand text-on-brand shadow-sm' : 'text-secondary hover:text-primary'
     }`;
-  const iconBtn = 'p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors';
+  const iconBtn = 'p-1.5 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors';
   const maxUsed = hotSpots[0]?.inDegree || 1;
 
   return (
     <div className="space-y-4">
       {/* Summary: the whole project in one row */}
-      <div className="glass-card rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center gap-3">
+      <div className="bg-card rounded-2xl p-4 border border-border-card shadow-card flex flex-wrap items-center gap-3">
         <div className="mr-2">
-          <h2 className="text-sm font-extrabold text-white">{projectName}</h2>
-          <p className="text-[11px] text-slate-400 max-w-[260px]">Click any box to see what it uses and what to re-test if it changes.</p>
+          <h2 className="text-sm font-bold text-primary">{projectName}</h2>
+          <p className="text-[11px] text-secondary max-w-[260px]">Click any box to see what it uses and what to re-test if it changes.</p>
         </div>
-        <Stat label="Modules" value={totals.modules} tone="text-cyan-400" />
-        <Stat label="API endpoints" value={totals.endpoints} tone="text-emerald-400" />
-        <Stat label="Functions" value={totals.functions} tone="text-indigo-400" />
-        <Stat label="Dependencies" value={totals.links} tone="text-amber-400" />
+        <Stat label="Modules" value={totals.modules} tone="text-secondaryAccent" />
+        <Stat label="API endpoints" value={totals.endpoints} tone="text-status-passed" />
+        <Stat label="Functions" value={totals.functions} tone="text-brand" />
+        <Stat label="Dependencies" value={totals.links} tone="text-brand" />
       </div>
 
       {/* Controls */}
-      <div className="glass-card rounded-2xl p-3 border border-slate-800 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-        <div role="tablist" aria-label="Graph view" className="flex flex-wrap items-center bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
+      <div className="bg-card rounded-2xl p-3 border border-border-card shadow-card flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div role="tablist" aria-label="Graph view" className="flex flex-wrap items-center bg-field border border-border-card rounded-xl p-1 text-xs">
           {tabs.map(({ mode, label, Icon }) => (
             <button key={mode} role="tab" aria-selected={viewMode === mode} onClick={() => setViewMode(mode)} className={tabClass(viewMode === mode)}>
               <Icon className="w-3.5 h-3.5" /> {label}
@@ -779,7 +787,7 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+            <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
             <input
               type="search"
               value={searchQuery}
@@ -787,24 +795,24 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
               onKeyDown={onSearchKeyDown}
               placeholder="Find a module, endpoint or function…"
               aria-label="Search"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50"
+              className="w-full bg-field border border-border-field rounded-xl pl-8 pr-8 py-1.5 text-xs text-primary placeholder-muted focus:outline-none focus:ring-2 focus:ring-brand"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+              <button onClick={() => setSearchQuery('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-primary">
                 <X className="w-3 h-3" />
               </button>
             )}
           </div>
 
           {viewMode === 'detailed' && (
-            <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-300">
+            <div className="flex items-center gap-3 text-[11px] font-semibold text-secondary">
               {FILTERS.map(({ type, label }) => (
                 <label key={type} className="flex items-center gap-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={show[type]}
                     onChange={(e) => setShow((s) => ({ ...s, [type]: e.target.checked }))}
-                    className="rounded bg-slate-900 border-slate-700 focus:ring-0"
+                    className="rounded bg-field border-border-field text-brand focus:ring-brand"
                   />
                   {label}
                 </label>
@@ -813,8 +821,8 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           )}
 
           {showCanvas && (
-            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-300 cursor-pointer">
-              <input type="checkbox" checked={showAllLinks} onChange={(e) => setShowAllLinks(e.target.checked)} className="rounded bg-slate-900 border-slate-700 focus:ring-0" />
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-secondary cursor-pointer">
+              <input type="checkbox" checked={showAllLinks} onChange={(e) => setShowAllLinks(e.target.checked)} className="rounded bg-field border-border-field text-brand focus:ring-brand" />
               Show all links
             </label>
           )}
@@ -822,7 +830,7 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           <button
             onClick={exportSvg}
             disabled={!showCanvas || baseNodes.length === 0}
-            className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            className="p-2 rounded-xl bg-field hover:bg-hover border border-border-card text-secondary hover:text-primary transition-colors disabled:opacity-40 disabled:pointer-events-none"
             title="Export as SVG"
             aria-label="Export as SVG"
           >
@@ -837,23 +845,23 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           <aside className="lg:w-64 shrink-0 space-y-3 lg:max-h-[620px] lg:overflow-y-auto">
             <Section
               defaultOpen
-              title={<span className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-red-400" /> Test these first</span>}
+              title={<span className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-status-failed" /> Test these first</span>}
             >
-              <p className="text-[11px] text-slate-500 pb-1">Most-used parts. A bug here reaches the most places.</p>
+              <p className="text-[11px] text-muted pb-1">Most-used parts. A bug here reaches the most places.</p>
               {hotSpots.map((n) => (
                 <button key={n.id} onClick={() => selectAndCenter(n.id)} className="w-full text-left group">
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="truncate text-slate-200 group-hover:text-cyan-400">{n.label.split('/').pop()}</span>
-                    <span className="text-slate-400 ml-2">{n.inDegree}</span>
+                    <span className="truncate text-primary group-hover:text-brand">{n.label.split('/').pop()}</span>
+                    <span className="text-secondary ml-2">{n.inDegree}</span>
                   </div>
-                  <div className="h-1 rounded bg-slate-800 mt-1">
-                    <div className="h-1 rounded" style={{ width: `${(n.inDegree / maxUsed) * 100}%`, background: n.heat === 2 ? '#f87171' : n.heat === 1 ? AMBER : '#64748b' }} />
+                  <div className="h-1.5 rounded-full bg-field border border-border-card mt-1 overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: `${(n.inDegree / maxUsed) * 100}%`, background: n.heat === 2 ? 'var(--status-failed)' : n.heat === 1 ? AMBER : 'var(--text-muted)' }} />
                   </div>
                 </button>
               ))}
-              {hotSpots.length === 0 && <p className="text-[11px] text-slate-500 italic">No dependencies found.</p>}
+              {hotSpots.length === 0 && <p className="text-[11px] text-muted italic">No dependencies found.</p>}
               {unlinkedCount > 0 && (
-                <p className="text-[11px] text-slate-500 pt-1">{plural(unlinkedCount, 'module')} with no links (unused, or only reached at runtime).</p>
+                <p className="text-[11px] text-muted pt-1">{plural(unlinkedCount, 'module')} with no links (unused, or only reached at runtime).</p>
               )}
             </Section>
 
@@ -866,12 +874,12 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
             )}
 
             <Section title="How to read this">
-              <ul className="text-[11px] text-slate-400 space-y-1.5">
+              <ul className="text-[11px] text-secondary space-y-1.5">
                 <li>Each outlined area is a folder.</li>
-                <li><span className="text-red-400 font-bold">HIGH</span> / <span className="text-amber-400 font-bold">MED</span> tags mark parts many others rely on.</li>
-                <li><span className="text-amber-400 font-bold">Amber</span>: re-test if the selected item changes.</li>
-                <li><span className="text-cyan-400 font-bold">Cyan</span>: what the selected item depends on.</li>
-                <li>Arrows point from the user to the thing it uses.</li>
+                <li><span className="text-status-failed font-bold">HIGH</span> / <span className="text-status-flaky font-bold">MED</span> tags mark parts many others rely on.</li>
+                <li><span className="text-status-flaky font-bold">Amber</span>: re-test if the selected item changes.</li>
+                <li><span className="text-secondaryAccent font-bold">Cyan</span>: what the selected item depends on.</li>
+                <li>Arrows point from the caller to the dependency.</li>
               </ul>
             </Section>
           </aside>
@@ -879,17 +887,17 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           {/* Canvas */}
           <div
             ref={containerRef}
-            className="relative flex-1 min-w-0 h-[620px] bg-slate-950/90 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl select-none"
+            className="relative flex-1 min-w-0 h-[620px] bg-field rounded-2xl border border-border-card overflow-hidden shadow-card select-none"
             onKeyDown={(e) => e.key === 'Escape' && setSelectedNodeId(null)}
           >
-            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl p-1 shadow-xl backdrop-blur-md">
+            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-card/90 border border-border-card rounded-xl p-1 shadow-card backdrop-blur-md">
               <button onClick={() => zoomBy(1.2)} className={iconBtn} title="Zoom in" aria-label="Zoom in"><ZoomIn className="w-4 h-4" /></button>
               <button onClick={() => zoomBy(1 / 1.2)} className={iconBtn} title="Zoom out" aria-label="Zoom out"><ZoomOut className="w-4 h-4" /></button>
               <button onClick={() => { setSelectedNodeId(null); fitView(live.current.bounds); }} className={iconBtn} title="Show whole project" aria-label="Show whole project"><Maximize2 className="w-4 h-4" /></button>
             </div>
 
             {baseNodes.length === 0 && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-slate-500 pointer-events-none">
+              <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted pointer-events-none">
                 {viewMode === 'detailed' ? 'Nothing to show. Turn on a type above.' : 'No modules or endpoints found.'}
               </div>
             )}
@@ -907,7 +915,7 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
             >
               <defs>
                 <pattern id={`${markerPrefix}-grid`} width="30" height="30" patternUnits="userSpaceOnUse">
-                  <circle cx="2" cy="2" r="1" fill="#1e293b" opacity="0.6" />
+                  <circle cx="2" cy="2" r="1.2" fill="var(--border-card)" opacity="0.9" />
                 </pattern>
                 {MARKER_COLORS.map((c) => (
                   <marker key={c} id={`${markerPrefix}-${c.slice(1)}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
@@ -924,12 +932,12 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                     <g key={g.key} style={{ pointerEvents: 'none' }}>
                       <rect
                         x={g.x} y={g.y} width={g.w} height={g.h} rx={18}
-                        fill="#0f172a" fillOpacity={0.55}
-                        stroke={g.key === ENDPOINT_GROUP ? '#065f46' : '#1e293b'} strokeWidth={1.2}
+                        fill="var(--bg-card)" fillOpacity={0.65}
+                        stroke={g.key === ENDPOINT_GROUP ? 'var(--status-passed)' : 'var(--border-card)'} strokeWidth={1.2}
                       />
-                      <text x={g.x + PAD} y={g.y + 21} fill="#94a3b8" fontSize={12} fontWeight={700} fontFamily="monospace">
+                      <text x={g.x + PAD} y={g.y + 21} fill="var(--text-primary)" fontSize={12} fontWeight={700} fontFamily="Inter, sans-serif">
                         {truncate(g.key, 34)}
-                        <tspan fill="#475569" fontWeight={400}>{`  (${g.count})`}</tspan>
+                        <tspan fill="var(--text-muted)" fontWeight={500}>{`  (${g.count})`}</tspan>
                       </text>
                     </g>
                   ))}
@@ -974,14 +982,14 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
             {selected && impact && (
               <aside
                 aria-label="Details"
-                className="absolute top-4 right-4 bottom-4 w-72 max-w-[calc(100%-2rem)] bg-slate-900/95 border border-slate-800 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col gap-3 z-20 overflow-y-auto"
+                className="absolute top-4 right-4 bottom-4 w-72 max-w-[calc(100%-2rem)] bg-card border border-border-card rounded-2xl p-4 shadow-card flex flex-col gap-3 z-20 overflow-y-auto"
               >
-                <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-3">
+                <div className="flex items-start justify-between gap-2 border-b border-border-card pb-3">
                   <div className="space-y-1.5 min-w-0">
                     <TypeBadge type={selected.type} />
-                    <h3 className="text-sm font-extrabold text-white font-mono break-all leading-tight">{selected.label}</h3>
+                    <h3 className="text-sm font-bold text-primary font-mono break-all leading-tight">{selected.label}</h3>
                     {(selected.properties?.language || selected.properties?.lines !== undefined) && (
-                      <p className="text-[11px] text-slate-400 font-mono">
+                      <p className="text-[11px] text-muted font-mono">
                         {[selected.properties?.language, selected.properties?.lines !== undefined ? `${selected.properties.lines} lines` : null].filter(Boolean).join(' · ')}
                       </p>
                     )}
@@ -989,7 +997,7 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                   <button onClick={() => setSelectedNodeId(null)} className={iconBtn} aria-label="Close details"><X className="w-4 h-4" /></button>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+                <p className="text-xs text-secondary leading-relaxed bg-field border border-border-field rounded-xl p-3">
                   {impact.affectedNodes.length === 0
                     ? 'Nothing else depends on this, so a change here stays local.'
                     : `A change here could affect ${plural(impact.affectedNodes.length, 'item')}, including ${plural(impact.affectedNodes.filter((n) => n.type === 'ENDPOINT').length, 'API endpoint')}.`}
@@ -997,24 +1005,24 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-[11px] font-bold text-amber-400">Re-test if this changes ({impact.affectedNodes.length})</h4>
+                    <h4 className="text-[11px] font-bold text-status-flaky">Re-test if this changes ({impact.affectedNodes.length})</h4>
                     {impact.affectedNodes.length > 0 && (
-                      <button onClick={copyRetestList} className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1">
-                        {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />} {copied ? 'Copied' : 'Copy list'}
+                      <button onClick={copyRetestList} className="text-[10px] text-secondary hover:text-primary flex items-center gap-1">
+                        {copied ? <Check className="w-3 h-3 text-status-passed" /> : <Copy className="w-3 h-3" />} {copied ? 'Copied' : 'Copy list'}
                       </button>
                     )}
                   </div>
                   <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
                     {impact.affectedNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
-                    {impact.affectedNodes.length === 0 && <p className="text-[11px] text-slate-500 italic">None.</p>}
+                    {impact.affectedNodes.length === 0 && <p className="text-[11px] text-muted italic">None.</p>}
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <h4 className="text-[11px] font-bold text-cyan-400">Depends on ({impact.usesNodes.length})</h4>
+                  <h4 className="text-[11px] font-bold text-secondaryAccent">Depends on ({impact.usesNodes.length})</h4>
                   <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
                     {impact.usesNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
-                    {impact.usesNodes.length === 0 && <p className="text-[11px] text-slate-500 italic">None.</p>}
+                    {impact.usesNodes.length === 0 && <p className="text-[11px] text-muted italic">None.</p>}
                   </div>
                 </div>
               </aside>
@@ -1022,16 +1030,16 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
-            <h4 className="text-xs font-bold text-slate-300">
+        <div className="bg-card rounded-2xl border border-border-card overflow-hidden shadow-card">
+          <div className="p-4 border-b border-border-card bg-field flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-secondary">
               {tableRows.length} of {rawNodes.length} items
             </h4>
-            <span className="text-xs font-mono text-indigo-400">{rawEdges.length} dependencies</span>
+            <span className="text-xs font-mono text-brand font-semibold">{rawEdges.length} dependencies</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px]">
+              <thead className="bg-field text-secondary border-b border-border-card text-[11px]">
                 <tr>
                   <th scope="col" className="px-4 py-3">Type</th>
                   <th scope="col" className="px-4 py-3">Name</th>
@@ -1041,24 +1049,24 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                   <th scope="col" className="px-4 py-3 text-right"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-border-card text-secondary">
                 {tableRows.slice(0, TABLE_ROW_LIMIT).map((node) => {
                   const d = rawDegree.get(node.id);
                   return (
-                    <tr key={node.id} className="hover:bg-slate-800/40 transition-colors">
+                    <tr key={node.id} className="hover:bg-hover transition-colors">
                       <td className="px-4 py-3"><TypeBadge type={node.type} /></td>
-                      <td className="px-4 py-3 text-white font-bold max-w-[280px] truncate" title={node.id}>{node.label}</td>
+                      <td className="px-4 py-3 text-primary font-bold max-w-[280px] truncate" title={node.id}>{node.label}</td>
                       <td className="px-4 py-3">{d?.in ?? 0}</td>
                       <td className="px-4 py-3">{d?.out ?? 0}</td>
-                      <td className="px-4 py-3 text-slate-400 text-[11px] space-x-2">
-                        {node.properties?.language && <span className="text-cyan-400">{node.properties.language}</span>}
+                      <td className="px-4 py-3 text-muted text-[11px] space-x-2">
+                        {node.properties?.language && <span className="text-secondaryAccent">{node.properties.language}</span>}
                         {node.properties?.lines !== undefined && <span>{node.properties.lines} lines</span>}
-                        {node.properties?.method && <span className="text-emerald-400 font-bold">{node.properties.method}</span>}
+                        {node.properties?.method && <span className="text-status-passed font-bold">{node.properties.method}</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => focusFromTable(node)}
-                          className="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                          className="px-2.5 py-1 rounded-lg bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
                         >
                           Show on map <ChevronRight className="w-3 h-3" />
                         </button>
@@ -1067,13 +1075,13 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                   );
                 })}
                 {tableRows.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No matches.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted">No matches.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
           {tableRows.length > TABLE_ROW_LIMIT && (
-            <p className="px-4 py-3 text-[11px] text-slate-500 border-t border-slate-800">
+            <p className="px-4 py-3 text-[11px] text-muted border-t border-border-card">
               Showing the first {TABLE_ROW_LIMIT} rows. Search to narrow the list.
             </p>
           )}

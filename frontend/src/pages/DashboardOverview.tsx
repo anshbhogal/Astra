@@ -7,16 +7,12 @@ import {
   ArrowUpRight,
   Play,
   CheckCircle2,
-  XCircle,
-  Shuffle,
-  Shield,
   Layers,
   Sparkles,
   Zap,
   TrendingUp,
-  Cpu,
   RefreshCw,
-  Terminal,
+  Cpu,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -44,7 +40,7 @@ interface ProjectSummary {
 export const DashboardOverview: React.FC = () => {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState<PlatformOverview | null>(null);
+  const [overview, setPlatformOverview] = useState<PlatformOverview | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [taskLoading, setTaskLoading] = useState(false);
   const [taskResponse, setTaskResponse] = useState<any>(null);
@@ -62,13 +58,13 @@ export const DashboardOverview: React.FC = () => {
       ]);
 
       if (overviewRes.status === 'fulfilled') {
-        setOverview(overviewRes.value.data);
+        setPlatformOverview(overviewRes.value.data);
       }
       if (projectsRes.status === 'fulfilled') {
         setProjects(projectsRes.value.data.items || []);
       }
     } catch (e) {
-      console.error('Failed to load dashboard telemetry:', e);
+      console.error('Failed to load dashboard data:', e);
     } finally {
       setLoading(false);
     }
@@ -97,188 +93,169 @@ export const DashboardOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Mission Control Header */}
-      <div className="glass-card rounded-2xl p-6 border border-border flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden">
-        {/* Glow ambient background accent */}
-        <div className="absolute -right-24 -top-24 w-80 h-80 bg-brand/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="space-y-1.5 z-10">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand/15 text-brand border border-brand/30">
-              <Zap className="w-3 h-3 text-accent" />
-              MISSION CONTROL ONLINE
-            </span>
-            <span className="text-xs text-muted font-mono hidden sm:inline">
-              SECURE CLUSTER • v2.0
-            </span>
+      {/* Overview Hero Banner with subtle brand gradient and white text */}
+      <div className="rounded-2xl p-6 bg-gradient-to-r from-[#5B3DF5] to-[#8B5CF6] text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
+            <Zap className="w-3.5 h-3.5 fill-current" />
+            Quality Assurance Console
           </div>
-          <h1 className="text-2xl lg:text-3xl font-extrabold text-primary tracking-tight">
-            Welcome to ASTRA Command, {user?.full_name?.split(' ')[0] || 'Operator'}
+          <h1 className="text-[28px] font-semibold tracking-tight text-white">
+            Welcome back, {user?.full_name?.split(' ')[0] || 'Tester'}
           </h1>
-          <p className="text-sm text-secondary max-w-2xl">
-            Autonomous defect detection, AST dynamic tracing, and AI self-healing test pipelines are operating nominally.
+          <p className="text-sm text-white/90 leading-relaxed">
+            ASTRA autonomous defect detection, code intelligence, and self-healing test pipelines are operating nominally.
           </p>
         </div>
 
-        {/* Primary Action Button (The single Volt Lime highlight on this screen) */}
-        <div className="flex items-center gap-3 z-10">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             variant="secondary"
             size="md"
             onClick={fetchDashboardData}
             isLoading={loading}
+            className="bg-white/15 text-white hover:bg-white/25 border-white/20"
             leftIcon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
           >
-            Sync Telemetry
+            Refresh Data
           </Button>
-
           <Link to="/projects">
             <Button
-              variant="accent"
+              variant="secondary"
               size="md"
+              className="bg-white text-primary hover:bg-white/90 border-transparent shadow-sm font-semibold"
               rightIcon={<ArrowUpRight className="w-4 h-4" />}
             >
-              Launch Repositories
+              Browse Repositories
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Plain Language Status Banner (Status First principle) */}
-      <div className="glass-panel rounded-xl p-4 border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* Plain Language Status Summary */}
+      <div className="bg-card border border-border-card rounded-xl p-4 shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-status-passed-bg border border-status-passed-border text-status-passed">
+          <div className="w-9 h-9 rounded-lg bg-status-passed-bg border border-status-passed/20 flex items-center justify-center text-status-passed shrink-0">
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
             <p className="text-sm font-semibold text-primary">
-              All quality gates operational: {totalProjects} tracked project repositories active
+              All systems operational: {totalProjects} software repositories tracked
             </p>
             <p className="text-xs text-muted">
               {passRate >= 90
                 ? 'High reliability threshold maintained across continuous test runs.'
-                : 'Attention advised: Flakiness or regressions detected in latest suites.'}
+                : 'Attention needed: Recent regressions detected in testing suites.'}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <TestStatusBadge status="passed" label="Passed" />
+          <TestStatusBadge status="passed" label="All Checks Passed" />
           <TestStatusBadge status="running" label="Workers Active" />
-          <TestStatusBadge status="flaky" count={0} label="0 Flaky" />
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Projects */}
-        <div className="glass-card rounded-xl p-5 border border-border hover:border-brand/40 transition-all duration-200">
+      {/* 4 Stat Cards with 32px Colorful Icon Chips */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Card 1: Repositories */}
+        <div className="bg-card border border-border-card rounded-xl p-5 shadow-card hover:border-brand/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Tracked Repos
-            </span>
-            <div className="p-2 rounded-lg bg-brand/10 text-brand">
+            <span className="text-xs font-semibold text-secondary">Tracked Repositories</span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-brand flex items-center justify-center">
               <FolderGit2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-primary font-mono">
+          <div className="mt-3">
+            <p className="text-[28px] font-semibold text-primary leading-tight">
               {loading ? '...' : totalProjects}
-            </span>
-            <span className="text-xs text-secondary font-medium">repositories</span>
+            </p>
+            <p className="text-xs text-muted mt-1">Multi-language codebases</p>
           </div>
-          <p className="text-xs text-muted mt-1">Multi-language AST & OpenAPI analyzed</p>
         </div>
 
-        {/* Pass Rate - Featuring Volt Lime Accent on Key Numbers */}
-        <div className="glass-card rounded-xl p-5 border border-border hover:border-brand/40 transition-all duration-200">
+        {/* Card 2: Pass Rate */}
+        <div className="bg-card border border-border-card rounded-xl p-5 shadow-card hover:border-brand/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Overall Pass Rate
-            </span>
-            <div className="p-2 rounded-lg bg-status-passed-bg text-status-passed">
+            <span className="text-xs font-semibold text-secondary">Overall Pass Rate</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-status-passed flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-accent font-mono">
-              {loading ? '...' : `${passRate}%`}
-            </span>
-            <span className="text-xs text-status-passed font-medium flex items-center gap-0.5">
-              <TrendingUp className="w-3 h-3" /> Nominal
-            </span>
+          <div className="mt-3">
+            <p className="text-[28px] font-semibold text-primary leading-tight flex items-baseline gap-2">
+              <span>{loading ? '...' : `${passRate}%`}</span>
+              <span className="text-xs font-medium text-status-passed flex items-center gap-0.5">
+                <TrendingUp className="w-3.5 h-3.5" /> High
+              </span>
+            </p>
+            <p className="text-xs text-muted mt-1">Across all automated test suites</p>
           </div>
-          <p className="text-xs text-muted mt-1">Weighted across all test executions</p>
         </div>
 
-        {/* Tests Executed */}
-        <div className="glass-card rounded-xl p-5 border border-border hover:border-brand/40 transition-all duration-200">
+        {/* Card 3: Tests Executed */}
+        <div className="bg-card border border-border-card rounded-xl p-5 shadow-card hover:border-brand/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Tests Executed
-            </span>
-            <div className="p-2 rounded-lg bg-brand/10 text-brand">
-              <Cpu className="w-4 h-4" />
+            <span className="text-xs font-semibold text-secondary">Tests Executed</span>
+            <div className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+              <Layers className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-primary font-mono">
+          <div className="mt-3">
+            <p className="text-[28px] font-semibold text-primary leading-tight">
               {loading ? '...' : testsExecuted}
-            </span>
-            <span className="text-xs text-secondary font-medium">in {totalRuns} runs</span>
+            </p>
+            <p className="text-xs text-muted mt-1">Across {totalRuns} test runs</p>
           </div>
-          <p className="text-xs text-muted mt-1">Synthetic & mutation assertions</p>
         </div>
 
-        {/* Celery Message Broker */}
-        <div className="glass-card rounded-xl p-5 border border-border hover:border-brand/40 transition-all duration-200">
+        {/* Card 4: Task Queue Worker */}
+        <div className="bg-card border border-border-card rounded-xl p-5 shadow-card hover:border-brand/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-              Queue & Broker
-            </span>
-            <div className="p-2 rounded-lg bg-brand/10 text-brand">
+            <span className="text-xs font-semibold text-secondary">Worker Queue</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Server className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-primary font-mono">
+          <div className="mt-3">
+            <p className="text-[28px] font-semibold text-primary leading-tight">
               Redis 7
-            </span>
-            <span className="text-xs text-status-passed font-medium">ONLINE</span>
+            </p>
+            <p className="text-xs text-status-passed font-medium mt-1">Worker cluster active</p>
           </div>
-          <p className="text-xs text-muted mt-1">Distributed Celery worker cluster</p>
         </div>
       </div>
 
-      {/* Main Content Grid: Projects Quick Access & System Telemetry */}
+      {/* Main Grid: Projects List & Diagnostics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Monitored Software Repositories */}
-        <div className="lg:col-span-2 glass-card rounded-2xl p-6 border border-border space-y-4">
+        {/* Left 2 Cols: Monitored Repositories */}
+        <div className="lg:col-span-2 bg-card border border-border-card rounded-xl p-6 shadow-card space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-primary flex items-center gap-2">
-                <FolderGit2 className="w-5 h-5 text-brand" /> Monitored Software Repositories
-              </h2>
-              <p className="text-xs text-muted mt-0.5">
-                AST parsed codebases with active test suites and knowledge graphs.
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center">
+                <FolderGit2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-primary">Connected Repositories</h2>
+                <p className="text-xs text-muted">Codebases enrolled in static AST analysis and test generation</p>
+              </div>
             </div>
             <Link
               to="/projects"
-              className="text-xs font-semibold text-brand hover:text-brand-hover flex items-center gap-1 transition-colors"
+              className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
             >
               View all ({totalProjects}) <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {projects.length === 0 && !loading && (
-              <div className="p-8 text-center rounded-xl bg-surface border border-border">
-                <FolderGit2 className="w-10 h-10 text-muted mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-semibold text-primary">No repositories registered yet</p>
-                <p className="text-xs text-muted mt-1">Register a repository to trigger automated analysis.</p>
+              <div className="p-8 text-center rounded-xl bg-field border border-border-card">
+                <FolderGit2 className="w-8 h-8 text-muted mx-auto mb-2 opacity-60" />
+                <p className="text-sm font-semibold text-primary">No repositories enrolled</p>
+                <p className="text-xs text-muted mt-1">Add your first repository to begin automated testing.</p>
                 <Link to="/projects" className="mt-3 inline-block">
-                  <Button variant="accent" size="sm">Register Repository</Button>
+                  <Button variant="primary" size="sm">Register Repository</Button>
                 </Link>
               </div>
             )}
@@ -287,15 +264,15 @@ export const DashboardOverview: React.FC = () => {
               <Link
                 key={proj.id}
                 to={`/projects/${proj.id}`}
-                className="group block p-4 rounded-xl bg-surface border border-border hover:border-brand/40 hover:bg-raised transition-all duration-150"
+                className="group block p-4 rounded-xl bg-field border border-border-card hover:border-brand/40 hover:bg-hover transition-all duration-150"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-primary group-hover:text-brand transition-colors truncate">
+                      <span className="font-semibold text-sm text-primary group-hover:text-brand transition-colors truncate">
                         {proj.name}
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-brand/10 text-brand border border-brand/20">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-brand/10 text-brand">
                         {proj.language_framework}
                       </span>
                     </div>
@@ -305,10 +282,10 @@ export const DashboardOverview: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[11px] font-mono text-muted hidden sm:inline">
-                      branch: {proj.default_branch}
+                    <span className="text-xs text-muted hidden sm:inline">
+                      Branch: <span className="font-mono">{proj.default_branch}</span>
                     </span>
-                    <span className="p-1.5 rounded-lg bg-raised text-muted group-hover:text-primary group-hover:bg-brand/20 transition-all">
+                    <span className="p-1.5 rounded-lg bg-card border border-border-card text-muted group-hover:text-brand group-hover:border-brand/30 transition-colors">
                       <ArrowUpRight className="w-4 h-4" />
                     </span>
                   </div>
@@ -318,32 +295,33 @@ export const DashboardOverview: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Col: Async Task Worker Verification & System Health */}
-        <div className="glass-card rounded-2xl p-6 border border-border space-y-4">
-          <div>
-            <h2 className="text-base font-bold text-primary flex items-center gap-2">
-              <Activity className="w-5 h-5 text-brand" /> Worker Telemetry
-            </h2>
-            <p className="text-xs text-muted mt-0.5">
-              Live background dispatcher verification.
-            </p>
+        {/* Right Col: Async Worker Verification Card */}
+        <div className="bg-card border border-border-card rounded-xl p-6 shadow-card space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-status-passed flex items-center justify-center">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-primary">Worker Telemetry</h2>
+              <p className="text-xs text-muted">Background Celery worker health</p>
+            </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-surface border border-border space-y-3">
+          <div className="p-4 rounded-xl bg-field border border-border-field space-y-3">
             <div className="flex items-center justify-between text-xs">
               <span className="text-secondary font-medium">Message Broker</span>
-              <span className="font-mono text-status-passed flex items-center gap-1 font-semibold">
-                <span className="w-2 h-2 rounded-full bg-status-passed animate-pulse" />
-                Active (redis:6379)
+              <span className="text-status-passed font-semibold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-status-passed" />
+                Online (Redis 6379)
               </span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-secondary font-medium">Worker Concurrency</span>
-              <span className="font-mono text-primary font-semibold">4 threads / prefork</span>
+              <span className="text-primary font-medium">4 Threads (Prefork)</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-secondary font-medium">Security Boundary</span>
-              <span className="font-mono text-status-passed font-semibold">SSRF Protected</span>
+              <span className="text-secondary font-medium">SSRF Boundary</span>
+              <span className="text-status-passed font-medium">Protected Sandbox</span>
             </div>
 
             <Button
@@ -352,36 +330,36 @@ export const DashboardOverview: React.FC = () => {
               variant="secondary"
               size="sm"
               className="w-full mt-2"
-              leftIcon={<Play className="w-3.5 h-3.5 text-accent" />}
+              leftIcon={<Play className="w-3.5 h-3.5 text-brand" />}
             >
               Dispatch Diagnostic Ping
             </Button>
           </div>
 
           {taskResponse && (
-            <div className="p-3.5 rounded-xl bg-surface border border-border font-mono text-xs space-y-2 animate-fade-in">
+            <div className="p-3.5 rounded-xl bg-field border border-border-card text-xs space-y-2 animate-fade-in">
               <div className="flex items-center justify-between text-status-passed font-semibold">
                 <span className="flex items-center gap-1.5 text-xs">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Celery Dispatched
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Job Dispatched
                 </span>
-                <span className="text-muted text-[10px]">
+                <span className="text-muted text-[10px] font-mono">
                   ID: {taskResponse.task_id?.slice(0, 8)}...
                 </span>
               </div>
-              <pre className="text-secondary text-[11px] overflow-x-auto p-2 bg-base rounded border border-border">
+              <pre className="text-secondary text-[11px] overflow-x-auto p-2 bg-card rounded border border-border-card font-mono">
                 {JSON.stringify(taskResponse, null, 2)}
               </pre>
             </div>
           )}
 
-          {/* User & Security Context */}
-          <div className="p-4 rounded-xl bg-surface border border-border space-y-2">
+          {/* User & Security Session Box */}
+          <div className="p-4 rounded-xl bg-field border border-border-card space-y-2">
             <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block">
-              Active Security Session
+              Active Session
             </span>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-secondary">{user?.email}</span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand/10 text-brand border border-brand/20">
+              <span className="text-primary font-medium">{user?.email}</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-brand/10 text-brand">
                 {user?.role}
               </span>
             </div>

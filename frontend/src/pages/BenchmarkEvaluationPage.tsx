@@ -198,37 +198,37 @@ export const BenchmarkEvaluationPage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Hero Header */}
-      <div className="glass-card rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-indigo-400 font-semibold uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-2 text-xs text-brand font-semibold uppercase tracking-wider mb-1">
             <FlaskConical className="w-4 h-4" /> Empirical Validation Suite & Research Benchmark
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-primary tracking-tight">
             Scientific Benchmark & Ablation Evaluation
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
+          <p className="text-xs text-secondary mt-0.5 max-w-2xl leading-relaxed">
             Multi-modal empirical validation against 50 real architectural defects across 4 microservices
             and 100 clean negative controls under zero-LLM deterministic test harnesses.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs">
-            Ground Truth: <span className="text-emerald-400 font-bold">50 Bugs</span> + <span className="text-teal-400 font-bold">100 Controls</span>
+          <span className="px-3.5 py-1.5 rounded-xl bg-field border border-border-card text-secondary font-mono text-xs">
+            Ground Truth: <span className="text-status-passed font-bold">50 Bugs</span> + <span className="text-secondaryAccent font-bold">100 Controls</span>
           </span>
         </div>
       </div>
 
       {/* Ablation Study Trial Launcher Card */}
-      <div className="glass-card rounded-2xl border border-slate-800 p-6 space-y-5 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+      <div className="bg-card rounded-2xl border border-border-card p-6 space-y-5 shadow-card">
+        <div className="flex items-center justify-between border-b border-border-card pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Play className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/20 flex items-center justify-center">
+              <Play className="w-4 h-4 fill-current ml-0.5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Execute Automated Ablation Trial</h3>
-              <p className="text-xs text-slate-400">
+              <h3 className="text-base font-bold text-primary">Execute Automated Ablation Trial</h3>
+              <p className="text-xs text-secondary">
                 Trigger repeated test trials and calculate statistical metrics without predefined outcomes
               </p>
             </div>
@@ -237,9 +237,9 @@ export const BenchmarkEvaluationPage: React.FC = () => {
           <button
             onClick={handleLaunchEvaluation}
             disabled={evaluating}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-500/25 flex items-center gap-2 shrink-0 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-on-brand text-xs font-semibold transition-all shadow-sm flex items-center gap-2 shrink-0 disabled:opacity-50"
           >
-            {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
             {evaluating ? 'Executing Trials...' : 'Run Ablation Study'}
           </button>
         </div>
@@ -248,7 +248,7 @@ export const BenchmarkEvaluationPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Option 1: Operational Modes */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">
               Operational Modes Included
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -258,8 +258,8 @@ export const BenchmarkEvaluationPage: React.FC = () => {
                   onClick={() => toggleMode(m)}
                   className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
                     selectedModes.includes(m)
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                      : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                      ? 'bg-brand text-on-brand shadow-sm'
+                      : 'bg-field border border-border-card text-secondary hover:text-primary'
                   }`}
                 >
                   {m}
@@ -270,22 +270,22 @@ export const BenchmarkEvaluationPage: React.FC = () => {
 
           {/* Option 2: Execution Profile */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">
               Execution Profile
             </label>
             <select
               value={profile}
               onChange={(e) => setProfile(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full bg-field border border-border-field rounded-xl px-3 py-2 text-xs text-primary focus:outline-none focus:ring-2 focus:ring-brand font-mono"
             >
-              <option value="IN_PROCESS_DETERMINISTIC">IN_PROCESS_DETERMINISTIC (SQLite Memory)</option>
-              <option value="CONCURRENT_TRANSACTIONAL">CONCURRENT_TRANSACTIONAL (PostgreSQL + Async)</option>
+              <option value="IN_PROCESS_DETERMINISTIC" className="bg-card text-primary">IN_PROCESS_DETERMINISTIC (SQLite Memory)</option>
+              <option value="CONCURRENT_TRANSACTIONAL" className="bg-card text-primary">CONCURRENT_TRANSACTIONAL (PostgreSQL + Async)</option>
             </select>
           </div>
 
           {/* Option 3: Trials Count */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+            <label className="text-xs font-semibold text-secondary uppercase tracking-wider block">
               Trial Repetitions (Bootstrap Sample)
             </label>
             <div className="flex items-center gap-3">
@@ -295,9 +295,9 @@ export const BenchmarkEvaluationPage: React.FC = () => {
                 max="10"
                 value={trials}
                 onChange={(e) => setTrials(parseInt(e.target.value))}
-                className="w-full accent-indigo-500 cursor-pointer"
+                className="w-full accent-[var(--brand)] cursor-pointer"
               />
-              <span className="font-mono text-sm font-bold text-white bg-slate-950 border border-slate-800 px-3 py-1 rounded-lg shrink-0">
+              <span className="font-mono text-sm font-bold text-primary bg-field border border-border-card px-3 py-1 rounded-lg shrink-0">
                 {trials}x
               </span>
             </div>
@@ -306,8 +306,8 @@ export const BenchmarkEvaluationPage: React.FC = () => {
 
         {/* Live Execution Feedback Status Banner */}
         {evaluationStatus && (
-          <div className="p-3 bg-slate-950/80 border border-indigo-500/30 rounded-xl flex items-center gap-3 text-xs font-mono text-indigo-300">
-            <Terminal className="w-4 h-4 shrink-0 text-indigo-400" />
+          <div className="p-3 bg-field border border-brand/30 rounded-xl flex items-center gap-3 text-xs font-mono text-brand">
+            <Terminal className="w-4 h-4 shrink-0 text-brand" />
             <span>{evaluationStatus}</span>
           </div>
         )}

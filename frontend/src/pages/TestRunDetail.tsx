@@ -6,16 +6,11 @@ import {
   AlertTriangle,
   XCircle,
   Clock,
-  Play,
   StopCircle,
-  RefreshCw,
   Info,
-  Shield,
   Layers,
-  FileText,
   ChevronRight,
   ChevronDown,
-  Terminal,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Button } from '../components/common/Button';
@@ -149,7 +144,7 @@ export const TestRunDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="text-center py-20 text-muted text-sm font-mono flex flex-col items-center gap-3">
+      <div className="text-center py-20 text-muted text-sm flex flex-col items-center gap-3">
         <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         <span>Loading execution telemetry...</span>
       </div>
@@ -158,7 +153,7 @@ export const TestRunDetail: React.FC = () => {
 
   if (error || !testRun) {
     return (
-      <div className="glass-card rounded-2xl p-8 text-center space-y-4 border border-border max-w-md mx-auto">
+      <div className="bg-card rounded-2xl p-8 text-center space-y-4 border border-border-card shadow-card max-w-md mx-auto">
         <Info className="w-10 h-10 text-status-failed mx-auto" />
         <h3 className="text-lg font-bold text-primary">Test Run Not Found</h3>
         <p className="text-xs text-secondary">{error}</p>
@@ -181,12 +176,12 @@ export const TestRunDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Breadcrumb Navigation */}
-      <div className="flex items-center gap-3 text-xs text-muted">
-        <Link to="/projects" className="hover:text-primary transition-colors">
-          Projects
+      <div className="flex items-center gap-2 text-xs text-muted">
+        <Link to="/projects" className="hover:text-primary transition-colors font-medium flex items-center gap-1">
+          <ArrowLeft className="w-3.5 h-3.5" /> Projects
         </Link>
         <span>/</span>
-        <Link to={`/projects/${projectId}`} className="hover:text-primary transition-colors">
+        <Link to={`/projects/${projectId}`} className="hover:text-primary transition-colors font-medium">
           Project Cockpit
         </Link>
         <span>/</span>
@@ -194,30 +189,33 @@ export const TestRunDetail: React.FC = () => {
       </div>
 
       {/* Plain Language Status Banner (Status First principle) */}
-      <div className="glass-panel rounded-xl p-4 border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
           {failedCount === 0 ? (
-            <div className="p-2 rounded-lg bg-status-passed-bg border border-status-passed-border text-status-passed">
-              <CheckCircle2 className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-status-passed-bg border border-status-passed/30 text-status-passed flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
           ) : (
-            <div className="p-2 rounded-lg bg-status-failed-bg border border-status-failed-border text-status-failed">
-              <XCircle className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-status-failed-bg border border-status-failed/30 text-status-failed flex items-center justify-center shrink-0">
+              <XCircle className="w-6 h-6" />
             </div>
           )}
           <div>
-            <p className="text-sm font-bold text-primary">
+            <h2 className="text-base font-bold text-primary">
               {failedCount === 0
                 ? `All ${passedCount} tests passed smoothly after your last execution`
                 : `${failedCount} ${failedCount === 1 ? 'test' : 'tests'} failed after your last change`}
-            </p>
-            <p className="text-xs text-muted">
-              Target environment sandbox: <span className="font-mono text-secondary">{testRun.target_environment.base_url || 'http://localhost:8000'}</span>
+            </h2>
+            <p className="text-xs text-secondary mt-0.5">
+              Target sandbox:{' '}
+              <span className="font-mono text-primary font-semibold">
+                {testRun.target_environment.base_url || 'http://localhost:8000'}
+              </span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <TestStatusBadge
             status={mapRunStatusToBadge(testRun.status)}
             label={testRun.status}
@@ -236,160 +234,206 @@ export const TestRunDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* KPI Key Numbers Grid - Features Volt Lime on Key Metric Numbers */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 font-mono">
-        <div className="glass-card rounded-xl p-4 border border-border">
-          <span className="text-muted text-[10px] uppercase block tracking-wider">Total Tests</span>
-          {/* Volt Lime highlight for the key number on this screen */}
-          <span className="text-2xl font-black text-accent mt-1 block">
-            {results.length} / {testRun.total_tests}
-          </span>
-          <span className="text-[11px] text-muted">Executed steps</span>
+      {/* KPI Stat Cards with 32px Icon Chips */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="bg-card rounded-xl p-4 border border-border-card shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-muted text-[10px] uppercase font-semibold tracking-wider">Total Tests</span>
+            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <span className="text-2xl font-bold text-primary block">
+              {results.length} <span className="text-xs font-normal text-muted">/ {testRun.total_tests}</span>
+            </span>
+            <span className="text-[11px] text-muted">Executed steps</span>
+          </div>
         </div>
 
-        <div className="glass-card rounded-xl p-4 border border-border">
-          <span className="text-muted text-[10px] uppercase block tracking-wider">Passed</span>
-          <span className="text-2xl font-bold text-status-passed mt-1 block">
-            {testRun.passed_tests}
-          </span>
-          <span className="text-[11px] text-muted">Assertions verified</span>
+        <div className="bg-card rounded-xl p-4 border border-border-card shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-muted text-[10px] uppercase font-semibold tracking-wider">Passed</span>
+            <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <span className="text-2xl font-bold text-status-passed block">
+              {testRun.passed_tests}
+            </span>
+            <span className="text-[11px] text-muted">Assertions verified</span>
+          </div>
         </div>
 
-        <div className="glass-card rounded-xl p-4 border border-border">
-          <span className="text-muted text-[10px] uppercase block tracking-wider">Failed</span>
-          <span className="text-2xl font-bold text-status-failed mt-1 block">
-            {testRun.failed_tests}
-          </span>
-          <span className="text-[11px] text-muted">Defects surfaced</span>
+        <div className="bg-card rounded-xl p-4 border border-border-card shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-muted text-[10px] uppercase font-semibold tracking-wider">Failed</span>
+            <div className="w-8 h-8 rounded-lg bg-status-failed-bg border border-status-failed/30 flex items-center justify-center text-status-failed">
+              <XCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <span className="text-2xl font-bold text-status-failed block">
+              {testRun.failed_tests}
+            </span>
+            <span className="text-[11px] text-muted">Defects surfaced</span>
+          </div>
         </div>
 
-        <div className="glass-card rounded-xl p-4 border border-border">
-          <span className="text-muted text-[10px] uppercase block tracking-wider">Errors</span>
-          <span className="text-2xl font-bold text-status-error mt-1 block">
-            {testRun.error_tests}
-          </span>
-          <span className="text-[11px] text-muted">Runtime exceptions</span>
+        <div className="bg-card rounded-xl p-4 border border-border-card shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-muted text-[10px] uppercase font-semibold tracking-wider">Errors</span>
+            <div className="w-8 h-8 rounded-lg bg-status-error-bg border border-status-error/30 flex items-center justify-center text-status-error">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <span className="text-2xl font-bold text-status-error block">
+              {testRun.error_tests}
+            </span>
+            <span className="text-[11px] text-muted">Runtime exceptions</span>
+          </div>
         </div>
 
-        <div className="glass-card rounded-xl p-4 border border-border">
-          <span className="text-muted text-[10px] uppercase block tracking-wider">Latency</span>
-          <span className="text-2xl font-bold text-primary mt-1 block">
-            {Number(testRun.duration_ms ?? 0).toFixed(0)} ms
-          </span>
-          <span className="text-[11px] text-muted">Total execution SLA</span>
+        <div className="bg-card rounded-xl p-4 border border-border-card shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-muted text-[10px] uppercase font-semibold tracking-wider">Latency</span>
+            <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <span className="text-2xl font-bold text-primary font-mono block">
+              {Number(testRun.duration_ms ?? 0).toFixed(0)} <span className="text-xs font-normal font-sans text-muted">ms</span>
+            </span>
+            <span className="text-[11px] text-muted">Execution SLA</span>
+          </div>
         </div>
       </div>
 
       {/* Results Filter Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          {(['ALL', 'PASS', 'FAIL', 'ERROR'] as const).map((tab) => {
-            const isActive = filter === tab;
+          {(
+            [
+              { key: 'ALL', label: 'All Steps' },
+              { key: 'PASS', label: 'Passed' },
+              { key: 'FAIL', label: 'Failed' },
+              { key: 'ERROR', label: 'Errors' },
+            ] as const
+          ).map((item) => {
+            const isActive = filter === item.key;
             return (
               <button
-                key={tab}
-                onClick={() => setFilter(tab)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
+                key={item.key}
+                onClick={() => setFilter(item.key)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isActive
-                    ? 'bg-brand text-white shadow-brand-glow'
-                    : 'bg-surface text-secondary hover:text-primary border border-border'
+                    ? 'bg-brand text-on-brand shadow-sm'
+                    : 'bg-card text-secondary hover:text-primary border border-border-card hover:bg-hover'
                 }`}
               >
-                {tab === 'ALL' ? 'All Steps' : tab}
+                {item.label}
               </button>
             );
           })}
         </div>
-        <span className="text-xs font-mono text-muted">
+        <span className="text-xs text-muted">
           Showing {filteredResults.length} test steps (click row to drill down)
         </span>
       </div>
 
       {/* Step Results Table */}
-      <div className="glass-card rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-left text-xs font-mono">
-          <thead className="bg-raised text-muted border-b border-border uppercase text-[10px]">
+      <div className="bg-card rounded-2xl border border-border-card shadow-card overflow-hidden">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
             <tr>
-              <th className="px-4 py-3">Outcome</th>
-              <th className="px-4 py-3">Method</th>
-              <th className="px-4 py-3">Endpoint Path</th>
-              <th className="px-4 py-3">Test Type</th>
-              <th className="px-4 py-3">Status Code</th>
-              <th className="px-4 py-3">Latency</th>
-              <th className="px-4 py-3">Details</th>
+              <th className="px-5 py-3">Outcome</th>
+              <th className="px-5 py-3">Method</th>
+              <th className="px-5 py-3">Endpoint Path</th>
+              <th className="px-5 py-3">Test Type</th>
+              <th className="px-5 py-3">Status Code</th>
+              <th className="px-5 py-3">Latency</th>
+              <th className="px-5 py-3">Details</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border text-secondary">
-            {filteredResults.map((res) => (
-              <React.Fragment key={res.id}>
-                <tr
-                  onClick={() => setExpandedId(expandedId === res.id ? null : res.id)}
-                  className="hover:bg-raised/60 transition-colors cursor-pointer group"
-                >
-                  <td className="px-4 py-3">
-                    <TestStatusBadge
-                      status={mapOutcomeToStatus(res.outcome)}
-                      label={res.outcome}
-                    />
-                  </td>
-                  <td className="px-4 py-3 font-bold text-primary">{res.method}</td>
-                  <td className="px-4 py-3 text-brand font-semibold">{res.endpoint}</td>
-                  <td className="px-4 py-3 text-muted">{res.test_type}</td>
-                  <td className="px-4 py-3 font-semibold text-primary">{res.status_code || '—'}</td>
-                  <td className="px-4 py-3 text-muted">{res.execution_time_ms} ms</td>
-                  <td className="px-4 py-3 text-muted group-hover:text-primary transition-colors">
-                    {expandedId === res.id ? (
-                      <ChevronDown className="w-4 h-4 text-brand" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </td>
-                </tr>
-
-                {/* Drill Down Expandable Row */}
-                {expandedId === res.id && (
-                  <tr className="bg-raised/40 border-b border-border">
-                    <td colSpan={7} className="p-4 space-y-4">
-                      {/* Assertion Failures Alert */}
-                      {res.assertion_failures && res.assertion_failures.length > 0 && (
-                        <div className="p-3 rounded-xl bg-status-failed-bg border border-status-failed-border text-xs font-mono space-y-1">
-                          <span className="text-status-failed font-bold flex items-center gap-1.5">
-                            <AlertTriangle className="w-4 h-4" /> Assertion Violations ({res.assertion_failures.length})
-                          </span>
-                          {res.assertion_failures.map((f, idx) => (
-                            <p key={idx} className="text-status-failed pl-5 leading-relaxed">
-                              {f.message}
-                            </p>
-                          ))}
-                        </div>
+          <tbody className="divide-y divide-border-card text-secondary">
+            {filteredResults.map((res) => {
+              const isExpanded = expandedId === res.id;
+              return (
+                <React.Fragment key={res.id}>
+                  <tr
+                    onClick={() => setExpandedId(isExpanded ? null : res.id)}
+                    className={`hover:bg-hover transition-colors cursor-pointer group ${
+                      isExpanded ? 'bg-hover/60 border-l-4 border-l-brand' : ''
+                    }`}
+                  >
+                    <td className="px-5 py-3">
+                      <TestStatusBadge
+                        status={mapOutcomeToStatus(res.outcome)}
+                        label={res.outcome}
+                      />
+                    </td>
+                    <td className="px-5 py-3 font-mono font-bold text-primary">{res.method}</td>
+                    <td className="px-5 py-3 font-mono text-brand font-semibold">{res.endpoint}</td>
+                    <td className="px-5 py-3 text-secondary">{res.test_type}</td>
+                    <td className="px-5 py-3 font-mono font-semibold text-primary">{res.status_code || '—'}</td>
+                    <td className="px-5 py-3 font-mono text-muted">{res.execution_time_ms} ms</td>
+                    <td className="px-5 py-3 text-muted group-hover:text-primary transition-colors">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-brand" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
                       )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
-                        {/* Request Payload */}
-                        <div className="p-3.5 rounded-xl bg-surface border border-border space-y-2">
-                          <span className="text-brand font-bold uppercase text-[10px] block">
-                            // Request Payload (SSRF Guarded & Secret Redacted)
-                          </span>
-                          <pre className="overflow-x-auto text-[11px] text-secondary bg-base p-2.5 rounded border border-border">
-                            {JSON.stringify(res.request_data, null, 2)}
-                          </pre>
-                        </div>
-
-                        {/* Response Payload */}
-                        <div className="p-3.5 rounded-xl bg-surface border border-border space-y-2">
-                          <span className="text-status-passed font-bold uppercase text-[10px] block">
-                            // Sandbox HTTP Response Data
-                          </span>
-                          <pre className="overflow-x-auto text-[11px] text-secondary bg-base p-2.5 rounded border border-border">
-                            {JSON.stringify(res.response_data, null, 2)}
-                          </pre>
-                        </div>
-                      </div>
                     </td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+
+                  {/* Drill Down Expandable Row */}
+                  {isExpanded && (
+                    <tr className="bg-field border-b border-border-card">
+                      <td colSpan={7} className="p-5 space-y-4">
+                        {/* Assertion Failures Alert */}
+                        {res.assertion_failures && res.assertion_failures.length > 0 && (
+                          <div className="p-3.5 rounded-xl bg-status-failed-bg border border-status-failed/30 text-xs space-y-1">
+                            <span className="text-status-failed font-bold flex items-center gap-1.5">
+                              <AlertTriangle className="w-4 h-4" /> Assertion Violations ({res.assertion_failures.length})
+                            </span>
+                            {res.assertion_failures.map((f, idx) => (
+                              <p key={idx} className="text-status-failed pl-5 leading-relaxed font-mono">
+                                {f.message}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                          {/* Request Payload */}
+                          <div className="p-4 rounded-xl bg-card border border-border-card shadow-sm space-y-2">
+                            <span className="text-brand font-bold uppercase text-[10px] tracking-wider block">
+                              Request Payload (SSRF Guarded & Secret Redacted)
+                            </span>
+                            <pre className="overflow-x-auto text-[11px] text-primary bg-field p-3 rounded-lg border border-border-field font-mono">
+                              {JSON.stringify(res.request_data, null, 2)}
+                            </pre>
+                          </div>
+
+                          {/* Response Payload */}
+                          <div className="p-4 rounded-xl bg-card border border-border-card shadow-sm space-y-2">
+                            <span className="text-status-passed font-bold uppercase text-[10px] tracking-wider block">
+                              Sandbox HTTP Response Data
+                            </span>
+                            <pre className="overflow-x-auto text-[11px] text-primary bg-field p-3 rounded-lg border border-border-field font-mono">
+                              {JSON.stringify(res.response_data, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

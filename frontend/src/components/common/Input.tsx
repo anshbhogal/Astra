@@ -15,13 +15,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <label htmlFor={inputId} className="block text-xs font-semibold text-secondary">
             {label}
           </label>
         )}
-        <div className="relative rounded-lg shadow-sm">
+        <div className="relative">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted">
               {leftIcon}
             </div>
           )}
@@ -29,11 +29,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             className={clsx(
-              'w-full bg-surface text-primary text-sm rounded-lg border transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-muted px-3.5 py-2.5',
+              'w-full h-10 bg-field text-primary text-sm rounded-lg border transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-card placeholder-muted px-3.5',
               leftIcon && 'pl-10',
               error
                 ? 'border-status-failed focus:ring-status-failed'
-                : 'border-border hover:border-brand/40',
+                : 'border-border-field hover:border-brand',
               className
             )}
             {...props}

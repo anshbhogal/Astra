@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Calendar, Activity, BarChart2 } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 export interface TrendPoint {
   date: string;
@@ -54,20 +54,20 @@ export const MetricsTrendChart: React.FC<MetricsTrendChartProps> = ({
     : '';
 
   return (
-    <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+    <div className="bg-card rounded-2xl p-6 border border-border-card space-y-4 shadow-card">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-card pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <TrendingUp className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand border border-brand/20 flex items-center justify-center">
+            <TrendingUp className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">Quality & Pass Rate Trajectory</h3>
-            <p className="text-xs text-slate-400">Rolling regression pass rate and execution volume</p>
+            <h3 className="text-base font-bold text-primary">Quality & Pass Rate Trajectory</h3>
+            <p className="text-xs text-secondary">Rolling regression pass rate and execution volume</p>
           </div>
         </div>
 
         {/* Time Window Buttons */}
-        <div className="flex items-center gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+        <div className="flex items-center gap-1.5 bg-field p-1 rounded-xl border border-border-card">
           {[
             { id: '7d', label: '7 Days' },
             { id: '30d', label: '30 Days' },
@@ -79,8 +79,8 @@ export const MetricsTrendChart: React.FC<MetricsTrendChartProps> = ({
               onClick={() => onTimeRangeChange(t.id)}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                 timeRange === t.id
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-brand text-on-brand shadow-sm'
+                  : 'text-secondary hover:text-primary'
               }`}
             >
               {t.label}
@@ -90,19 +90,19 @@ export const MetricsTrendChart: React.FC<MetricsTrendChartProps> = ({
       </div>
 
       {/* SVG Time-Series Chart */}
-      <div className="relative w-full overflow-hidden bg-slate-950/50 rounded-xl p-3 border border-slate-800/60">
+      <div className="relative w-full overflow-hidden bg-field rounded-xl p-3 border border-border-card">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-48 overflow-visible select-none"
         >
           <defs>
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="var(--brand)" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#818cf8" />
-              <stop offset="100%" stopColor="#38bdf8" />
+              <stop offset="0%" stopColor="var(--brand)" />
+              <stop offset="100%" stopColor="var(--secondary)" />
             </linearGradient>
           </defs>
 
@@ -116,15 +116,15 @@ export const MetricsTrendChart: React.FC<MetricsTrendChartProps> = ({
                   y1={y}
                   x2={width - padding}
                   y2={y}
-                  stroke="#334155"
+                  stroke="var(--border-card)"
                   strokeDasharray="4 4"
-                  strokeWidth="0.8"
+                  strokeWidth="1"
                 />
                 <text
                   x={padding - 6}
                   y={y + 3}
                   textAnchor="end"
-                  className="text-[9px] fill-slate-500 font-mono"
+                  className="text-[9px] fill-[var(--text-muted)] font-mono"
                 >
                   {rate}%
                 </text>
@@ -165,13 +165,13 @@ export const MetricsTrendChart: React.FC<MetricsTrendChartProps> = ({
                   cx={x}
                   cy={y}
                   r="4.5"
-                  className="fill-indigo-500 stroke-slate-900 stroke-2 hover:r-6 transition-all"
+                  className="fill-[var(--brand)] stroke-[var(--bg-card)] stroke-2 hover:r-6 transition-all"
                 />
                 <text
                   x={x}
                   y={height - 10}
                   textAnchor="middle"
-                  className="text-[9px] fill-slate-400 font-mono"
+                  className="text-[9px] fill-[var(--text-muted)] font-mono"
                 >
                   {pt.date.slice(5) || pt.date}
                 </text>
@@ -180,14 +180,14 @@ export const MetricsTrendChart: React.FC<MetricsTrendChartProps> = ({
           })}
         </svg>
 
-        {/* Floating Tooltip */}
+        {/* Floating Tooltip on bg-card with shadow */}
         {hoveredPoint && (
-          <div className="absolute top-4 right-4 bg-slate-900 border border-indigo-500/40 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none text-xs space-y-1">
-            <div className="font-bold text-white flex items-center justify-between gap-4">
+          <div className="absolute top-4 right-4 bg-card border border-border-card rounded-xl p-3 shadow-card text-xs space-y-1 pointer-events-none">
+            <div className="font-bold text-primary flex items-center justify-between gap-4">
               <span>{hoveredPoint.date}</span>
-              <span className="text-emerald-400 font-mono">{hoveredPoint.pass_rate.toFixed(1)}% Pass</span>
+              <span className="text-status-passed font-mono">{hoveredPoint.pass_rate.toFixed(1)}% Pass</span>
             </div>
-            <div className="text-[11px] text-slate-400 flex items-center justify-between gap-4 font-mono">
+            <div className="text-[11px] text-muted flex items-center justify-between gap-4 font-mono">
               <span>Runs: {hoveredPoint.total_runs}</span>
               <span>Tests: {hoveredPoint.total_tests}</span>
               <span>Latency: {hoveredPoint.mean_duration_ms}ms</span>

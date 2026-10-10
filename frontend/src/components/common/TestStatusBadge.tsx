@@ -47,7 +47,7 @@ interface TestStatusBadgeProps {
 interface StatusConfig {
   key: string;
   label: string;
-  badgeClass: string;
+  pillClasses: string;
   Icon: LucideIcon;
   spin?: boolean;
 }
@@ -62,7 +62,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'passed',
         label: 'Passed',
-        badgeClass: 'badge-status-passed',
+        pillClasses: 'bg-status-passed-bg text-status-passed border border-status-passed/30',
         Icon: CheckCircle2,
       };
 
@@ -72,7 +72,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'failed',
         label: 'Failed',
-        badgeClass: 'badge-status-failed',
+        pillClasses: 'bg-status-failed-bg text-status-failed border border-status-failed/30',
         Icon: XCircle,
       };
 
@@ -80,17 +80,18 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'flaky',
         label: 'Flaky',
-        badgeClass: 'badge-status-flaky',
+        pillClasses: 'bg-status-flaky-bg text-status-flaky border border-status-flaky/30',
         Icon: Shuffle,
       };
 
     case 'RUNNING':
     case 'IN_PROGRESS':
     case 'EXECUTING':
+    case 'STARTING':
       return {
         key: 'running',
         label: 'Running',
-        badgeClass: 'badge-status-running',
+        pillClasses: 'bg-status-running-bg text-status-running border border-status-running/30',
         Icon: Loader2,
         spin: true,
       };
@@ -98,10 +99,12 @@ const normalizeStatus = (s: string): StatusConfig => {
     case 'ERROR':
     case 'CRASH':
     case 'FAILED_INFRA':
+    case 'ENVIRONMENT_ERROR':
+    case 'TIMED_OUT':
       return {
         key: 'error',
         label: 'Error',
-        badgeClass: 'badge-status-error',
+        pillClasses: 'bg-status-error-bg text-status-error border border-status-error/30',
         Icon: AlertTriangle,
       };
 
@@ -112,8 +115,8 @@ const normalizeStatus = (s: string): StatusConfig => {
     default:
       return {
         key: 'skipped',
-        label: norm === 'SKIPPED' ? 'Skipped' : norm === 'BLOCKED' ? 'Blocked' : norm,
-        badgeClass: 'badge-status-skipped',
+        label: norm === 'SKIPPED' ? 'Skipped' : norm === 'BLOCKED' ? 'Blocked' : norm === 'PENDING' ? 'Pending' : 'Queued',
+        pillClasses: 'bg-status-skipped-bg text-status-skipped border border-status-skipped/30',
         Icon: MinusCircle,
       };
   }
@@ -130,9 +133,9 @@ export const TestStatusBadge: React.FC<TestStatusBadgeProps> = ({
   const Icon = config.Icon;
 
   const sizeClasses = {
-    sm: 'px-2 py-0.5 text-[10px] gap-1',
-    md: 'px-2.5 py-1 text-xs gap-1.5',
-    lg: 'px-3 py-1.5 text-sm gap-2',
+    sm: 'px-2 py-0.5 text-xs gap-1 font-medium',
+    md: 'px-2.5 py-1 text-xs gap-1.5 font-semibold',
+    lg: 'px-3 py-1.5 text-sm gap-2 font-semibold',
   };
 
   const iconSizes = {
@@ -143,8 +146,8 @@ export const TestStatusBadge: React.FC<TestStatusBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center font-bold font-mono rounded-lg transition-colors select-none ${
-        config.badgeClass
+      className={`inline-flex items-center rounded-full transition-colors select-none ${
+        config.pillClasses
       } ${sizeClasses[size]} ${className}`}
       role="status"
       aria-label={`Status: ${label || config.label}${count !== undefined ? `, Count: ${count}` : ''}`}
@@ -152,7 +155,7 @@ export const TestStatusBadge: React.FC<TestStatusBadgeProps> = ({
       <Icon className={`${iconSizes[size]} shrink-0 ${config.spin ? 'animate-spin' : ''}`} aria-hidden />
       <span>{label || config.label}</span>
       {count !== undefined && (
-        <span className="ml-0.5 px-1.5 py-0.2 rounded bg-black/20 text-[10px] font-mono">
+        <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/10 text-[11px] font-mono">
           {count}
         </span>
       )}
