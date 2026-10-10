@@ -114,7 +114,7 @@ async def get_product(product_id: str):
     return {"id": row[0], "name": row[1], "price": row[2], "stock": row[3]}
 
 
-@app.post("/api/v1/orders")
+@app.post("/api/v1/orders", status_code=201)
 async def create_order(request: Request):
     payload = await request.json()
     product_id = payload.get("product_id", "")
@@ -263,7 +263,7 @@ async def cancel_order(order_id: str, request: Request):
         return {"status": 200, "status": "CANCELLED"}
 
 
-@app.post("/api/v1/products/{product_id}/reviews")
+@app.post("/api/v1/products/{product_id}/reviews", status_code=201)
 async def add_review(product_id: str, request: Request):
     payload = await request.json()
     rating = payload.get("rating", 5)
