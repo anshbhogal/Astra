@@ -1035,7 +1035,7 @@ export const ProjectDetail: React.FC = () => {
                       <td className="px-4 py-3 text-slate-300 font-bold">
                         <span className="text-emerald-400">{run.passed_tests}</span> / {run.total_tests}
                       </td>
-                      <td className="px-4 py-3 text-slate-400">{run.duration_ms.toFixed(0)} ms</td>
+                      <td className="px-4 py-3 text-slate-400">{Number(run.duration_ms ?? 0).toFixed(0)} ms</td>
                       <td className="px-4 py-3 text-slate-500">{new Date(run.created_at).toLocaleTimeString()}</td>
                       <td className="px-4 py-3">
                         <Link

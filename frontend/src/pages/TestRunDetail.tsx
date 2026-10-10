@@ -202,7 +202,7 @@ export const TestRunDetail: React.FC = () => {
           </div>
           <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <span className="text-slate-500 text-[10px] uppercase block">Duration</span>
-            <span className="text-lg font-bold text-indigo-400 mt-0.5 block">{testRun.duration_ms.toFixed(0)} ms</span>
+            <span className="text-lg font-bold text-indigo-400 mt-0.5 block">{Number(testRun.duration_ms ?? 0).toFixed(0)} ms</span>
           </div>
         </div>
       </div>

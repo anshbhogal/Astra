@@ -133,25 +133,25 @@ export const AnalyticsDashboard: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Repositories</span>
-            <p className="text-2xl font-extrabold text-white font-mono">{platformOverview.total_projects}</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{platformOverview.total_projects ?? 0}</p>
             <span className="text-[11px] text-slate-500">Tracked Microservices</span>
           </div>
           <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Execution Pipeline</span>
-            <p className="text-2xl font-extrabold text-indigo-400 font-mono">{platformOverview.total_test_runs}</p>
+            <p className="text-2xl font-extrabold text-indigo-400 font-mono">{platformOverview.total_test_runs ?? 0}</p>
             <span className="text-[11px] text-slate-500">Total Test Runs</span>
           </div>
           <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Pass Rate Average</span>
             <p className="text-2xl font-extrabold text-emerald-400 font-mono">
-              {platformOverview.overall_pass_rate.toFixed(1)}%
+              {Number(platformOverview.overall_pass_rate ?? 0).toFixed(1)}%
             </p>
-            <span className="text-[11px] text-slate-500">Across {platformOverview.total_tests_executed} tests</span>
+            <span className="text-[11px] text-slate-500">Across {platformOverview.total_tests_executed ?? 0} tests</span>
           </div>
           <div className="glass-card rounded-xl p-4 border border-slate-800 space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mean Latency</span>
             <p className="text-2xl font-extrabold text-teal-400 font-mono">
-              {platformOverview.mean_test_duration_ms.toFixed(0)} ms
+              {Number(platformOverview.mean_test_duration_ms ?? platformOverview.mean_execution_time_ms ?? 0).toFixed(0)} ms
             </p>
             <span className="text-[11px] text-slate-500">Target Sandbox Runtime</span>
           </div>
@@ -163,13 +163,13 @@ export const AnalyticsDashboard: React.FC = () => {
         <div className="space-y-6">
           {/* Quality Scorecard */}
           <QualityScorecard
-            qualityScore={analyticsData.quality_score}
-            testPassRate={analyticsData.test_pass_rate}
-            defectDensity={analyticsData.defect_density_per_endpoint}
-            flakyRatio={analyticsData.flaky_ratio_percent}
-            requirementCoverage={analyticsData.requirement_coverage_percent}
-            totalRuns={analyticsData.total_runs}
-            totalTests={analyticsData.total_tests_executed}
+            qualityScore={analyticsData.quality_score ?? 0}
+            testPassRate={analyticsData.test_pass_rate ?? 0}
+            defectDensity={analyticsData.defect_density_per_endpoint ?? 0}
+            flakyRatio={analyticsData.flaky_ratio_percent ?? 0}
+            requirementCoverage={analyticsData.requirement_coverage_percent ?? 0}
+            totalRuns={analyticsData.total_runs ?? 0}
+            totalTests={analyticsData.total_tests_executed ?? 0}
             testsAvoided={analyticsData.regression_telemetry?.tests_avoided_count || 0}
             timeSavedMs={analyticsData.regression_telemetry?.estimated_time_saved_ms || 0}
             ciGatePassRate={analyticsData.ci_quality_gate?.pass_rate_percent || 100}
@@ -233,7 +233,7 @@ export const AnalyticsDashboard: React.FC = () => {
                         </td>
                         <td className="px-4 py-3">
                           <span className="px-2 py-0.5 rounded font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                            {report.quality_score.toFixed(1)} / 100
+                            {Number(report.quality_score ?? 0).toFixed(1)} / 100
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-400 text-[11px] truncate max-w-[140px]" title={report.sha256_hash}>

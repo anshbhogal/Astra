@@ -11,13 +11,18 @@ import { RequirementIntelligence } from './pages/RequirementIntelligence';
 import { DefectDashboard } from './pages/DefectDashboard';
 import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
 import { BenchmarkEvaluationPage } from './pages/BenchmarkEvaluationPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuthStore();
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  return <Layout>{children}</Layout>;
+  return (
+    <Layout>
+      <ErrorBoundary>{children}</ErrorBoundary>
+    </Layout>
+  );
 };
 
 export default function App() {

@@ -386,14 +386,15 @@ class AnalyticsService:
         failed_tests = row[3] or 0 if row else 0
         avg_dur = round(row[4] or 0.0, 1) if row else 0.0
 
-        pass_rate = round((passed_tests / max(1, total_tests)) * 100.0, 1)
+        pass_rate = round((passed_tests / max(1, total_tests)) * 100.0, 1) if total_tests > 0 else 100.0
 
         return {
             "total_projects": total_projects,
             "total_test_runs": total_runs,
             "total_tests_executed": total_tests,
             "overall_pass_rate": pass_rate,
-            "mean_execution_time_ms": avg_dur
+            "mean_execution_time_ms": avg_dur,
+            "mean_test_duration_ms": avg_dur,
         }
 
     @staticmethod

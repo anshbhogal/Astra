@@ -15,21 +15,22 @@ interface QualityScorecardProps {
 }
 
 export const QualityScorecard: React.FC<QualityScorecardProps> = ({
-  qualityScore,
-  testPassRate,
-  defectDensity,
-  flakyRatio,
-  requirementCoverage,
-  totalRuns,
-  totalTests,
+  qualityScore = 0,
+  testPassRate = 0,
+  defectDensity = 0,
+  flakyRatio = 0,
+  requirementCoverage = 0,
+  totalRuns = 0,
+  totalTests = 0,
   testsAvoided = 0,
   timeSavedMs = 0,
   ciGatePassRate = 100,
 }) => {
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'EXCELLENT' };
-    if (score >= 75) return { text: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', label: 'GOOD' };
-    if (score >= 60) return { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', label: 'MODERATE' };
+  const getScoreColor = (score: number = 0) => {
+    const s = Number(score ?? 0);
+    if (s >= 90) return { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'EXCELLENT' };
+    if (s >= 75) return { text: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', label: 'GOOD' };
+    if (s >= 60) return { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', label: 'MODERATE' };
     return { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30', label: 'NEEDS ATTENTION' };
   };
 
@@ -42,7 +43,7 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
         <div className="flex items-center gap-5">
           <div className="relative w-24 h-24 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col items-center justify-center shrink-0 shadow-inner">
             <span className={`text-3xl font-black font-mono tracking-tight ${badge.text}`}>
-              {qualityScore.toFixed(1)}
+              {Number(qualityScore ?? 0).toFixed(1)}
             </span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">/ 100</span>
           </div>
@@ -83,11 +84,11 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-extrabold text-white font-mono">{testPassRate.toFixed(1)}%</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{Number(testPassRate ?? 0).toFixed(1)}%</p>
             <span className="text-[11px] text-slate-400 font-medium">Target: ≥ 95%</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, testPassRate)}%` }} />
+            <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Number(testPassRate ?? 0))}%` }} />
           </div>
         </div>
 
@@ -100,13 +101,13 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-extrabold text-white font-mono">{defectDensity.toFixed(2)}</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{Number(defectDensity ?? 0).toFixed(2)}</p>
             <span className="text-[11px] text-slate-400 font-medium">Bugs / Endpoint</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
-              className={`h-1.5 rounded-full transition-all duration-500 ${defectDensity > 1.0 ? 'bg-rose-500' : defectDensity > 0.3 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-              style={{ width: `${Math.min(100, defectDensity * 50)}%` }}
+              className={`h-1.5 rounded-full transition-all duration-500 ${Number(defectDensity ?? 0) > 1.0 ? 'bg-rose-500' : Number(defectDensity ?? 0) > 0.3 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              style={{ width: `${Math.min(100, Number(defectDensity ?? 0) * 50)}%` }}
             />
           </div>
         </div>
@@ -120,13 +121,13 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-extrabold text-white font-mono">{flakyRatio.toFixed(1)}%</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{Number(flakyRatio ?? 0).toFixed(1)}%</p>
             <span className="text-[11px] text-slate-400 font-medium">Quarantine Ratio</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
-              className={`h-1.5 rounded-full transition-all duration-500 ${flakyRatio > 10 ? 'bg-rose-500' : 'bg-indigo-500'}`}
-              style={{ width: `${Math.min(100, flakyRatio * 5)}%` }}
+              className={`h-1.5 rounded-full transition-all duration-500 ${Number(flakyRatio ?? 0) > 10 ? 'bg-rose-500' : 'bg-indigo-500'}`}
+              style={{ width: `${Math.min(100, Number(flakyRatio ?? 0) * 5)}%` }}
             />
           </div>
         </div>
@@ -140,11 +141,11 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-extrabold text-white font-mono">{requirementCoverage.toFixed(1)}%</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{Number(requirementCoverage ?? 0).toFixed(1)}%</p>
             <span className="text-[11px] text-slate-400 font-medium">Discovered Specs</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, requirementCoverage)}%` }} />
+            <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Number(requirementCoverage ?? 0))}%` }} />
           </div>
         </div>
 
@@ -157,11 +158,11 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-extrabold text-white font-mono">{testsAvoided}</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{testsAvoided ?? 0}</p>
             <span className="text-[11px] text-slate-400 font-medium">Tests Avoided</span>
           </div>
           <p className="text-[11px] text-slate-400">
-            Saved approx <span className="text-emerald-400 font-mono font-bold">{(timeSavedMs / 1000).toFixed(1)}s</span> CI pipeline latency
+            Saved approx <span className="text-emerald-400 font-mono font-bold">{(Number(timeSavedMs ?? 0) / 1000).toFixed(1)}s</span> CI pipeline latency
           </p>
         </div>
 
@@ -174,11 +175,11 @@ export const QualityScorecard: React.FC<QualityScorecardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline justify-between">
-            <p className="text-2xl font-extrabold text-white font-mono">{ciGatePassRate.toFixed(1)}%</p>
+            <p className="text-2xl font-extrabold text-white font-mono">{Number(ciGatePassRate ?? 100).toFixed(1)}%</p>
             <span className="text-[11px] text-slate-400 font-medium">GitHub PR Checks</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-teal-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, ciGatePassRate)}%` }} />
+            <div className="bg-teal-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Number(ciGatePassRate ?? 100))}%` }} />
           </div>
         </div>
       </div>
