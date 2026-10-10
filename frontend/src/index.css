@@ -3,37 +3,45 @@
 @tailwind utilities;
 
 :root {
-  /* Light theme ("Daylight", default) */
-  --bg-app: #EEF1FB;
-  --bg-sidebar: #1B1650;
+  /* Light theme ("Daylight Glass", default) */
+  --bg-app: #EEF2FB;
+  --bg-sidebar: #171344;
   --bg-card: #FFFFFF;
-  --bg-field: #F3F5FC;
-  --bg-hover: #E7EAF8;
-  --border-card: #D5DBEE;
-  --border-field: #8690B4;
-  --text-primary: #141A33;
-  --text-secondary: #4A5478;
-  --text-muted: #6B7494;
-  --text-on-sidebar: #E6E8FF;
-  --text-on-sidebar-muted: #A9AEE0;
+  --bg-glass: rgba(255, 255, 255, 0.86);
+  --bg-glass-elevated: rgba(255, 255, 255, 0.95);
+  --bg-field: #E4EAF7;
+  --bg-hover: #E3E9F8;
+  --border-card: #CBD5E8;
+  --border-field: #93A0C4;
+  --border-glass: rgba(255, 255, 255, 0.85);
+  --border-glass-elevated: rgba(255, 255, 255, 0.95);
+  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.98), 0 10px 30px -4px rgba(20, 26, 51, 0.08);
+  --glass-specular-elevated: inset 0 1px 0 rgba(255, 255, 255, 1), 0 18px 42px -6px rgba(20, 26, 51, 0.14);
+
+  --text-primary: #121830;
+  --text-secondary: #434E72;
+  --text-muted: #647094;
+  --text-on-sidebar: #ECEFFF;
+  --text-on-sidebar-muted: #A3AADE;
+  
   --brand: #5B3DF5;
-  --brand-hover: #4A2DDB;
+  --brand-hover: #482BD9;
   --on-brand: #FFFFFF;
   --secondary: #0891B2;
 
   /* Status Colors */
   --status-passed: #0E7A56;
-  --status-passed-bg: #DDF7EC;
+  --status-passed-bg: #D9F7EB;
   --status-failed: #C81E45;
-  --status-failed-bg: #FFE4EA;
+  --status-failed-bg: #FFE2E8;
   --status-flaky: #9A4A06;
-  --status-flaky-bg: #FEF0D2;
+  --status-flaky-bg: #FEF0D0;
   --status-running: #0369A1;
-  --status-running-bg: #DDF1FC;
+  --status-running-bg: #DBF0FC;
   --status-error: #B03A0E;
-  --status-error-bg: #FFE8DC;
-  --status-skipped: #55607F;
-  --status-skipped-bg: #E8ECF3;
+  --status-error-bg: #FFE6DA;
+  --status-skipped: #525D7E;
+  --status-skipped-bg: #E6EAF2;
 
   /* Chart series */
   --chart-1: #5B3DF5;
@@ -43,42 +51,55 @@
   --chart-5: #10B981;
   --chart-6: #F97316;
 
+  /* Ambient Mesh Lighting for Canvas */
+  --canvas-glow-1: radial-gradient(circle at 8% 8%, rgba(91, 61, 245, 0.08) 0%, transparent 40%);
+  --canvas-glow-2: radial-gradient(circle at 92% 12%, rgba(8, 145, 178, 0.08) 0%, transparent 38%);
+  --canvas-glow-3: radial-gradient(circle at 50% 95%, rgba(16, 185, 129, 0.05) 0%, transparent 45%);
+
   /* Elevation */
-  --shadow-card: 0 1px 2px rgba(20, 26, 51, 0.06), 0 4px 16px rgba(20, 26, 51, 0.06);
+  --shadow-card: 0 1px 3px rgba(20, 26, 51, 0.05), 0 6px 20px rgba(20, 26, 51, 0.06);
 }
 
 [data-theme="dark"] {
-  /* Dark theme ("Midnight Indigo") */
-  --bg-app: #12132A;
-  --bg-sidebar: #0E0F24;
-  --bg-card: #1C1E3D;
-  --bg-field: #0F1128;
-  --bg-hover: #262950;
-  --border-card: #343868;
-  --border-field: #646DB0;
-  --text-primary: #F1F3FF;
-  --text-secondary: #B3B9E0;
-  --text-muted: #8088B8;
-  --text-on-sidebar: #F1F3FF;
-  --text-on-sidebar-muted: #8088B8;
+  /* Dark theme ("Midnight Nebula") */
+  --bg-app: #0F1026;
+  --bg-sidebar: #090A1A;
+  --bg-card: #191B3A;
+  --bg-glass: rgba(25, 27, 58, 0.82);
+  --bg-glass-elevated: rgba(29, 32, 68, 0.92);
+  --bg-field: #0D0E22;
+  --bg-hover: #232752;
+  --border-card: #323766;
+  --border-field: #5E67A8;
+  --border-glass: rgba(139, 123, 255, 0.22);
+  --border-glass-elevated: rgba(139, 123, 255, 0.36);
+  --glass-specular: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 38px -4px rgba(0, 0, 0, 0.5);
+  --glass-specular-elevated: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 20px 48px -6px rgba(0, 0, 0, 0.65);
+
+  --text-primary: #F1F4FF;
+  --text-secondary: #B1B8E2;
+  --text-muted: #7E87BA;
+  --text-on-sidebar: #F1F4FF;
+  --text-on-sidebar-muted: #7E87BA;
+
   --brand: #8B7BFF;
   --brand-hover: #A394FF;
-  --on-brand: #12132A;
+  --on-brand: #0F1026;
   --secondary: #22D3EE;
 
   /* Status Colors */
   --status-passed: #3DE0A0;
-  --status-passed-bg: rgba(61, 224, 160, 0.14);
+  --status-passed-bg: rgba(61, 224, 160, 0.15);
   --status-failed: #FF6B88;
-  --status-failed-bg: rgba(255, 107, 136, 0.14);
+  --status-failed-bg: rgba(255, 107, 136, 0.15);
   --status-flaky: #FFC24D;
-  --status-flaky-bg: rgba(255, 194, 77, 0.14);
+  --status-flaky-bg: rgba(255, 194, 77, 0.15);
   --status-running: #4CC3FF;
-  --status-running-bg: rgba(76, 195, 255, 0.14);
+  --status-running-bg: rgba(76, 195, 255, 0.15);
   --status-error: #FF8A5C;
-  --status-error-bg: rgba(255, 138, 92, 0.14);
+  --status-error-bg: rgba(255, 138, 92, 0.15);
   --status-skipped: #9AA3C7;
-  --status-skipped-bg: rgba(154, 163, 199, 0.14);
+  --status-skipped-bg: rgba(154, 163, 199, 0.15);
 
   /* Chart series */
   --chart-1: #8B7BFF;
@@ -88,6 +109,11 @@
   --chart-5: #34D399;
   --chart-6: #FB923C;
 
+  /* Ambient Mesh Lighting for Canvas */
+  --canvas-glow-1: radial-gradient(circle at 8% 8%, rgba(139, 123, 255, 0.14) 0%, transparent 45%);
+  --canvas-glow-2: radial-gradient(circle at 92% 12%, rgba(34, 211, 238, 0.10) 0%, transparent 40%);
+  --canvas-glow-3: radial-gradient(circle at 50% 95%, rgba(52, 211, 153, 0.07) 0%, transparent 50%);
+
   /* Elevation */
   --shadow-card: none;
 }
@@ -95,6 +121,8 @@
 @layer base {
   body {
     background-color: var(--bg-app);
+    background-image: var(--canvas-glow-1), var(--canvas-glow-2), var(--canvas-glow-3);
+    background-attachment: fixed;
     color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -104,20 +132,85 @@
 
   /* Smooth 150ms transitions */
   body, header, aside, main, div, button, input, select, textarea, table, tr, td, th {
-    transition-property: background-color, border-color, color;
+    transition-property: background-color, border-color, color, box-shadow;
     transition-duration: 150ms;
     transition-timing-function: ease;
   }
 }
 
+/* Glassmorphism System */
+.glass-card {
+  background-color: var(--bg-glass);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--glass-specular);
+  border-radius: 14px;
+}
+
+.glass-card-elevated {
+  background-color: var(--bg-glass-elevated);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-glass-elevated);
+  box-shadow: var(--glass-specular-elevated);
+  border-radius: 16px;
+}
+
+.glass-card-interactive {
+  background-color: var(--bg-glass);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--border-glass);
+  box-shadow: var(--glass-specular);
+  border-radius: 14px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px -4px rgba(20, 26, 51, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1);
+  border-color: var(--brand);
+}
+
+.glass-pill {
+  background-color: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  box-shadow: 0 1px 2px rgba(20, 26, 51, 0.05);
+}
+
+/* Solid Structure & Section Dividers */
+.section-divider {
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand) 0%, rgba(8, 145, 178, 0.4) 30%, var(--border-card) 60%, transparent 100%);
+  border: none;
+  border-radius: 9999px;
+  margin: 1.5rem 0;
+}
+
+.section-header-band {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-left: 4px solid var(--brand);
+  padding-left: 0.875rem;
+}
+
+.card-header-solid {
+  background-color: var(--bg-field);
+  border-bottom: 1px solid var(--border-card);
+  padding: 0.875rem 1.25rem;
+  border-top-left-radius: 13px;
+  border-top-right-radius: 13px;
+}
+
 /* UI Card & Layering Utilities */
-.glass-card,
-.glass-panel,
 .app-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-card);
   box-shadow: var(--shadow-card);
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .app-field {

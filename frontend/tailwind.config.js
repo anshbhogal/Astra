@@ -12,6 +12,8 @@ export default {
         app: 'var(--bg-app)',
         sidebar: 'var(--bg-sidebar)',
         card: 'var(--bg-card)',
+        glass: 'var(--bg-glass)',
+        'glass-elevated': 'var(--bg-glass-elevated)',
         field: 'var(--bg-field)',
         hover: 'var(--bg-hover)',
         // Compatibility Aliases
@@ -36,6 +38,8 @@ export default {
         border: 'var(--border-card)',
         'border-card': 'var(--border-card)',
         'border-field': 'var(--border-field)',
+        'border-glass': 'var(--border-glass)',
+        'border-glass-elevated': 'var(--border-glass-elevated)',
 
         // Typography
         primary: 'var(--text-primary)',
@@ -74,6 +78,8 @@ export default {
       },
       boxShadow: {
         card: 'var(--shadow-card)',
+        glass: 'var(--glass-specular)',
+        'glass-elevated': 'var(--glass-specular-elevated)',
         'brand-glow': '0 0 0 1px var(--brand), 0 4px 14px rgba(91, 61, 245, 0.25)',
       },
       borderRadius: {

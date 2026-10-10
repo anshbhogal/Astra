@@ -109,11 +109,14 @@ export const Login: React.FC = () => {
         {/* Quick Test Credential Presets */}
         {!isRegister && (
           <div className="p-3 rounded-xl bg-field border border-border-card space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Quick Test Presets</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Quick Test Presets</p>
+              <span className="text-[10px] text-muted font-mono">Password: Password123!</span>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => { setEmail('admin@astra.local'); setPassword('Admin123!'); }}
+                onClick={() => { setEmail('admin@astra.local'); setPassword('Password123!'); }}
                 className="px-2.5 py-1 rounded-lg bg-status-failed-bg text-status-failed border border-status-failed/30 text-[11px] font-semibold hover:opacity-85 transition-opacity"
               >
                 Admin
