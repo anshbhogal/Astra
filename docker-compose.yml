@@ -55,6 +55,7 @@ services:
       - ./engine:/app/engine
       - ./ml:/app/ml
       - ./scratch:/app/scratch
+      - ./benchmark_apps:/app/benchmark_apps
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,6 +86,7 @@ services:
       - ./engine:/app/engine
       - ./ml:/app/ml
       - ./scratch:/app/scratch
+      - ./benchmark_apps:/app/benchmark_apps
     depends_on:
       backend:
         condition: service_healthy
