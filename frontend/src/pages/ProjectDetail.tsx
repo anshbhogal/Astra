@@ -19,7 +19,10 @@ import {
   FileCode,
   Sliders,
   ChevronRight,
-  Zap
+  Zap,
+  Check,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import { api } from '../services/api';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
@@ -97,6 +100,56 @@ interface KnowledgeGraph {
   edges: Array<{ source: string; target: string; type: string; properties: any }>;
 }
 
+const PIPELINE_STAGES = [
+  { key: 'CLONING', label: '1. Git Clone', desc: 'Fetch source tree & branch' },
+  { key: 'SCANNING', label: '2. File Scan', desc: 'Scan files & detect language' },
+  { key: 'AST_PARSING', label: '3. AST Parsing', desc: 'Parse AST & extract endpoints' },
+  { key: 'GRAPH_BUILDING', label: '4. Knowledge Graph', desc: 'Build code dependency graph' },
+  { key: 'PERSISTING', label: '5. Database Index', desc: 'Persist endpoints & graph nodes' },
+];
+
+const getStageInfo = (stage?: string) => {
+  switch (stage) {
+    case 'CLONING':
+      return { title: 'Cloning Repository', desc: 'Fetching repository files and verifying git tree...', step: 1 };
+    case 'SCANNING':
+      return { title: 'Scanning Source Code', desc: 'Detecting languages, frameworks, and project structure...', step: 2 };
+    case 'AST_PARSING':
+      return { title: 'Parsing Abstract Syntax Trees', desc: 'Extracting route handlers, parameter schemas, and decorators...', step: 3 };
+    case 'GRAPH_BUILDING':
+      return { title: 'Building Knowledge Graph', desc: 'Resolving dependency graphs, controller links, and schema nodes...', step: 4 };
+    case 'PERSISTING':
+      return { title: 'Indexing & Saving Records', desc: 'Persisting discovered endpoints and graph nodes into database...', step: 5 };
+    case 'FINISHED':
+      return { title: 'Analysis Complete', desc: 'All static analysis stages completed successfully.', step: 6 };
+    default:
+      return { title: 'Queued in Pipeline', desc: 'Worker queued, preparing workspace sandbox...', step: 0 };
+  }
+};
+
+const getStageStatus = (stageKey: string, currentStage?: string, overallStatus?: string) => {
+  if (overallStatus === 'COMPLETED' || overallStatus === 'COMPLETED_WITH_WARNINGS') {
+    return 'completed';
+  }
+  const stageOrder = ['CLONING', 'SCANNING', 'AST_PARSING', 'GRAPH_BUILDING', 'PERSISTING', 'FINISHED'];
+  const currentIndex = currentStage ? stageOrder.indexOf(currentStage) : -1;
+  const targetIndex = stageOrder.indexOf(stageKey);
+
+  if (overallStatus === 'FAILED') {
+    if (targetIndex < currentIndex) return 'completed';
+    if (targetIndex === currentIndex) return 'failed';
+    return 'pending';
+  }
+
+  if (targetIndex < currentIndex) {
+    return 'completed';
+  } else if (targetIndex === currentIndex) {
+    return 'active';
+  } else {
+    return 'pending';
+  }
+};
+
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -152,13 +205,16 @@ export const ProjectDetail: React.FC = () => {
   };
 
   useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
     if (analysis && (analysis.status === 'QUEUED' || analysis.status === 'RUNNING')) {
-      const timer = setInterval(() => {
+      timer = setInterval(() => {
         fetchLatestAnalysis();
-      }, 3000);
-      return () => clearInterval(timer);
+      }, 1000);
     }
-  }, [analysis]);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [analysis?.status, id]);
 
   const fetchProjectDetail = async () => {
     if (!id) return;
@@ -184,6 +240,8 @@ export const ProjectDetail: React.FC = () => {
       if (res.data && (res.data.status === 'COMPLETED' || res.data.status === 'COMPLETED_WITH_WARNINGS')) {
         fetchEndpoints();
         fetchGraph();
+        fetchTestSuites();
+        fetchTestRuns();
       }
     } catch (err) {
       setAnalysis(null);
@@ -334,7 +392,8 @@ export const ProjectDetail: React.FC = () => {
             >
               {analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-300" /> Analyzing...
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-300" />
+                  Analyzing ({analysis?.progress_percent ?? 0}%)
                 </>
               ) : (
                 <>
@@ -391,6 +450,161 @@ export const ProjectDetail: React.FC = () => {
         </div>
       </div>
 
+      {/* Real-time Analysis Progress Banner Card */}
+      {analysis && (analysis.status === 'RUNNING' || analysis.status === 'QUEUED') && (
+        <div className="glass-card rounded-2xl p-6 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-purple-950/30 backdrop-blur-xl space-y-5 relative overflow-hidden shadow-2xl shadow-indigo-950/50 animate-in fade-in slide-in-from-top-2 duration-300">
+          {/* Subtle Ambient Background Glow */}
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Top Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-white tracking-wide">
+                    Live Repository Static Analysis
+                  </h3>
+                  <span className="text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 animate-pulse">
+                    {analysis.status}
+                  </span>
+                </div>
+                <p className="text-xs text-indigo-300/80 mt-0.5 font-medium">
+                  {getStageInfo(analysis.current_stage).desc}
+                </p>
+              </div>
+            </div>
+
+            {/* Percentage Display */}
+            <div className="flex items-baseline gap-2 self-start sm:self-auto">
+              <span className="text-xs uppercase font-mono text-slate-400">Progress</span>
+              <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-cyan-300">
+                {analysis.progress_percent}%
+              </span>
+            </div>
+          </div>
+
+          {/* Animated Gradient Progress Bar */}
+          <div className="relative z-10 space-y-1.5">
+            <div className="w-full bg-slate-900/90 rounded-full h-3.5 p-0.5 overflow-hidden border border-slate-800 shadow-inner">
+              <div
+                className="bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 h-full rounded-full transition-all duration-700 ease-out shadow-[0_0_16px_rgba(99,102,241,0.6)] relative"
+                style={{ width: `${Math.max(analysis.progress_percent, 5)}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse" />
+              </div>
+            </div>
+          </div>
+
+          {/* 5-Stage Stepper Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2 relative z-10">
+            {PIPELINE_STAGES.map((stg, idx) => {
+              const stageStatus = getStageStatus(stg.key, analysis.current_stage, analysis.status);
+              const isCompleted = stageStatus === 'completed';
+              const isActive = stageStatus === 'active';
+
+              return (
+                <div
+                  key={stg.key}
+                  className={`rounded-xl p-3 border transition-all ${
+                    isActive
+                      ? 'bg-indigo-900/30 border-indigo-500/50 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30'
+                      : isCompleted
+                      ? 'bg-emerald-950/20 border-emerald-500/30'
+                      : 'bg-slate-900/40 border-slate-800/80 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {isCompleted ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : isActive ? (
+                      <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[9px] font-mono text-slate-500 shrink-0">
+                        {idx + 1}
+                      </div>
+                    )}
+                    <span
+                      className={`text-xs font-bold truncate ${
+                        isActive ? 'text-indigo-200' : isCompleted ? 'text-emerald-300' : 'text-slate-400'
+                      }`}
+                    >
+                      {stg.label}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-tight truncate">
+                    {stg.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Live Discovered Telemetry Counters */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-800/80 relative z-10 text-xs font-mono">
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase">Scanned Files</span>
+              <span className="text-slate-200 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                <FileCode className="w-3.5 h-3.5 text-indigo-400" />
+                {analysis.scanned_files_count}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase">Parsed Modules</span>
+              <span className="text-slate-200 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                <Code2 className="w-3.5 h-3.5 text-indigo-400" />
+                {analysis.parsed_files_count}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase">Discovered Endpoints</span>
+              <span className="text-emerald-400 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                {analysis.endpoint_count}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+              <span className="text-slate-500 block text-[10px] uppercase">Knowledge Graph Nodes</span>
+              <span className="text-cyan-400 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+                <Network className="w-3.5 h-3.5 text-cyan-400" />
+                {analysis.graph_node_count}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Error Alert Card */}
+      {analysis && analysis.status === 'FAILED' && (
+        <div className="glass-card rounded-2xl p-6 border border-rose-500/30 bg-rose-950/20 backdrop-blur-xl space-y-4 animate-in fade-in duration-300">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="space-y-1 flex-1">
+              <h3 className="text-sm font-bold text-rose-200">Repository Analysis Failed</h3>
+              <p className="text-xs text-rose-300/80">
+                The static analysis pipeline encountered an error during execution.
+              </p>
+              {analysis.error_message && (
+                <pre className="text-xs font-mono bg-slate-950/80 p-3 rounded-xl border border-rose-900/50 text-rose-400 overflow-x-auto mt-2 whitespace-pre-wrap">
+                  {analysis.error_message}
+                </pre>
+              )}
+            </div>
+            <button
+              onClick={triggerAnalysis}
+              disabled={analyzing}
+              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-lg shadow-rose-600/20"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Retry Analysis
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabs Navigation */}
       <div className="flex border-b border-slate-800 gap-6 text-sm font-medium text-slate-400">
         <button
@@ -429,11 +643,107 @@ export const ProjectDetail: React.FC = () => {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-          <h3 className="text-base font-bold text-white">Project Infrastructure & Execution Platform</h3>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Astra executes synthetic HTTP test cases deterministically against target applications with full SSRF protection and secret redaction.
-          </p>
+        <div className="space-y-6">
+          {analysis && (analysis.status === 'COMPLETED' || analysis.status === 'COMPLETED_WITH_WARNINGS') && (
+            <div className="glass-card rounded-2xl p-6 border border-emerald-500/20 bg-emerald-950/10 backdrop-blur-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      Static Analysis Complete
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        100% Index
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Target repository analyzed and indexed into the Astra semantic knowledge graph.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-mono">
+                  <span className="text-slate-500">Language:</span>
+                  <span className="text-slate-200 font-bold">{analysis.detected_language || 'Python'}</span>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-slate-500">Framework:</span>
+                  <span className="text-indigo-400 font-bold">{analysis.detected_framework || 'Unknown'}</span>
+                </div>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs font-mono">
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                  <span className="text-slate-500 block text-[10px] uppercase">Scanned Files</span>
+                  <span className="text-slate-200 font-bold text-base mt-1 flex items-center gap-2">
+                    <FileCode className="w-4 h-4 text-indigo-400" />
+                    {analysis.scanned_files_count}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+                  <span className="text-slate-500 block text-[10px] uppercase">Parsed Modules</span>
+                  <span className="text-slate-200 font-bold text-base mt-1 flex items-center gap-2">
+                    <Code2 className="w-4 h-4 text-indigo-400" />
+                    {analysis.parsed_files_count}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('endpoints')}
+                  className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/30 hover:border-indigo-500/50 text-left transition-all group"
+                >
+                  <span className="text-indigo-400 block text-[10px] uppercase flex items-center justify-between">
+                    <span>Discovered Routes</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                  <span className="text-emerald-400 font-bold text-base mt-1 flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-emerald-400" />
+                    {analysis.endpoint_count}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('graph')}
+                  className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/30 hover:border-indigo-500/50 text-left transition-all group"
+                >
+                  <span className="text-indigo-400 block text-[10px] uppercase flex items-center justify-between">
+                    <span>Knowledge Nodes</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                  <span className="text-cyan-400 font-bold text-base mt-1 flex items-center gap-2">
+                    <Network className="w-4 h-4 text-cyan-400" />
+                    {analysis.graph_node_count}
+                  </span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!analysis && (
+            <div className="glass-card rounded-2xl p-8 border border-slate-800 text-center space-y-4">
+              <Sparkles className="w-10 h-10 text-indigo-400 mx-auto" />
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-white">Repository Not Yet Analyzed</h3>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  Click the "Analyze Repository" button above to initiate static analysis, discover HTTP routes, and construct the semantic knowledge graph.
+                </p>
+              </div>
+              <button
+                onClick={triggerAnalysis}
+                disabled={analyzing}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-all shadow-lg shadow-indigo-600/20"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" /> Analyze Repository Now
+              </button>
+            </div>
+          )}
+
+          <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+            <h3 className="text-base font-bold text-white">Project Infrastructure & Execution Platform</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Astra executes synthetic HTTP test cases deterministically against target applications with full SSRF protection and secret redaction.
+            </p>
+          </div>
         </div>
       )}
 

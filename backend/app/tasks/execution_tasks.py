@@ -75,7 +75,6 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
 
             # Import redis client for cooperative cancellation check
             import redis.asyncio as aioredis
-            from app.core.config import settings
             r = aioredis.from_url(settings.REDIS_URL)
 
             for tc in cases:

@@ -46,13 +46,17 @@ async def trigger_project_analysis(
     await db.commit()
     await db.refresh(analysis)
 
-    # Dispatch Celery background task
+    # Dispatch Celery background task with asyncio fallback
     try:
         from app.tasks.analyzer_tasks import run_project_analysis_task
         run_project_analysis_task.delay(str(analysis.id))
     except Exception as e:
-        # Fallback to direct synchronous execution or log error if celery runner fails
-        pass
+        import asyncio
+        import logging
+        logger = logging.getLogger("astra")
+        logger.warning(f"Celery dispatch failed ({e}), executing via direct background task.")
+        from app.tasks.analyzer_tasks import execute_analysis_pipeline
+        asyncio.create_task(execute_analysis_pipeline(str(analysis.id)))
 
     return analysis
 
