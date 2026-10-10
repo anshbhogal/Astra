@@ -29,7 +29,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ]
 
     @field_validator("CORS_ORIGINS", mode="before")
     def parse_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

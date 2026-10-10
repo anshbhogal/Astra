@@ -34,7 +34,7 @@ async def trigger_analysis(
     return analysis
 
 
-@router.get("/{project_id}/analysis", response_model=AnalysisResponse)
+@router.get("/{project_id}/analysis", response_model=Optional[AnalysisResponse])
 async def get_latest_analysis(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -43,10 +43,7 @@ async def get_latest_analysis(
     """Retrieve the latest analysis status for a project."""
     analysis = await analyzer_service.get_latest_project_analysis(db, project_id, current_user)
     if not analysis:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No analysis records found for this project."
-        )
+        return None
     return analysis
 
 
@@ -78,6 +75,25 @@ async def get_project_knowledge_graph(
 ):
     """Retrieve Project Knowledge Graph (nodes and edges) for a project."""
     graph_dict = await analyzer_service.get_analysis_graph(db, project_id, current_user)
-    nodes = [KnowledgeGraphNode(**n) for n in graph_dict.get("nodes", [])]
-    edges = [KnowledgeGraphEdge(**e) for e in graph_dict.get("edges", [])]
+    nodes = []
+    for n in graph_dict.get("nodes", []):
+        if isinstance(n, dict):
+            nodes.append(KnowledgeGraphNode(
+                id=str(n.get("id", "")),
+                label=str(n.get("label", n.get("id", ""))),
+                type=str(n.get("type", "UNKNOWN")),
+                properties=n.get("properties") if isinstance(n.get("properties"), dict) else {}
+            ))
+    edges = []
+    for e in graph_dict.get("edges", []):
+        if isinstance(e, dict):
+            rel = str(e.get("relationship") or e.get("type") or "RELATED_TO")
+            edges.append(KnowledgeGraphEdge(
+                source=str(e.get("source", "")),
+                target=str(e.get("target", "")),
+                type=str(e.get("type") or rel),
+                relationship=rel,
+                confidence=float(e.get("confidence", 1.0)),
+                properties=e.get("properties") if isinstance(e.get("properties"), dict) else {}
+            ))
     return KnowledgeGraphResponse(nodes=nodes, edges=edges)

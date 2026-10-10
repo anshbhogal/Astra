@@ -38,15 +38,21 @@ class EndpointCatalogResponse(BaseModel):
 class KnowledgeGraphNode(BaseModel):
     id: str
     label: str
-    type: str
+    type: str = "UNKNOWN"
     properties: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = {"extra": "allow"}
 
 
 class KnowledgeGraphEdge(BaseModel):
     source: str
     target: str
-    type: str
+    type: Optional[str] = None
+    relationship: Optional[str] = "RELATED_TO"
+    confidence: Optional[float] = 1.0
     properties: Dict[str, Any] = Field(default_factory=dict)
+
+    model_config = {"extra": "allow"}
 
 
 class KnowledgeGraphResponse(BaseModel):

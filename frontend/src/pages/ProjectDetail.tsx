@@ -115,11 +115,41 @@ export const ProjectDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'graph' | 'testruns'>('overview');
 
   useEffect(() => {
-    fetchProjectDetail();
+    if (!id) return;
+
+    let isMounted = true;
+    const loadProject = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await api.get(`/projects/${id}`);
+        if (!isMounted) return;
+        setProject(res.data);
+
+        // Project exists and is loaded successfully; now fetch child telemetry
+        loadChildResources();
+      } catch (err: any) {
+        if (!isMounted) return;
+        setError(err.response?.data?.detail || 'Project not found or accessible.');
+        setProject(null);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProject();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const loadChildResources = () => {
     fetchLatestAnalysis();
     fetchTestSuites();
     fetchTestRuns();
-  }, [id]);
+  };
 
   useEffect(() => {
     if (analysis && (analysis.status === 'QUEUED' || analysis.status === 'RUNNING')) {
@@ -131,18 +161,22 @@ export const ProjectDetail: React.FC = () => {
   }, [analysis]);
 
   const fetchProjectDetail = async () => {
+    if (!id) return;
     setLoading(true);
     try {
       const res = await api.get(`/projects/${id}`);
       setProject(res.data);
+      setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Project not found or accessible.');
+      setProject(null);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchLatestAnalysis = async () => {
+    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/analysis`);
       setAnalysis(res.data);
@@ -151,35 +185,49 @@ export const ProjectDetail: React.FC = () => {
         fetchEndpoints();
         fetchGraph();
       }
-    } catch (err) {}
+    } catch (err) {
+      setAnalysis(null);
+    }
   };
 
   const fetchEndpoints = async () => {
+    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/endpoints?page_size=100`);
       setEndpoints(res.data.items || []);
-    } catch (err) {}
+    } catch (err) {
+      setEndpoints([]);
+    }
   };
 
   const fetchGraph = async () => {
+    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/graph`);
       setGraph(res.data);
-    } catch (err) {}
+    } catch (err) {
+      setGraph(null);
+    }
   };
 
   const fetchTestSuites = async () => {
+    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/test-suites`);
       setSuites(res.data.items || []);
-    } catch (err) {}
+    } catch (err) {
+      setSuites([]);
+    }
   };
 
   const fetchTestRuns = async () => {
+    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/test-runs`);
       setTestRuns(res.data.items || []);
-    } catch (err) {}
+    } catch (err) {
+      setTestRuns([]);
+    }
   };
 
   const triggerAnalysis = async () => {

@@ -1,7 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from fastapi import FastAPI, status, HTTPException
+from fastapi import FastAPI, status, HTTPException, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 import redis.asyncio as aioredis
@@ -43,6 +44,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled server error on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": "An internal server error occurred.", "error": str(exc)},
+    )
 
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["Health"])

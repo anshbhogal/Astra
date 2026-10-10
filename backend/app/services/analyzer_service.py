@@ -75,7 +75,22 @@ async def get_latest_project_analysis(
 async def get_analysis_endpoints(
     db: AsyncSession, project_id: uuid.UUID, current_user: User, page: int = 1, page_size: int = 50
 ) -> Tuple[List[DiscoveredEndpoint], int]:
-    analysis = await get_latest_project_analysis(db, project_id, current_user)
+    await get_project_by_id(db, project_id, current_user)
+    
+    # 1. Prefer latest completed analysis with discovered endpoints
+    stmt_comp = (
+        select(ProjectAnalysis)
+        .where(ProjectAnalysis.project_id == project_id)
+        .where(ProjectAnalysis.status.in_([AnalysisStatus.COMPLETED, AnalysisStatus.COMPLETED_WITH_WARNINGS]))
+        .order_by(ProjectAnalysis.created_at.desc())
+        .limit(1)
+    )
+    res_comp = await db.execute(stmt_comp)
+    analysis = res_comp.scalar_one_or_none()
+
+    if not analysis:
+        analysis = await get_latest_project_analysis(db, project_id, current_user)
+
     if not analysis:
         return [], 0
 
@@ -100,7 +115,22 @@ async def get_analysis_endpoints(
 async def get_analysis_graph(
     db: AsyncSession, project_id: uuid.UUID, current_user: User
 ) -> dict:
-    analysis = await get_latest_project_analysis(db, project_id, current_user)
+    await get_project_by_id(db, project_id, current_user)
+    
+    # 1. Prefer completed analysis with populated knowledge graph
+    stmt_comp = (
+        select(ProjectAnalysis)
+        .where(ProjectAnalysis.project_id == project_id)
+        .where(ProjectAnalysis.status.in_([AnalysisStatus.COMPLETED, AnalysisStatus.COMPLETED_WITH_WARNINGS]))
+        .order_by(ProjectAnalysis.created_at.desc())
+        .limit(1)
+    )
+    res_comp = await db.execute(stmt_comp)
+    analysis = res_comp.scalar_one_or_none()
+
+    if not analysis or not analysis.knowledge_graph or not analysis.knowledge_graph.get("nodes"):
+        analysis = await get_latest_project_analysis(db, project_id, current_user)
+
     if not analysis or not analysis.knowledge_graph:
         return {"nodes": [], "edges": []}
 
