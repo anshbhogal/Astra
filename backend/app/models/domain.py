@@ -932,6 +932,114 @@ class NotificationDeliveryModel(Base):
     )
 
 
+class BenchmarkRunStatus(str, Enum):
+    QUEUED = "QUEUED"
+    PREPARING = "PREPARING"
+    RUNNING = "RUNNING"
+    EVALUATING = "EVALUATING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class BenchmarkRunModel(Base):
+    __tablename__ = "benchmark_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    mode: Mapped[str] = mapped_column(String(30), nullable=False)
+    benchmark_version: Mapped[str] = mapped_column(String(30), default="1.0.0", nullable=False)
+    catalog_version: Mapped[str] = mapped_column(String(30), default="50-bugs-v1", nullable=False)
+    oracle_version: Mapped[str] = mapped_column(String(30), default="oracle-v1.0", nullable=False)
+    astra_commit_sha: Mapped[str] = mapped_column(String(64), default="HEAD", nullable=False)
+    seed: Mapped[int] = mapped_column(default=42, nullable=False)
+    status: Mapped[BenchmarkRunStatus] = mapped_column(
+        SQLEnum(BenchmarkRunStatus), default=BenchmarkRunStatus.QUEUED, nullable=False
+    )
+    total_injected_bugs: Mapped[int] = mapped_column(default=50, nullable=False)
+    true_positives: Mapped[int] = mapped_column(default=0, nullable=False)
+    false_positives: Mapped[int] = mapped_column(default=0, nullable=False)
+    true_negatives: Mapped[int] = mapped_column(default=100, nullable=False)
+    false_negatives: Mapped[int] = mapped_column(default=0, nullable=False)
+    recall: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    precision: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    specificity: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    f1_score: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    false_positive_rate: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    weighted_recall: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    category_coverage: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    tests_generated: Mapped[int] = mapped_column(default=0, nullable=False)
+    tests_executed: Mapped[int] = mapped_column(default=0, nullable=False)
+    detection_efficiency: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    time_efficiency: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    generation_time_s: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    execution_time_s: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    cost_usd: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    offline_resilient: Mapped[bool] = mapped_column(default=True, nullable=False)
+    repetition_index: Mapped[int] = mapped_column(default=1, nullable=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary_metrics: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    bug_results: Mapped[List["BenchmarkBugResultModel"]] = relationship(
+        "BenchmarkBugResultModel", back_populates="benchmark_run", cascade="all, delete-orphan"
+    )
+
+
+class BenchmarkBugResultModel(Base):
+    __tablename__ = "benchmark_bug_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    benchmark_run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("benchmark_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bug_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    service: Mapped[str] = mapped_column(String(50), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)
+    is_triggered: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_detected: Mapped[bool] = mapped_column(default=False, nullable=False)
+    is_attributed: Mapped[bool] = mapped_column(default=False, nullable=False)
+    attribution_confidence: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    test_case_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    expected_status: Mapped[Optional[int]] = mapped_column(nullable=True)
+    actual_status: Mapped[Optional[int]] = mapped_column(nullable=True)
+    detection_method: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    execution_time_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
+
+    benchmark_run: Mapped["BenchmarkRunModel"] = relationship(
+        "BenchmarkRunModel", back_populates="bug_results"
+    )
+
+
+class QualityReportModel(Base):
+    __tablename__ = "quality_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    report_type: Mapped[str] = mapped_column(String(50), default="EXECUTIVE_QUALITY_AUDIT", nullable=False)
+    quality_score: Mapped[float] = mapped_column(nullable=False)
+    sha256_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    summary_metrics: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    html_content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+
 
 
 
