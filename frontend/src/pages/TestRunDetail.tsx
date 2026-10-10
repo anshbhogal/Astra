@@ -46,7 +46,7 @@ interface TestResult {
   status_code: number | null;
   request_data: any;
   response_data: any;
-  response_body_truncated: bool;
+  response_body_truncated: boolean;
   execution_time_ms: number;
   assertion_failures: Array<{ type: string; message: string; expected?: any; actual?: any }>;
   error_message: string | null;

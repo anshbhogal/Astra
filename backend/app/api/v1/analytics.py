@@ -53,7 +53,7 @@ async def get_platform_overview(
 @router.get("/projects/{project_id}")
 async def get_project_analytics(
     project_id: uuid.UUID,
-    time_range: str = Query("30d", regex="^(7d|30d|90d|all)$"),
+    time_range: str = Query("30d", pattern="^(7d|30d|90d|all)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -121,7 +121,7 @@ async def list_project_quality_reports(
 @router.get("/reports/{report_id}/export")
 async def export_quality_report(
     report_id: uuid.UUID,
-    format: str = Query("html", regex="^(html|pdf)$"),
+    format: str = Query("html", pattern="^(html|pdf)$"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

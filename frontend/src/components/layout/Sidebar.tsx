@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FolderGit2, ShieldCheck, Activity, Cpu, LogOut, Terminal } from 'lucide-react';
+import { LayoutDashboard, FolderGit2, ShieldCheck, Activity, Cpu, LogOut, Terminal, BarChart3, FlaskConical } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { StatusBadge } from '../common/StatusBadge';
 
@@ -10,6 +10,8 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/projects', label: 'Projects', icon: FolderGit2 },
+    { to: '/analytics', label: 'Executive Analytics', icon: BarChart3 },
+    { to: '/benchmarks', label: 'Research Benchmark', icon: FlaskConical },
   ];
 
   const placeholderNavItems = [

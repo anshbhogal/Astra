@@ -106,5 +106,7 @@ app.include_router(ml.router, prefix=settings.API_V1_STR)
 app.include_router(regression.router, prefix=settings.API_V1_STR)
 app.include_router(webhooks.router, prefix=settings.API_V1_STR)
 app.include_router(cicd.router, prefix=settings.API_V1_STR)
+app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics")
+app.include_router(benchmarks.router, prefix=f"{settings.API_V1_STR}/benchmarks")
 
 

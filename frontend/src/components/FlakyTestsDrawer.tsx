@@ -6,7 +6,7 @@ interface FlakyTestRecord {
   flakiness_score: number;
   transition_count: number;
   status: string;
-  recommend_quarantine: bool;
+  recommend_quarantine: boolean;
 }
 
 interface FlakyTestsDrawerProps {

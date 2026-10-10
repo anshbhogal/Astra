@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 from typing import Any, Dict, List, Optional
 import uuid
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.domain import (
@@ -21,6 +21,8 @@ from app.models.domain import (
     DiscoveredEndpoint,
     FailureAnalysisModel,
     FlakyTestRecordModel,
+    FlakyTestStatus,
+    RegressionAnalysisModel,
     SelectiveExecutionRunModel,
     CIPipelineRunModel,
     BenchmarkRunModel,
@@ -98,10 +100,9 @@ class AnalyticsService:
 
         # 4. Phase 6 Failure Root Causes & Defect Breakdown
         fa_query = (
-            select(FailureAnalysisModel.failure_category, func.count(FailureAnalysisModel.id))
-            .join(TestRun, FailureAnalysisModel.test_run_id == TestRun.id)
-            .where(TestRun.project_id == project_id)
-            .group_by(FailureAnalysisModel.failure_category)
+            select(FailureAnalysisModel.category, func.count(FailureAnalysisModel.id))
+            .where(FailureAnalysisModel.project_id == project_id)
+            .group_by(FailureAnalysisModel.category)
         )
         fa_res = await db.execute(fa_query)
         failure_rows = fa_res.all()
@@ -146,7 +147,7 @@ class AnalyticsService:
         flaky_query = (
             select(func.count(FlakyTestRecordModel.id))
             .where(FlakyTestRecordModel.project_id == project_id)
-            .where(FlakyTestRecordModel.state.in_(["QUARANTINED", "RECOMMENDED_QUARANTINE"]))
+            .where(FlakyTestRecordModel.status.in_([FlakyTestStatus.QUARANTINED, FlakyTestStatus.RECOMMENDED_QUARANTINE]))
         )
         flaky_res = await db.execute(flaky_query)
         flaky_count = flaky_res.scalar() or 0
@@ -155,24 +156,23 @@ class AnalyticsService:
         # 6. Phase 8 Selective Regression Telemetry
         reg_query = (
             select(
-                func.sum(SelectiveExecutionRunModel.tests_avoided),
-                func.avg(SelectiveExecutionRunModel.test_reduction_percent),
-                func.sum(SelectiveExecutionRunModel.estimated_time_avoided_ms)
+                func.sum(RegressionAnalysisModel.deferred_tier2_count),
+                func.avg(RegressionAnalysisModel.test_reduction_percent),
+                func.sum(RegressionAnalysisModel.estimated_time_avoided_ms)
             )
-            .join(TestRun, SelectiveExecutionRunModel.test_run_id == TestRun.id)
-            .where(TestRun.project_id == project_id)
+            .where(RegressionAnalysisModel.project_id == project_id)
         )
         reg_res = await db.execute(reg_query)
         reg_row = reg_res.first()
-        tests_avoided = reg_row[0] or 0 if reg_row else 0
-        avg_reduction_percent = round(reg_row[1] or 0.0, 1) if reg_row else 0.0
-        time_saved_ms = reg_row[2] or 0.0 if reg_row else 0.0
+        tests_avoided = int(reg_row[0] or 0) if reg_row else 0
+        avg_reduction_percent = round(float(reg_row[1] or 0.0), 1) if reg_row else 0.0
+        time_saved_ms = round(float(reg_row[2] or 0.0), 1) if reg_row else 0.0
 
         # 7. Phase 9 CI/CD Quality Gate Compliance
         ci_query = (
             select(
                 func.count(CIPipelineRunModel.id),
-                func.sum(func.case((CIPipelineRunModel.quality_gate_status == "PASSED", 1), else_=0))
+                func.sum(case((CIPipelineRunModel.quality_gate_status == "PASSED", 1), else_=0))
             )
             .where(CIPipelineRunModel.project_id == project_id)
         )

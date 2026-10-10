@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 
 export interface JsonDiffItem {
-  path: str;
+  path: string;
   expected: any;
   actual: any;
   diff_type: string;

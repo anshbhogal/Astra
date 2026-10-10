@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react';
+import { useParams } from 'react-router-dom';
 import { FileCheck, Upload, Settings, RefreshCw, Layers, ShieldCheck, CheckCircle, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { RequirementUploadModal } from '../components/RequirementUploadModal';

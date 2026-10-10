@@ -9,6 +9,8 @@ import { ProjectDetail } from './pages/ProjectDetail';
 import { TestRunDetail } from './pages/TestRunDetail';
 import { RequirementIntelligence } from './pages/RequirementIntelligence';
 import { DefectDashboard } from './pages/DefectDashboard';
+import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
+import { BenchmarkEvaluationPage } from './pages/BenchmarkEvaluationPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuthStore();
@@ -73,6 +75,30 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DefectDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <AnalyticsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:projectId/analytics"
+          element={
+            <ProtectedRoute>
+              <AnalyticsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/benchmarks"
+          element={
+            <ProtectedRoute>
+              <BenchmarkEvaluationPage />
             </ProtectedRoute>
           }
         />

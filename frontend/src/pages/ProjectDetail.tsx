@@ -18,7 +18,8 @@ import {
   Network,
   FileCode,
   Sliders,
-  ChevronRight
+  ChevronRight,
+  Zap
 } from 'lucide-react';
 import { api } from '../services/api';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
