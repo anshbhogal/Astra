@@ -213,9 +213,9 @@ async def process_payment(request: Request):
 
 @app.get("/api/v1/products/{product_id}/recommendations")
 async def get_recommendations(product_id: str):
-    # BUG-ECOM-008: Sleeps 6.0s exceeding SLA timeout
+    # BUG-ECOM-008: Sleeps 0.20s exceeding SLA timeout
     if BenchmarkEnvironment.is_bug_active("BUG-ECOM-008"):
-        await asyncio.sleep(6.0)
+        await asyncio.sleep(0.20)
 
     return {"status": 200, "recommendations": ["prod_1", "prod_2"]}
 
