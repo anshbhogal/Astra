@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { GitBranch, Bell, Shield, Key, Plus, RefreshCw, Send } from "lucide-react";
+import { GitBranch, Bell, Key, Plus, RefreshCw, Send } from "lucide-react";
 import { WebhookLogViewer } from "../components/WebhookLogViewer";
 import { NotificationChannelModal } from "../components/NotificationChannelModal";
-import { CIStatusBadge } from "../components/CIStatusBadge";
+import { Button } from "../components/common/Button";
 
 interface IntegrationsTabProps {
   projectId: string;
@@ -68,87 +68,102 @@ export const IntegrationsTab: React.FC<IntegrationsTabProps> = ({ projectId }) =
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <div className="space-y-6">
       {/* Header & Webhook Setup Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-        <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <GitBranch className="w-5 h-5 text-indigo-400" />
-            <h2 className="text-lg font-bold">Phase 9: CI/CD Pipeline & Webhook Integration</h2>
+      <div className="bg-card border border-border-card rounded-2xl p-6 shadow-card space-y-4">
+        <div className="flex items-center justify-between border-b border-border-card pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/20 flex items-center justify-center">
+              <GitBranch className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-primary">CI/CD Pipeline & Webhook Integration</h2>
+              <p className="text-xs text-secondary">Automated PR status checks and webhook telemetry triggers</p>
+            </div>
           </div>
           <button
             onClick={fetchData}
             disabled={loading}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition"
+            className="p-2 text-secondary hover:text-primary rounded-xl hover:bg-hover transition-colors"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
 
-        <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 space-y-3">
-          <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Key className="w-4 h-4 text-emerald-400" /> GitHub Repository Webhook Endpoint
+        <div className="bg-field p-4 rounded-xl border border-border-card space-y-3">
+          <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider flex items-center gap-1.5">
+            <Key className="w-4 h-4 text-status-passed" /> GitHub Repository Webhook Endpoint
           </h3>
           <div className="flex items-center gap-2">
             <input
               type="text"
               readOnly
               value={webhookUrl}
-              className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none"
+              className="flex-1 bg-card border border-border-field rounded-lg px-3.5 py-2 text-xs font-mono text-brand focus:outline-none"
             />
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => navigator.clipboard.writeText(webhookUrl)}
-              className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition"
             >
               Copy URL
-            </button>
+            </Button>
           </div>
-          <p className="text-[11px] text-slate-400">
-            Configure this URL under GitHub Repository Settings → Webhooks. Select events: <code className="text-indigo-300">Pull request</code> and <code className="text-indigo-300">Push</code>. HMAC-SHA256 signature verification enforced.
+          <p className="text-xs text-muted">
+            Configure this URL under GitHub Repository Settings → Webhooks. Select events: <code className="text-brand font-semibold">Pull request</code> and <code className="text-brand font-semibold">Push</code>. HMAC-SHA256 signature verification enforced.
           </p>
         </div>
       </div>
 
       {/* Notification Channels List */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-        <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-amber-400" />
-            <h3 className="font-semibold text-lg">Configured Notification Channels</h3>
+      <div className="bg-card border border-border-card rounded-2xl p-6 shadow-card space-y-4">
+        <div className="flex items-center justify-between border-b border-border-card pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-status-flaky-bg text-status-flaky border border-status-flaky/30 flex items-center justify-center">
+              <Bell className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-primary">Configured Notification Channels</h3>
+              <p className="text-xs text-secondary">Alert dispatch routing on test failures and quality regressions</p>
+            </div>
           </div>
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => setModalOpen(true)}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+            leftIcon={<Plus className="w-4 h-4" />}
           >
-            <Plus className="w-4 h-4" /> Add Channel
-          </button>
+            Add Channel
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {channels.length === 0 ? (
-            <div className="col-span-2 text-center py-6 text-slate-500 italic text-xs">
+            <div className="col-span-2 text-center py-8 text-muted italic text-xs">
               No notification targets configured yet. Click 'Add Channel' to connect Slack, Teams, or Email alerts.
             </div>
           ) : (
             channels.map((ch) => (
-              <div key={ch.id} className="bg-slate-950 border border-slate-800 rounded-lg p-4 flex items-center justify-between">
+              <div key={ch.id} className="bg-field border border-border-card rounded-xl p-4 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm">{ch.name}</span>
-                    <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">
+                    <span className="font-semibold text-sm text-primary">{ch.name}</span>
+                    <span className="text-[10px] bg-brand/10 text-brand px-2 py-0.5 rounded font-mono font-bold">
                       {ch.channel_type}
                     </span>
                   </div>
-                  <span className="text-xs font-mono text-slate-400 mt-1 block truncate max-w-[200px]">
+                  <span className="text-xs font-mono text-muted mt-1 block truncate max-w-[200px]">
                     {ch.masked_target}
                   </span>
                 </div>
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => handleTestPing(ch.id)}
-                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition flex items-center gap-1"
+                  leftIcon={<Send className="w-3 h-3 text-brand" />}
                 >
-                  <Send className="w-3 h-3 text-cyan-400" /> Ping
-                </button>
+                  Ping
+                </Button>
               </div>
             ))
           )}
