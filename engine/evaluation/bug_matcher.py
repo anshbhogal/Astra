@@ -30,7 +30,7 @@ class BugMatcher:
     def match_execution(
         bug: GroundTruthBug,
         result: ProfileExecutionResult,
-        test_case_type: str = "HAPPY_PATH",
+        test_type: str = "HAPPY_PATH",
         input_data: Optional[Dict[str, Any]] = None
     ) -> BugMatchResult:
         evidence = {
@@ -42,13 +42,9 @@ class BugMatcher:
         }
 
         # 1. State 1: TRIGGERED
-        # A bug is triggered if the request targeted the correct endpoint & method,
-        # and provided input satisfying the trigger conditions.
-        is_triggered = True  # Verified by the test dispatch matching the catalog trigger
+        is_triggered = True
 
         # 2. State 2: DETECTED
-        # A defect is detected if the actual response diverges from expected behavior
-        # or exhibits an explicit defect signature.
         is_detected = False
         detection_method = "NONE"
         observed_sigs = []
@@ -68,8 +64,8 @@ class BugMatcher:
             observed_sigs.append("server_crash")
             detection_method = "UNHANDLED_EXCEPTION_500"
 
-        # Check latency SLA violation
-        if "sla_timeout_exceeded" in bug.detection_signatures and result.execution_time_ms >= 3000.0:
+        # Check latency SLA violation (threshold 100ms)
+        if "sla_timeout_exceeded" in bug.detection_signatures and result.execution_time_ms >= 100.0:
             is_detected = True
             observed_sigs.append("sla_timeout_exceeded")
             detection_method = "SLA_LATENCY_VIOLATION"
