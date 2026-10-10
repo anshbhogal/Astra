@@ -8,7 +8,7 @@ import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.db.session import engine
-from app.api.v1 import auth, projects, tasks, analyzer, execution, generator, intelligence, failure_analysis, ml, regression, webhooks, cicd
+from app.api.v1 import auth, projects, tasks, analyzer, execution, generator, intelligence, failure_analysis, ml, regression, webhooks, cicd, analytics, benchmarks
 
 # Configure logging
 logging.basicConfig(
