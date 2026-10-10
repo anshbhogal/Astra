@@ -108,3 +108,123 @@ def test_pdf_report_generator():
 
     assert len(content_bytes) > 0
     assert mime in ("application/pdf", "text/html; charset=utf-8")
+
+
+def test_html_technical_report_full_sections():
+    """Verify that Tests Performed, Metrics Checked, and Bugs Found sections render with technical detail."""
+    analytics_data = {
+        "quality_score": 91.2,
+        "test_pass_rate": 98.4,
+        "total_tests_executed": 128,
+        "passed_tests": 126,
+        "failed_tests": 2,
+        "flaky_test_count": 0,
+        "flaky_ratio_percent": 0.0,
+        "defect_density_per_endpoint": 0.12,
+        "requirement_coverage_percent": 94.2,
+        "mean_execution_time_ms": 142.5,
+        "evaluated_metrics_ledger": [
+            {
+                "metric_name": "Test Suite Pass Rate",
+                "measured_value": "98.4%",
+                "threshold_target": "≥ 90.0%",
+                "status": "COMPLIANT",
+                "description": "Ratio of passed synthetic invariant test cases to total executed tests."
+            },
+            {
+                "metric_name": "SSRF Boundary Enforcement",
+                "measured_value": "100.0%",
+                "threshold_target": "100.0% (Zero private IP egress)",
+                "status": "COMPLIANT",
+                "description": "Loopback and cloud metadata address egress blocking verified."
+            }
+        ],
+        "executed_tests": [
+            {
+                "id": "t-1",
+                "endpoint": "/api/v1/auth/login",
+                "method": "POST",
+                "test_type": "AUTHENTICATION_INVARIANT",
+                "status_code": 200,
+                "execution_time_ms": 115.4,
+                "outcome": "PASSED",
+                "assertion_failures": []
+            },
+            {
+                "id": "t-2",
+                "endpoint": "/api/v1/projects",
+                "method": "GET",
+                "test_type": "SCHEMA_CONFORMANCE",
+                "status_code": 200,
+                "execution_time_ms": 42.1,
+                "outcome": "PASSED",
+                "assertion_failures": []
+            }
+        ],
+        "detailed_bugs_found": [
+            {
+                "id": "fa-9988",
+                "category": "BUSINESS_LOGIC_DEFECT",
+                "summary": "State transition race condition on concurrent reservation",
+                "error_message": "ReservationConflictError: Overlapping seat allocated",
+                "exception_type": "ReservationConflictError",
+                "failing_file": "app/services/booking_service.py",
+                "failing_line": 142,
+                "failing_function": "reserve_seat",
+                "fingerprint": "a9f8b2c4e1d3",
+                "confidence": 0.96,
+                "evidence": [{"seat_id": 42, "user_a": "u-1", "user_b": "u-2"}]
+            }
+        ],
+        "benchmark_summary": {
+            "mode": "HYBRID",
+            "total_injected_bugs": 50,
+            "true_positives": 46,
+            "false_positives": 2,
+            "true_negatives": 48,
+            "false_negatives": 4,
+            "recall": 92.0,
+            "precision": 95.8,
+            "specificity": 96.0,
+            "f1_score": 0.939
+        }
+    }
+
+    html_out = HTMLReportGenerator.generate_report_html(
+        project_name="ASTRA Enterprise Core",
+        analytics_data=analytics_data,
+        report_title="Comprehensive Technical Quality & Defect Audit"
+    )
+
+    # 1. Header & KPIs
+    assert "ASTRA Enterprise Core" in html_out
+    assert "Comprehensive Technical Quality &amp; Defect Audit" in html_out
+    assert "91.2" in html_out
+    assert "GRADE A" in html_out
+
+    # 2. Metrics Checked Ledger
+    assert "Technical Metrics Checked &amp; SLA Ledger" in html_out
+    assert "Test Suite Pass Rate" in html_out
+    assert "SSRF Boundary Enforcement" in html_out
+    assert "COMPLIANT" in html_out
+
+    # 3. Tests Performed Ledger
+    assert "Test Execution Ledger (Tests Performed Sample)" in html_out
+    assert "/api/v1/auth/login" in html_out
+    assert "/api/v1/projects" in html_out
+    assert "POST" in html_out
+    assert "115.4 ms" in html_out
+
+    # 4. Bugs Found Disclosures
+    assert "Technical Defect Disclosures &amp; Root Causes (Bugs Found)" in html_out
+    assert "BUSINESS_LOGIC_DEFECT" in html_out
+    assert "app/services/booking_service.py:142 in reserve_seat()" in html_out
+    assert "ReservationConflictError" in html_out
+    assert "96%</strong>" in html_out
+
+    # 5. Benchmark & Security
+    assert "Multi-Modal Benchmark Evaluation &amp; Ablation" in html_out
+    assert "Zero-Egress SSRF Boundary Guard" in html_out
+
+    # 6. Cryptographic Attestation
+    assert "Cryptographic Audit Attestation (SHA-256)" in html_out

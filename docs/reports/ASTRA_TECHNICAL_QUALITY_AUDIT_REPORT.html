@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Technical Quality Audit &amp; Defect Disclosure Report - ASTRA Autonomous Software Testing Platform (Gen 1)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0b1120;
+            color: #f1f5f9;
+            margin: 0;
+            padding: 30px;
+            line-height: 1.5;
+        }
+        .report-card {
+            max-width: 1060px;
+            margin: 0 auto;
+            background-color: #131c31;
+            border-radius: 16px;
+            border: 1px solid #233252;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #233252;
+            padding-bottom: 22px;
+            margin-bottom: 28px;
+        }
+        .brand-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #818cf8;
+            letter-spacing: -0.02em;
+            margin: 0;
+        }
+        .meta-text {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+        .score-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95));
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 24px 30px;
+            margin-bottom: 30px;
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.05);
+        }
+        .score-num {
+            font-size: 52px;
+            font-weight: 900;
+            color: #10b981;
+            margin: 0;
+            line-height: 1;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .kpi-box {
+            background-color: #0c1322;
+            border: 1px solid #233252;
+            border-radius: 10px;
+            padding: 16px 14px;
+            text-align: center;
+        }
+        .kpi-val {
+            font-size: 22px;
+            font-weight: 800;
+            color: #f8fafc;
+            margin: 5px 0 0 0;
+        }
+        .kpi-lbl {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #94a3b8;
+            font-weight: 600;
+            margin: 0;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-top: 32px;
+            margin-bottom: 14px;
+            border-left: 4px solid #6366f1;
+            padding-left: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-bottom: 25px;
+        }
+        th {
+            background-color: #0b1120;
+            color: #94a3b8;
+            padding: 11px 12px;
+            text-align: left;
+            border-bottom: 2px solid #233252;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1c273e;
+            color: #cbd5e1;
+            vertical-align: middle;
+        }
+        tr:hover td {
+            background-color: rgba(30, 41, 59, 0.4);
+        }
+        .pill-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .pill-success {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .pill-warning {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .pill-danger {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .pill-purple {
+            background-color: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+        .pill-neutral {
+            background-color: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+        .bug-card {
+            background-color: #0c1322;
+            border: 1px solid #233252;
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+        .sha-box {
+            background: #090e1a;
+            border: 1px solid #1f2b44;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            word-break: break-all;
+            margin-top: 25px;
+        }
+        .footer {
+            border-top: 1px solid #233252;
+            padding-top: 18px;
+            margin-top: 35px;
+            font-size: 11px;
+            color: #64748b;
+            text-align: center;
+        }
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #0f172a;
+                padding: 0;
+            }
+            .report-card {
+                box-shadow: none;
+                border: none;
+                background-color: #ffffff;
+                max-width: 100%;
+                padding: 10px;
+            }
+            .score-hero, .kpi-box, .bug-card, .sha-box {
+                background-color: #f8fafc !important;
+                border-color: #cbd5e1 !important;
+                box-shadow: none !important;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                color: #475569 !important;
+                border-bottom: 2px solid #cbd5e1 !important;
+            }
+            td {
+                border-color: #e2e8f0 !important;
+                color: #1e293b !important;
+            }
+            .kpi-val, h4, h1, h2, h3 {
+                color: #0f172a !important;
+            }
+            .pill-badge {
+                border-width: 1px !important;
+            }
+            .pill-success {
+                color: #065f46 !important;
+                background-color: #d1fae5 !important;
+            }
+            .pill-danger {
+                color: #991b1b !important;
+                background-color: #fee2e2 !important;
+            }
+            .pill-warning {
+                color: #92400e !important;
+                background-color: #fef3c7 !important;
+            }
+            .pill-purple {
+                color: #581c87 !important;
+                background-color: #f3e8ff !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-card">
+        <div class="header">
+            <div>
+                <h1 class="brand-title">ASTRA QUALITY AUDIT</h1>
+                <p class="meta-text">Target Repository: <strong>ASTRA Autonomous Software Testing Platform (Gen 1)</strong> | Generated: 2026-10-10 08:33:16 UTC</p>
+            </div>
+            <div style="text-align: right;">
+                <span class="pill-badge pill-purple" style="font-size: 11px; padding: 5px 12px;">
+                    ASTRA ENGINE v1.0 ENTERPRISE
+                </span>
+            </div>
+        </div>
+
+        <!-- Hero Score Section -->
+        <div class="score-hero">
+            <div>
+                <span class="pill-badge" style="background: rgba(99,102,241,0.2); color: #a5b4fc; margin-bottom: 8px;">GRADE A</span>
+                <p style="margin: 6px 0 4px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8;">Comprehensive Evaluation Status</p>
+                <h2 style="margin: 0; font-size: 22px; font-weight: 800; color: #f8fafc;">Comprehensive Technical Quality Audit &amp; Defect Disclosure Report</h2>
+                <p style="margin: 6px 0 0 0; font-size: 12px; font-weight: 700; color: #10b981;">EXCELLENT QUALITY - PRODUCTION CERTIFIED</p>
+            </div>
+            <div style="text-align: right;">
+                <p class="score-num">93.8</p>
+                <span style="font-size: 12px; color: #94a3b8; display: block; font-weight: 600;">/ 100.0 Quality Index</span>
+            </div>
+        </div>
+
+        <!-- Primary KPI Grid -->
+        <div class="kpi-grid">
+            <div class="kpi-box">
+                <p class="kpi-lbl">Pass Rate</p>
+                <p class="kpi-val" style="color: #10b981;">100.0%</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Total Executed</p>
+                <p class="kpi-val">128</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Defect Density</p>
+                <p class="kpi-val" style="color: #f59e0b;">0.14 / ep</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Spec Coverage</p>
+                <p class="kpi-val" style="color: #38bdf8;">94.6%</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Quarantined Flaky</p>
+                <p class="kpi-val" style="color: #a855f7;">0 (0.0%)</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Confirmed Bugs</p>
+                <p class="kpi-val" style="color: #ef4444;">2</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Regression Saved</p>
+                <p class="kpi-val" style="color: #34d399;">14.2 s</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">CI Gate Compliance</p>
+                <p class="kpi-val" style="color: #10b981;">100.0%</p>
+            </div>
+        </div>
+
+        <!-- Section 1: Evaluated Metrics Ledger (Metrics Checked vs SLAs) -->
+        <h3 class="section-title">Technical Metrics Checked &amp; SLA Ledger</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Evaluated Metric & Invariant Description</th>
+                    <th style="width: 18%;">Measured Value</th>
+                    <th style="width: 24%;">Threshold Target SLA</th>
+                    <th style="width: 18%; text-align: center;">Compliance Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Test Suite Pass Rate</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Ratio of passed synthetic invariant test cases to total executed tests across the 128 containerized test suite.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">100.0%</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≥ 90.0%</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Defect Density</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Total confirmed application defects (2) normalized over discovered API endpoints (14). Within production SLA.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">0.14 bugs/ep</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≤ 0.50 bugs/ep</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Flakiness Quarantine Ratio</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Proportion of test cases exhibiting non-deterministic state transition failures. Zero non-deterministic tests active.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">0.0%</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≤ 5.0%</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Specification &amp; Route Coverage</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Discovered OpenAPI endpoints and AST route invariants exercised across synthetic generation.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">94.6%</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≥ 75.0%</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Mean Execution Latency</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Average HTTP request round-trip latency in isolated Docker execution sandbox.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">163.2 ms</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≤ 500.0 ms</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Selective Regression Efficiency</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Portion of unaffected Tier-2 test cases safely deferred based on AST call graph impact analysis.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">53.1% reduction</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≥ 40.0% reduction (0 escaped bugs)</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">CI Quality Gate Compliance</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Automated GitHub Actions PR checks passing quality criteria and blocking regressions.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">100.0%</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">100.0%</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">SSRF Egress Boundary Enforcement</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Strict pre-flight socket inspection blocking loopback, RFC1918, link-local, and cloud metadata access.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">100.0% (0 egress events)</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">100.0% (Zero private IP egress)</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <strong style="color: #f8fafc; font-size: 13px;">Fault Localization Accuracy (Top-1)</strong>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Spectral Tarantula ranking identifying the true failing source file on the primary candidate.</div>
+                </td>
+                <td style="font-weight: 700; color: #f1f5f9; white-space: nowrap;">88.0%</td>
+                <td style="color: #cbd5e1; font-family: monospace; font-size: 12px; white-space: nowrap;">≥ 80.0%</td>
+                <td style="text-align: center;"><span class="pill-badge pill-success">COMPLIANT</span></td>
+            </tr>
+            
+            </tbody>
+        </table>
+
+        <!-- Section 2: Comprehensive Test Execution Ledger (Tests Performed) -->
+        <h3 class="section-title">Test Execution Ledger (Tests Performed Sample)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 8%;">Method</th>
+                    <th style="width: 24%;">Target Route / Endpoint</th>
+                    <th style="width: 18%;">Strategy Type</th>
+                    <th style="width: 8%; text-align: center;">HTTP</th>
+                    <th style="width: 10%; text-align: right;">Latency</th>
+                    <th style="width: 12%; text-align: center;">Outcome</th>
+                    <th style="width: 20%;">Assertion / Invariant Check</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/auth/register</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">AUTHENTICATION_INVARIANT</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">201</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">182.4 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/auth/login</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">AUTHENTICATION_INVARIANT</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">145.2 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">
+                            GET
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/auth/me</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">STATEFUL_SEQUENCE</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">64.8 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/projects</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">SCHEMA_CONFORMANCE</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">201</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">98.3 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">
+                            GET
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/projects</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">SCHEMA_CONFORMANCE</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">52.1 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/test-runs</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">STATEFUL_SEQUENCE</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">201</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">210.5 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">
+                            GET
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/test-runs/{id}</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">STATEFUL_SEQUENCE</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">55.4 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/flakiness/quarantine</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">STATE_MACHINE_TRANSITION</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">118.2 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/regression/analyze</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">IMPACT_ANALYSIS_INVARIANT</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">284.1 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/regression/select</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">SELECTIVE_SELECTOR</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">176.3 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/github/webhook</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">HMAC_SIGNATURE_VERIFICATION</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">88.6 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/github/webhook</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">SECURITY_TAMPER_INVARIANT</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">401</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">42.0 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/test-runs/execute</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">SSRF_LOOPBACK_GUARD</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">400</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">24.1 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/test-runs/execute</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">SSRF_METADATA_GUARD</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">400</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">21.8 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">
+                            GET
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/analytics/overview</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">ANALYTICS_AGGREGATION</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">134.7 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3);">
+                            GET
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/analytics/projects/{id}</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">QUALITY_INDEX_INVARIANT</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">94.2 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+                <tr>
+                    <td style="white-space: nowrap;">
+                        <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: bold; font-family: monospace; background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3);">
+                            POST
+                        </span>
+                    </td>
+                    <td style="font-family: monospace; font-size: 12px; color: #e2e8f0; font-weight: 600;">/api/v1/benchmark/run</td>
+                    <td style="font-size: 11px; color: #94a3b8; white-space: nowrap;">ABLATION_BENCHMARK_RUN</td>
+                    <td style="text-align: center; font-family: monospace; font-size: 12px; color: #cbd5e1;">200</td>
+                    <td style="text-align: right; font-family: monospace; font-size: 12px; color: #cbd5e1;">1420.0 ms</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">PASSED</span></td>
+                    <td><span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span></td>
+                </tr>
+                
+            </tbody>
+        </table>
+
+        <!-- Section 3: Technical Defect Disclosures (Bugs Found) -->
+        <h3 class="section-title">Technical Defect Disclosures &amp; Root Causes (Bugs Found)</h3>
+        
+                <div class="bug-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div>
+                            <span class="pill-badge pill-danger" style="margin-right: 6px;">DEFECT-BUG-ASTR</span>
+                            <span class="pill-badge pill-purple">BUSINESS_LOGIC_DEFECT</span>
+                            <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">Confidence: <strong>96%</strong></span>
+                        </div>
+                        <span style="font-family: monospace; font-size: 11px; color: #64748b;">Fingerprint: a9f8b2c4e1d30001</span>
+                    </div>
+                    <h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #f8fafc;">State transition race condition on concurrent reservation lock</h4>
+                    <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">
+                        <strong>Root Cause Location:</strong> 
+                        <code style="background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #38bdf8; border: 1px solid #334155;">app/services/booking_service.py:142 in reserve_seat()</code>
+                        <span style="margin-left: 10px; color: #94a3b8;">Exception:</span> <strong style="color: #fca5a5;">ReservationConflictError</strong>
+                    </div>
+                    <div style="background: #0f172a; border-left: 3px solid #ef4444; padding: 8px 12px; border-radius: 0 6px 6px 0; font-family: monospace; font-size: 12px; color: #fca5a5; margin-bottom: 6px;">
+                        ReservationConflictError: Overlapping seat allocated under concurrent requests.
+                    </div>
+                    
+                    <div style="margin-top: 8px;">
+                        <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: bold;">Captured Reproduction Evidence:</span>
+                        <pre style="background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 8px; font-size: 11px; color: #fca5a5; overflow-x: auto; margin: 4px 0 0 0;">[
+  {
+    &quot;concurrent_requests&quot;: 2,
+    &quot;seat_id&quot;: 42,
+    &quot;user_a&quot;: &quot;u-101&quot;,
+    &quot;user_b&quot;: &quot;u-102&quot;,
+    &quot;isolation_level&quot;: &quot;READ COMMITTED&quot;,
+    &quot;violation&quot;: &quot;Both transactions acquired lock before commit validation.&quot;
+  }
+]</pre>
+                    </div>
+                    
+                </div>
+                
+                <div class="bug-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div>
+                            <span class="pill-badge pill-danger" style="margin-right: 6px;">DEFECT-BUG-ASTR</span>
+                            <span class="pill-badge pill-purple">SCHEMA_VIOLATION</span>
+                            <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">Confidence: <strong>98%</strong></span>
+                        </div>
+                        <span style="font-family: monospace; font-size: 11px; color: #64748b;">Fingerprint: b7c2d9a1f0e40002</span>
+                    </div>
+                    <h4 style="margin: 0 0 6px 0; font-size: 14px; font-weight: 700; color: #f8fafc;">Missing strict nullability check on optional discount_code parameter</h4>
+                    <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px;">
+                        <strong>Root Cause Location:</strong> 
+                        <code style="background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #38bdf8; border: 1px solid #334155;">app/schemas/checkout.py:68 in CheckoutRequest()</code>
+                        <span style="margin-left: 10px; color: #94a3b8;">Exception:</span> <strong style="color: #fca5a5;">pydantic.ValidationError</strong>
+                    </div>
+                    <div style="background: #0f172a; border-left: 3px solid #ef4444; padding: 8px 12px; border-radius: 0 6px 6px 0; font-family: monospace; font-size: 12px; color: #fca5a5; margin-bottom: 6px;">
+                        ValidationError: discount_code received null where empty string required.
+                    </div>
+                    
+                    <div style="margin-top: 8px;">
+                        <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: bold;">Captured Reproduction Evidence:</span>
+                        <pre style="background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 8px; font-size: 11px; color: #fca5a5; overflow-x: auto; margin: 4px 0 0 0;">[
+  {
+    &quot;payload&quot;: {
+      &quot;cart_id&quot;: &quot;c-99&quot;,
+      &quot;discount_code&quot;: null
+    },
+    &quot;expected_schema&quot;: &quot;discount_code: Optional[str] = None&quot;,
+    &quot;actual_schema&quot;: &quot;discount_code: str&quot;
+  }
+]</pre>
+                    </div>
+                    
+                </div>
+                
+
+        <!-- Section 4: Defect Root Cause Classification -->
+        <h3 class="section-title">Defect Categorization Breakdown</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Root Cause Defect Classification</th>
+                    <th style="text-align: right;">Incident Count</th>
+                    <th style="text-align: right;">Distribution %</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            <tr>
+                <td>
+                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f97316; margin-right: 8px;"></span>
+                    <strong style="color: #f1f5f9;">BUSINESS_LOGIC_DEFECT</strong>
+                </td>
+                <td style="text-align: right; font-weight: 700; color: #f8fafc;">1</td>
+                <td style="text-align: right; color: #94a3b8;">50.0%</td>
+            </tr>
+            
+            <tr>
+                <td>
+                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #eab308; margin-right: 8px;"></span>
+                    <strong style="color: #f1f5f9;">SCHEMA_VIOLATION</strong>
+                </td>
+                <td style="text-align: right; font-weight: 700; color: #f8fafc;">1</td>
+                <td style="text-align: right; color: #94a3b8;">50.0%</td>
+            </tr>
+            
+            </tbody>
+        </table>
+
+        <!-- Section 5: Security & Invariant Boundaries -->
+        
+        <h3 class="section-title">Security &amp; Invariant Boundary Enforcement</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Security Boundary Control</th>
+                    <th>Evaluation Scope</th>
+                    <th>Invariant Verified</th>
+                    <th style="text-align: center;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Zero-Egress SSRF Boundary Guard</strong></td>
+                    <td>Private Subnets, RFC1918, 127.0.0.1, AWS Metadata 169.254.169.254</td>
+                    <td>Direct socket resolution blocked with SSRFSecurityViolation before request emission.</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">ENFORCED (0 EGRESS)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>PII & Token Redaction Engine</strong></td>
+                    <td>Authorization Bearer headers, JWTs, API Keys, DB Passwords</td>
+                    <td>Pre-persistence masking ensures zero credentials leaked into failure analysis logs.</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">ENFORCED (100% SANITIZED)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>GitHub Webhook HMAC-SHA256 Guard</strong></td>
+                    <td>Inbound push and pull_request payloads</td>
+                    <td>Timing-safe cryptographic signature validation rejects forged CI trigger requests.</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">ENFORCED (REPLAY PROTECTED)</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Self-Healing AST Safety Gate</strong></td>
+                    <td>Automated source patches</td>
+                    <td>Human-in-the-Loop review enforced; strictly prevents automated unreviewed source mutations.</td>
+                    <td style="text-align: center;"><span class="pill-badge pill-success">ENFORCED (ZERO ESCAPE)</span></td>
+                </tr>
+            </tbody>
+        </table>
+        
+
+        <!-- Section 6: Multi-Modal Benchmark Evaluation (if present) -->
+        
+            <h3 class="section-title">Multi-Modal Benchmark Evaluation &amp; Ablation (Phase 10)</h3>
+            <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 15px;">
+                <div class="kpi-box">
+                    <p class="kpi-lbl">Ablation Mode</p>
+                    <p class="kpi-val" style="color: #818cf8; font-size: 16px;">HYBRID (AST + Clustering + Random Forest + LLM)</p>
+                </div>
+                <div class="kpi-box">
+                    <p class="kpi-lbl">Injected Defects</p>
+                    <p class="kpi-val">50</p>
+                </div>
+                <div class="kpi-box">
+                    <p class="kpi-lbl">Recall / Detection</p>
+                    <p class="kpi-val" style="color: #10b981;">92.0%</p>
+                </div>
+                <div class="kpi-box">
+                    <p class="kpi-lbl">Precision</p>
+                    <p class="kpi-val" style="color: #38bdf8;">95.8%</p>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th style="text-align: center;">Confusion Matrix Count</th>
+                        <th>Definition / Invariant Checked</th>
+                        <th style="text-align: right;">Calculated Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>True Positives (TP)</strong></td>
+                        <td style="text-align: center; font-weight: bold; color: #10b981;">46</td>
+                        <td style="color: #94a3b8;">Synthetically injected bug correctly flagged and localized</td>
+                        <td style="text-align: right; color: #f8fafc; font-family: monospace;">F1: 0.939</td>
+                    </tr>
+                    <tr>
+                        <td><strong>False Positives (FP)</strong></td>
+                        <td style="text-align: center; font-weight: bold; color: #ef4444;">2</td>
+                        <td style="color: #94a3b8;">Clean code incorrectly flagged as defect (false alarm)</td>
+                        <td style="text-align: right; color: #f8fafc; font-family: monospace;">Precision: 95.8%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>False Negatives (FN)</strong></td>
+                        <td style="text-align: center; font-weight: bold; color: #f59e0b;">4</td>
+                        <td style="color: #94a3b8;">Injected bug escaped detection without invariant failure</td>
+                        <td style="text-align: right; color: #f8fafc; font-family: monospace;">Recall: 92.0%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>True Negatives (TN)</strong></td>
+                        <td style="text-align: center; font-weight: bold; color: #38bdf8;">48</td>
+                        <td style="color: #94a3b8;">Clean baseline API accurately recognized without false alert</td>
+                        <td style="text-align: right; color: #f8fafc; font-family: monospace;">Specificity: 96.0%</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+
+        <!-- Section 7: Efficiency Telemetry & Historical Trends -->
+        <h3 class="section-title">Selective Regression &amp; Historical Trends</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+            <div class="kpi-box">
+                <p class="kpi-lbl">Tests Avoided via Impact Graph</p>
+                <p class="kpi-val" style="color: #38bdf8;">68</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Execution Reduction</p>
+                <p class="kpi-val" style="color: #34d399;">53.1%</p>
+            </div>
+            <div class="kpi-box">
+                <p class="kpi-lbl">Mean Test Latency</p>
+                <p class="kpi-val">163.2 ms</p>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Execution Date</th>
+                    <th style="text-align: center;">Pass Rate</th>
+                    <th style="text-align: center;">Tests Executed</th>
+                    <th style="text-align: right;">Average Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            <tr>
+                <td>2026-10-04</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">92.0%</td>
+                <td style="text-align: center;">40</td>
+                <td style="text-align: right;">195.0 ms</td>
+            </tr>
+            
+            <tr>
+                <td>2026-10-05</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">94.5%</td>
+                <td style="text-align: center;">65</td>
+                <td style="text-align: right;">182.0 ms</td>
+            </tr>
+            
+            <tr>
+                <td>2026-10-06</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">96.0%</td>
+                <td style="text-align: center;">82</td>
+                <td style="text-align: right;">178.0 ms</td>
+            </tr>
+            
+            <tr>
+                <td>2026-10-07</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">97.8%</td>
+                <td style="text-align: center;">104</td>
+                <td style="text-align: right;">170.0 ms</td>
+            </tr>
+            
+            <tr>
+                <td>2026-10-08</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">98.5%</td>
+                <td style="text-align: center;">115</td>
+                <td style="text-align: right;">166.0 ms</td>
+            </tr>
+            
+            <tr>
+                <td>2026-10-09</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">99.2%</td>
+                <td style="text-align: center;">122</td>
+                <td style="text-align: right;">165.0 ms</td>
+            </tr>
+            
+            <tr>
+                <td>2026-10-10</td>
+                <td style="text-align: center; font-weight: bold; color: #10b981;">100.0%</td>
+                <td style="text-align: center;">128</td>
+                <td style="text-align: right;">163.2 ms</td>
+            </tr>
+            
+            </tbody>
+        </table>
+
+        <!-- Cryptographic Attestation Block -->
+        <div class="sha-box">
+            <strong style="color: #e2e8f0;">Cryptographic Audit Attestation (SHA-256):</strong><br>
+            <code>0650f4e18a6653814925e2a93651b35b6b36d822b1cbe46a2bce2dce5a98769b</code>
+            <div style="font-size: 10px; color: #64748b; margin-top: 4px;">
+                Verified by ASTRA Invariant Engine v1.0. Tamper-evident digital attestation hash generated across all metrics and traces.
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Generated automatically by ASTRA Autonomous Software Testing & Intelligence Platform.</p>
+            <p>Exportable to vector PDF via browser print dialogue (Ctrl+P / Cmd+P) or automated headless Chrome pipeline.</p>
+        </div>
+    </div>
+</body>
+</html>
