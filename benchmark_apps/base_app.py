@@ -29,9 +29,6 @@ class BenchmarkEnvironment:
 
     @classmethod
     def is_bug_active(cls, bug_id: str) -> bool:
-        # Default is active if not explicitly cleared
-        if not cls._active_bugs and bug_id.startswith("BUG-"):
-            return True
         return bug_id in cls._active_bugs
 
     @classmethod
