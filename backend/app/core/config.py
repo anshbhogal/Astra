@@ -26,7 +26,7 @@ class Settings(BaseSettings):
         default="super_secure_astra_jwt_secret_key_change_in_production_2026"
     )
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days for development/testing convenience
 
     # CORS
     CORS_ORIGINS: List[str] = [

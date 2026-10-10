@@ -391,11 +391,21 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     }
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    setZoom((prev) => Math.min(2.5, Math.max(0.3, prev * zoomFactor)));
-  };
+  useEffect(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      setZoom((prev) => Math.min(2.5, Math.max(0.3, prev * zoomFactor)));
+    };
+
+    svgEl.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      svgEl.removeEventListener('wheel', onWheel);
+    };
+  }, []);
 
   const resetView = () => {
     setZoom(1);
@@ -622,7 +632,6 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
             onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
-            onWheel={handleWheel}
           >
             <defs>
               <pattern id="graph-grid" width="30" height="30" patternUnits="userSpaceOnUse">
