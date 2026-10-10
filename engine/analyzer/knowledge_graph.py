@@ -75,14 +75,24 @@ class ProjectKnowledgeGraph:
             if self.graph.has_node(module_node_id):
                 self.graph.add_edge(module_node_id, func_node_id, relationship="DEFINES", confidence=1.0)
 
-        # 4. Internal Function Call Edges
+        # 4. Internal Function Call Edges & Cross-Module Dependencies
         for fn in functions:
             source_func_id = f"func:{fn.file_path}:{fn.qualified_name}"
+            source_file = fn.file_path.replace("\\", "/")
+            source_module_id = f"module:{source_file}"
             for called_name in fn.called_functions:
                 if called_name in func_map:
                     target_func_id = func_map[called_name]
                     if source_func_id != target_func_id:
                         self.graph.add_edge(source_func_id, target_func_id, relationship="CALLS", confidence=0.90)
+
+                        # Create high-level module-to-module dependency edge
+                        target_func_data = self.graph.nodes.get(target_func_id, {})
+                        target_file = target_func_data.get("properties", {}).get("file_path", "").replace("\\", "/")
+                        target_module_id = f"module:{target_file}"
+                        if target_file and source_module_id != target_module_id:
+                            if self.graph.has_node(source_module_id) and self.graph.has_node(target_module_id):
+                                self.graph.add_edge(source_module_id, target_module_id, relationship="DEPENDS_ON", confidence=0.85)
 
         # 5. Endpoint Nodes & HANDLED_BY Edges
         for ep in endpoints:
@@ -103,6 +113,13 @@ class ProjectKnowledgeGraph:
             target_func_id = func_map.get(ep.function_name) or func_map.get(ep.qualified_function_name or "")
             if target_func_id:
                 self.graph.add_edge(ep_node_id, target_func_id, relationship="HANDLED_BY", confidence=ep.confidence)
+
+            # Link Module -> Endpoint
+            if ep.file_path:
+                ep_mod = ep.file_path.replace("\\", "/")
+                ep_mod_id = f"module:{ep_mod}"
+                if self.graph.has_node(ep_mod_id):
+                    self.graph.add_edge(ep_mod_id, ep_node_id, relationship="EXPOSES", confidence=ep.confidence)
 
         return self.export_json()
 

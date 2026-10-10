@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
+import { KnowledgeGraphVisualizer } from '../components/KnowledgeGraphVisualizer';
 
 interface Project {
   id: string;
@@ -932,29 +933,15 @@ export const ProjectDetail: React.FC = () => {
             <div className="glass-card rounded-2xl p-8 text-center space-y-3 border border-slate-800">
               <Network className="w-10 h-10 text-indigo-400 mx-auto" />
               <h3 className="text-base font-bold text-white">Knowledge Graph Not Available</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Trigger repository analysis to construct the code dependency graph and index modules, functions, and endpoints.
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
-                <h4 className="text-sm font-bold text-white flex items-center justify-between">
-                  <span>Graph Nodes</span>
-                  <span className="text-xs font-mono text-indigo-400">{graph.nodes.length} nodes</span>
-                </h4>
-                <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-                  {graph.nodes.map((node) => (
-                    <div key={node.id} className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs font-mono">
-                      <div>
-                        <span className="text-slate-200 font-semibold block">{node.label}</span>
-                        <span className="text-[10px] text-slate-500">{node.id}</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px]">
-                        {node.type}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <KnowledgeGraphVisualizer
+              graph={graph}
+              projectName={project?.name}
+            />
           )}
         </div>
       )}
