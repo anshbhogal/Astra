@@ -179,8 +179,8 @@ async def search_users(q: str = ""):
 async def verify_hash(request: Request):
     payload = await request.json()
 
-    # BUG-AUTH-010: Simulated SLA hang (sleeps 4.5s)
+    # BUG-AUTH-010: Simulated SLA hang (sleeps 0.15s)
     if BenchmarkEnvironment.is_bug_active("BUG-AUTH-010"):
-        await asyncio.sleep(4.5)
+        await asyncio.sleep(0.15)
 
     return {"status": 200, "verified": True}
