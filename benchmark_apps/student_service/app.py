@@ -79,7 +79,7 @@ async def list_students():
     return [{"id": r[0], "first_name": r[1], "last_name": r[2], "roll_number": r[3], "department": r[4], "gpa": r[5]} for r in rows]
 
 
-@app.post("/api/v1/students")
+@app.post("/api/v1/students", status_code=201)
 async def create_student(request: Request):
     payload = await request.json()
     first_name = payload.get("first_name", "")
