@@ -29,20 +29,20 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             className={clsx(
-              'w-full bg-slate-900/80 text-slate-100 text-sm rounded-lg border transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-slate-500 px-3.5 py-2.5',
+              'w-full bg-surface text-primary text-sm rounded-lg border transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-muted px-3.5 py-2.5',
               leftIcon && 'pl-10',
               error
-                ? 'border-rose-500/80 focus:ring-rose-500'
-                : 'border-slate-800 hover:border-slate-700',
+                ? 'border-status-failed focus:ring-status-failed'
+                : 'border-border hover:border-brand/40',
               className
             )}
             {...props}
           />
         </div>
         {error ? (
-          <p className="text-xs text-rose-400 font-medium">{error}</p>
+          <p className="text-xs text-status-failed font-medium">{error}</p>
         ) : helperText ? (
-          <p className="text-xs text-slate-500">{helperText}</p>
+          <p className="text-xs text-muted">{helperText}</p>
         ) : null}
       </div>
     );
