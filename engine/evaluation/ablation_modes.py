@@ -24,6 +24,7 @@ class OperationalMode(str, Enum):
 
 @dataclass
 class TestBudget:
+    __test__ = False
     max_tests: int = 100
     max_duration_s: float = 60.0
     is_constrained: bool = True
