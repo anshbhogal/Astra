@@ -709,40 +709,58 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                     ? node.label.substring(0, node.label.lastIndexOf('/'))
                     : '';
 
+                  const boxWidth = (node.radius + 14) * 2;
+                  const boxHeight = node.radius * 1.5;
+                  const boxX = -node.radius - 14;
+                  const boxY = -node.radius + 6;
+
                   return (
                     <g
                       key={node.id}
                       transform={`translate(${node.x}, ${node.y})`}
-                      className={`cursor-pointer transition-transform duration-150 ${
-                        isHovered || isSelected ? 'scale-105' : ''
-                      }`}
+                      className="cursor-pointer"
                       style={{ opacity: isDimmed ? 0.22 : 1 }}
                       onMouseDown={(e) => handleNodeMouseDown(node.id, e)}
                       onMouseEnter={() => setHoveredNodeId(node.id)}
                       onMouseLeave={() => setHoveredNodeId(null)}
                     >
-                      {(isSelected || isHovered) && (
-                        <circle
-                          r={node.radius + 8}
-                          fill="none"
-                          stroke={colors.border}
-                          strokeWidth="2"
-                          strokeDasharray="4 3"
-                          opacity="0.8"
-                        />
-                      )}
-
+                      {/* Stable Invisible Hitbox - captures all mouse interactions with zero jitter */}
                       <rect
-                        x={-node.radius - 14}
-                        y={-node.radius + 6}
-                        width={(node.radius + 14) * 2}
-                        height={node.radius * 1.5}
-                        rx="14"
-                        fill="#0b1120"
-                        stroke={isSelected ? '#ffffff' : colors.border}
-                        strokeWidth={isSelected ? 2 : 1.2}
+                        x={boxX - 6}
+                        y={boxY - 6}
+                        width={boxWidth + 12}
+                        height={boxHeight + 12}
+                        rx="16"
+                        fill="transparent"
+                        style={{ pointerEvents: 'all' }}
                       />
 
+                      {/* Outer Ring on Hover / Selected */}
+                      <circle
+                        r={node.radius + 8}
+                        fill="none"
+                        stroke={colors.border}
+                        strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0}
+                        strokeDasharray="4 3"
+                        opacity={isSelected ? 0.9 : isHovered ? 0.65 : 0}
+                        style={{ pointerEvents: 'none' }}
+                        className={isSelected ? 'animate-spin-slow' : undefined}
+                      />
+
+                      {/* Main Node Card Body */}
+                      <rect
+                        x={boxX}
+                        y={boxY}
+                        width={boxWidth}
+                        height={boxHeight}
+                        rx="14"
+                        fill={isSelected ? '#1e293b' : isHovered ? '#0f172a' : '#0b1120'}
+                        stroke={isSelected ? '#ffffff' : isHovered ? colors.border : colors.border}
+                        strokeWidth={isSelected ? 2.2 : isHovered ? 1.8 : 1.2}
+                        style={{ pointerEvents: 'none' }}
+                      />
+
+                      {/* Node Icon / Type Badge Strip */}
                       <circle
                         cx="0"
                         cy={-node.radius + 18}
@@ -750,21 +768,24 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                         fill={colors.bg}
                         stroke={colors.border}
                         strokeWidth="1"
+                        style={{ pointerEvents: 'none' }}
                       />
 
+                      {/* Node Label Text */}
                       <text
                         x="0"
                         y={node.radius * 0.15}
-                        fill="#f8fafc"
+                        fill={isHovered ? '#38bdf8' : '#f8fafc'}
                         fontSize="11"
                         fontWeight="700"
                         fontFamily="monospace"
                         textAnchor="middle"
-                        className="pointer-events-none select-none"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
                       >
                         {displayLabel.length > 16 ? displayLabel.substring(0, 14) + '..' : displayLabel}
                       </text>
 
+                      {/* Node Subtitle (Directory / Type) */}
                       <text
                         x="0"
                         y={node.radius * 0.42}
@@ -772,14 +793,18 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                         fontSize="8.5"
                         fontFamily="monospace"
                         textAnchor="middle"
-                        className="pointer-events-none select-none"
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
                       >
                         {node.type === 'MODULE'
                           ? dirPath ? `${dirPath}/` : 'root module'
                           : node.type}
                       </text>
 
-                      <g transform={`translate(${node.radius + 4}, ${-node.radius + 10})`}>
+                      {/* Degree Badge Pill (Connections count) */}
+                      <g
+                        transform={`translate(${node.radius + 4}, ${-node.radius + 10})`}
+                        style={{ pointerEvents: 'none' }}
+                      >
                         <rect
                           x="-10"
                           y="-7"
@@ -798,7 +823,6 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
                           fontWeight="bold"
                           fontFamily="monospace"
                           textAnchor="middle"
-                          className="pointer-events-none select-none"
                         >
                           {node.inDegree + node.outDegree}
                         </text>
