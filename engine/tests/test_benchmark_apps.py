@@ -128,7 +128,7 @@ async def test_ecommerce_service_bugs():
 
         # BUG-ECOM-007: Search SQLi crash
         with pytest.raises(Exception):
-            await client.get("/api/v1/products/search?q=' OR 1=1 --")
+            await client.get("/api/v1/products/search?q=' OR 1=1")
 
         # BUG-ECOM-010: IDOR cancel order
         res10 = await client.post("/api/v1/orders/ord_alice_1/cancel", headers={"X-User-Id": "user_bob"})
@@ -299,3 +299,13 @@ async def test_clean_baseline_mode():
 
     # Re-enable bugs after clean baseline test
     BenchmarkEnvironment.enable_all_bugs()
+
+
+def test_git_benchmark_fixture(tmp_path):
+    """Verify that git benchmark repository fixture initializes with 4 commits."""
+    from benchmark_apps.git_fixture import init_git_benchmark_fixture
+    repo_path = init_git_benchmark_fixture(target_dir=tmp_path / "test_repo")
+    assert (repo_path / ".git").exists()
+    assert (repo_path / "validator.py").exists()
+    assert (repo_path / "currency.py").exists()
+    assert (repo_path / "README.md").exists()
