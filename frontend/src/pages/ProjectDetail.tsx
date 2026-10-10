@@ -108,7 +108,16 @@ const PIPELINE_STAGES = [
   { key: 'PERSISTING', label: '5. Database Index', desc: 'Persist endpoints & graph nodes' },
 ];
 
-const getStageInfo = (stage?: string) => {
+const getStageInfo = (stage?: string, status?: string) => {
+  if (!status) {
+    return { title: 'Pipeline Idle', desc: 'Ready to clone repository and begin static AST analysis.', step: 0 };
+  }
+  if (status === 'COMPLETED' || status === 'COMPLETED_WITH_WARNINGS') {
+    return { title: 'Analysis Complete', desc: 'Static analysis pipeline completed and knowledge graph indexed.', step: 6 };
+  }
+  if (status === 'FAILED') {
+    return { title: 'Analysis Failed', desc: 'The analysis pipeline encountered an error.', step: 0 };
+  }
   switch (stage) {
     case 'CLONING':
       return { title: 'Cloning Repository', desc: 'Fetching repository files and verifying git tree...', step: 1 };
@@ -128,6 +137,9 @@ const getStageInfo = (stage?: string) => {
 };
 
 const getStageStatus = (stageKey: string, currentStage?: string, overallStatus?: string) => {
+  if (!overallStatus) {
+    return 'pending';
+  }
   if (overallStatus === 'COMPLETED' || overallStatus === 'COMPLETED_WITH_WARNINGS') {
     return 'completed';
   }
@@ -290,6 +302,27 @@ export const ProjectDetail: React.FC = () => {
 
   const triggerAnalysis = async () => {
     setAnalyzing(true);
+    setAnalysis((prev) => ({
+      id: prev?.id || '',
+      project_id: id || '',
+      status: 'RUNNING',
+      current_stage: 'CLONING',
+      progress_percent: 15,
+      repository_url: project?.repository_url || '',
+      branch: project?.default_branch || 'main',
+      commit_sha: null,
+      detected_language: null,
+      detected_framework: null,
+      framework_confidence: 0,
+      scanned_files_count: 0,
+      parsed_files_count: 0,
+      endpoint_count: 0,
+      graph_node_count: 0,
+      graph_edge_count: 0,
+      error_message: null,
+      started_at: new Date().toISOString(),
+      completed_at: null,
+    }));
     try {
       const res = await api.post(`/projects/${id}/analyze`);
       setAnalysis(res.data);
@@ -450,160 +483,211 @@ export const ProjectDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Real-time Analysis Progress Banner Card */}
-      {analysis && (analysis.status === 'RUNNING' || analysis.status === 'QUEUED') && (
-        <div className="glass-card rounded-2xl p-6 border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-purple-950/30 backdrop-blur-xl space-y-5 relative overflow-hidden shadow-2xl shadow-indigo-950/50 animate-in fade-in slide-in-from-top-2 duration-300">
-          {/* Subtle Ambient Background Glow */}
-          <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Real-time Analysis Progress Banner Card - Always Visible */}
+      <div className={`glass-card rounded-2xl p-6 border transition-all duration-300 relative overflow-hidden shadow-2xl ${
+        analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing
+          ? 'border-indigo-500/40 bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-purple-950/30 shadow-indigo-950/50'
+          : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+          ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-950/20 via-slate-900/80 to-slate-900 shadow-emerald-950/20'
+          : analysis?.status === 'FAILED'
+          ? 'border-rose-500/30 bg-gradient-to-br from-rose-950/20 via-slate-900/80 to-slate-900 shadow-rose-950/20'
+          : 'border-slate-800 bg-slate-900/60'
+      }`}>
+        {/* Subtle Ambient Background Glow */}
+        <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Top Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
-            <div className="flex items-center gap-3">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+          <div className="flex items-center gap-3">
+            {analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing ? (
               <span className="relative flex h-3.5 w-3.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>
               </span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-white tracking-wide">
-                    Live Repository Static Analysis
-                  </h3>
-                  <span className="text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 animate-pulse">
-                    {analysis.status}
-                  </span>
-                </div>
-                <p className="text-xs text-indigo-300/80 mt-0.5 font-medium">
-                  {getStageInfo(analysis.current_stage).desc}
-                </p>
+            ) : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
+              <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                <Check className="w-3 h-3 stroke-[3]" />
               </div>
-            </div>
-
-            {/* Percentage Display */}
-            <div className="flex items-baseline gap-2 self-start sm:self-auto">
-              <span className="text-xs uppercase font-mono text-slate-400">Progress</span>
-              <span className="text-3xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-cyan-300">
-                {analysis.progress_percent}%
-              </span>
-            </div>
-          </div>
-
-          {/* Animated Gradient Progress Bar */}
-          <div className="relative z-10 space-y-1.5">
-            <div className="w-full bg-slate-900/90 rounded-full h-3.5 p-0.5 overflow-hidden border border-slate-800 shadow-inner">
-              <div
-                className="bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 h-full rounded-full transition-all duration-700 ease-out shadow-[0_0_16px_rgba(99,102,241,0.6)] relative"
-                style={{ width: `${Math.max(analysis.progress_percent, 5)}%` }}
-              >
-                <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse" />
+            ) : analysis?.status === 'FAILED' ? (
+              <div className="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                <AlertTriangle className="w-3 h-3" />
               </div>
-            </div>
-          </div>
-
-          {/* 5-Stage Stepper Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2 relative z-10">
-            {PIPELINE_STAGES.map((stg, idx) => {
-              const stageStatus = getStageStatus(stg.key, analysis.current_stage, analysis.status);
-              const isCompleted = stageStatus === 'completed';
-              const isActive = stageStatus === 'active';
-
-              return (
-                <div
-                  key={stg.key}
-                  className={`rounded-xl p-3 border transition-all ${
-                    isActive
-                      ? 'bg-indigo-900/30 border-indigo-500/50 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30'
-                      : isCompleted
-                      ? 'bg-emerald-950/20 border-emerald-500/30'
-                      : 'bg-slate-900/40 border-slate-800/80 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    {isCompleted ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    ) : isActive ? (
-                      <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
-                    ) : (
-                      <div className="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[9px] font-mono text-slate-500 shrink-0">
-                        {idx + 1}
-                      </div>
-                    )}
-                    <span
-                      className={`text-xs font-bold truncate ${
-                        isActive ? 'text-indigo-200' : isCompleted ? 'text-emerald-300' : 'text-slate-400'
-                      }`}
-                    >
-                      {stg.label}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 leading-tight truncate">
-                    {stg.desc}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Live Discovered Telemetry Counters */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-800/80 relative z-10 text-xs font-mono">
-            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
-              <span className="text-slate-500 block text-[10px] uppercase">Scanned Files</span>
-              <span className="text-slate-200 font-bold text-sm mt-0.5 flex items-center gap-1.5">
-                <FileCode className="w-3.5 h-3.5 text-indigo-400" />
-                {analysis.scanned_files_count}
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
-              <span className="text-slate-500 block text-[10px] uppercase">Parsed Modules</span>
-              <span className="text-slate-200 font-bold text-sm mt-0.5 flex items-center gap-1.5">
-                <Code2 className="w-3.5 h-3.5 text-indigo-400" />
-                {analysis.parsed_files_count}
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
-              <span className="text-slate-500 block text-[10px] uppercase">Discovered Endpoints</span>
-              <span className="text-emerald-400 font-bold text-sm mt-0.5 flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-                {analysis.endpoint_count}
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
-              <span className="text-slate-500 block text-[10px] uppercase">Knowledge Graph Nodes</span>
-              <span className="text-cyan-400 font-bold text-sm mt-0.5 flex items-center gap-1.5">
-                <Network className="w-3.5 h-3.5 text-cyan-400" />
-                {analysis.graph_node_count}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Analysis Error Alert Card */}
-      {analysis && analysis.status === 'FAILED' && (
-        <div className="glass-card rounded-2xl p-6 border border-rose-500/30 bg-rose-950/20 backdrop-blur-xl space-y-4 animate-in fade-in duration-300">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div className="space-y-1 flex-1">
-              <h3 className="text-sm font-bold text-rose-200">Repository Analysis Failed</h3>
-              <p className="text-xs text-rose-300/80">
-                The static analysis pipeline encountered an error during execution.
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+              </div>
+            )}
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white tracking-wide">
+                  Repository Static Analysis Pipeline
+                </h3>
+                <span className={`text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded-full border ${
+                  analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing
+                    ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30 animate-pulse'
+                    : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : analysis?.status === 'FAILED'
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}>
+                  {analyzing ? 'RUNNING' : analysis?.status || 'IDLE • READY'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                {getStageInfo(analysis?.current_stage, analysis?.status).desc}
               </p>
-              {analysis.error_message && (
-                <pre className="text-xs font-mono bg-slate-950/80 p-3 rounded-xl border border-rose-900/50 text-rose-400 overflow-x-auto mt-2 whitespace-pre-wrap">
-                  {analysis.error_message}
-                </pre>
-              )}
             </div>
+          </div>
+
+          {/* Percentage & Quick Action */}
+          <div className="flex items-center gap-4 self-start sm:self-auto">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[11px] uppercase font-mono text-slate-500">Progress</span>
+              <span className={`text-2xl font-black font-mono text-transparent bg-clip-text ${
+                analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+                  ? 'bg-gradient-to-r from-emerald-400 to-cyan-400'
+                  : 'bg-gradient-to-r from-indigo-300 via-purple-300 to-cyan-300'
+              }`}>
+                {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+                  ? 100
+                  : analysis?.progress_percent || (analyzing ? 15 : 0)}%
+              </span>
+            </div>
+
             <button
               onClick={triggerAnalysis}
-              disabled={analyzing}
-              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-lg shadow-rose-600/20"
+              disabled={analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center gap-1.5 disabled:cursor-not-allowed"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Retry Analysis
+              {analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-300" />
+                  Analyzing...
+                </>
+              ) : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Re-run Analysis
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  Start Analysis
+                </>
+              )}
             </button>
           </div>
         </div>
-      )}
+
+        {/* Animated Gradient Progress Bar */}
+        <div className="relative z-10 space-y-1.5 mt-4">
+          <div className="w-full bg-slate-900/90 rounded-full h-3 p-0.5 overflow-hidden border border-slate-800 shadow-inner">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ease-out relative ${
+                analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+                  ? 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 shadow-[0_0_16px_rgba(16,185,129,0.5)]'
+                  : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-400 shadow-[0_0_16px_rgba(99,102,241,0.6)]'
+              }`}
+              style={{
+                width: `${
+                  analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+                    ? 100
+                    : Math.max(analysis?.progress_percent || 0, analyzing ? 15 : 0)}%`
+              }}
+            >
+              {(analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED') && (
+                <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 5-Stage Stepper Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3 relative z-10">
+          {PIPELINE_STAGES.map((stg, idx) => {
+            const stageStatus = getStageStatus(stg.key, analysis?.current_stage, analysis?.status);
+            const isCompleted = stageStatus === 'completed';
+            const isActive = stageStatus === 'active';
+
+            return (
+              <div
+                key={stg.key}
+                className={`rounded-xl p-3 border transition-all ${
+                  isActive
+                    ? 'bg-indigo-900/30 border-indigo-500/50 shadow-lg shadow-indigo-500/10 ring-1 ring-indigo-500/30'
+                    : isCompleted
+                    ? 'bg-emerald-950/20 border-emerald-500/30'
+                    : 'bg-slate-900/40 border-slate-800/80 opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {isCompleted ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  ) : isActive ? (
+                    <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center text-[9px] font-mono text-slate-500 shrink-0">
+                      {idx + 1}
+                    </div>
+                  )}
+                  <span
+                    className={`text-xs font-bold truncate ${
+                      isActive ? 'text-indigo-200' : isCompleted ? 'text-emerald-300' : 'text-slate-400'
+                    }`}
+                  >
+                    {stg.label}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-tight truncate">
+                  {stg.desc}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Live Discovered Telemetry Counters */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-800/80 relative z-10 text-xs font-mono">
+          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <span className="text-slate-500 block text-[10px] uppercase">Scanned Files</span>
+            <span className="text-slate-200 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+              <FileCode className="w-3.5 h-3.5 text-indigo-400" />
+              {analysis?.scanned_files_count || 0}
+            </span>
+          </div>
+          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <span className="text-slate-500 block text-[10px] uppercase">Parsed Modules</span>
+            <span className="text-slate-200 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+              <Code2 className="w-3.5 h-3.5 text-indigo-400" />
+              {analysis?.parsed_files_count || 0}
+            </span>
+          </div>
+          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <span className="text-slate-500 block text-[10px] uppercase">Discovered Endpoints</span>
+            <span className="text-emerald-400 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+              {analysis?.endpoint_count || 0}
+            </span>
+          </div>
+          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/80">
+            <span className="text-slate-500 block text-[10px] uppercase">Knowledge Graph Nodes</span>
+            <span className="text-cyan-400 font-bold text-sm mt-0.5 flex items-center gap-1.5">
+              <Network className="w-3.5 h-3.5 text-cyan-400" />
+              {analysis?.graph_node_count || 0}
+            </span>
+          </div>
+        </div>
+
+        {/* Failure message if FAILED */}
+        {analysis?.status === 'FAILED' && analysis?.error_message && (
+          <div className="mt-3 p-3 rounded-xl bg-rose-950/40 border border-rose-900/60 text-xs font-mono text-rose-300">
+            <span className="font-bold text-rose-200 block mb-1">Execution Failure:</span>
+            <pre className="whitespace-pre-wrap">{analysis.error_message}</pre>
+          </div>
+        )}
+      </div>
 
       {/* Tabs Navigation */}
       <div className="flex border-b border-slate-800 gap-6 text-sm font-medium text-slate-400">
