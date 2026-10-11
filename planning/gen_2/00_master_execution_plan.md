@@ -71,17 +71,18 @@ ASTRA Gen 2 elevates the platform from an API-testing intelligence engine into a
 
 ### 2.2 [Phase 2 (Phase 12): Automated Program Repair (APR) & Autonomous PRs](file:///d:/Astra/planning/gen_2/04_phase_02_automated_program_repair.md)
 
-> **Specification Version:** v2.0.0 (Hardened Enterprise Architecture: 9.8/10)
+> **Specification Version:** v2.0.0 (Hardened Enterprise Architecture: 9.8/10)  
+> **Status:** 100% Implemented & Verified ✅ (18 engine tests + APR REST API tests passing)
 
 | Component / Deliverable | Status | Key Scope |
 |---|:---:|---|
-| **RepairJob & Immutable RepairContext** | **NOT DONE ⏳** | Frozen snapshot of defect, commit SHA, source SHA256, redacted HTTP/assertion payloads, environment hash. |
-| **Repair Eligibility Policy** | **NOT DONE ⏳** | Filter out auth, crypto, database migrations, CI/CD, and critical bugs before allocating repair compute. |
-| **AST Statement Pinpointer & Scoping** | **NOT DONE ⏳** | Map Phase 6 SBFL localization to exact AST statement node; enforce patch boundaries (`SCOPE_1` to `SCOPE_3`). |
-| **Deterministic-First Patch Synthesis** | **NOT DONE ⏳** | Preconditioned AST mutators (Null guard, boundary, key error, HTTP wrapper); LLM fallback with secret redactor & prompt guard. |
-| **Container Sandbox & Default-Deny Net** | **NOT DONE ⏳** | Ephemeral Git worktree + container sandbox, read-only test mounts (anti-tampering), CPU/RAM/PID quotas, SSRF allowlisting. |
-| **Zero-Observed-Regression Gate** | **NOT DONE ⏳** | Defect test validation (flip to PASS) + static linter + Phase 8 Tier 1 Selective Regression (100% pass, 0 fail/error/timeout). |
-| **Human Approval & PR Dispatcher** | **NOT DONE ⏳** | Web UI candidate approval drawer; least-privilege GitHub App; GPG/SSH signed commits; post-merge CI closed-loop verification. |
+| **RepairJob & Immutable RepairContext** | **DONE ✅** | Frozen snapshot of defect, commit SHA, source SHA256, redacted HTTP/assertion payloads, environment hash. |
+| **Repair Eligibility Policy** | **DONE ✅** | Filter out auth, crypto, database migrations, CI/CD, and critical bugs before allocating repair compute. |
+| **AST Statement Pinpointer & Scoping** | **DONE ✅** | Map Phase 6 SBFL localization to exact AST statement node; enforce patch boundaries (`SCOPE_1` to `SCOPE_3`). |
+| **Deterministic-First Patch Synthesis** | **DONE ✅** | Preconditioned AST mutators (Null guard, boundary, key error, HTTP wrapper); LLM fallback with secret redactor & prompt guard. |
+| **Container Sandbox & Default-Deny Net** | **DONE ✅** | Ephemeral Git worktree + container sandbox, read-only test mounts (anti-tampering), CPU/RAM/PID quotas, SSRF allowlisting. |
+| **Zero-Observed-Regression Gate** | **DONE ✅** | Defect test validation (flip to PASS) + static linter + Phase 8 Tier 1 Selective Regression (100% pass, 0 fail/error/timeout). |
+| **Human Approval & PR Dispatcher** | **DONE ✅** | Least-privilege GitHub App; GPG/SSH signed commits; post-merge CI closed-loop verification; REST API `/api/v1/repair/*`. |
 
 ---
 
