@@ -1,115 +1,140 @@
-# ASTRA Gen 2 — Master Execution Plan & Multi-Phase Roadmap
+# ASTRA Gen 2 — Master Execution Plan & Implementation Status
 
-> **ASTRA Gen 2 — Autonomous, Polyglot, and Self-Healing Microservice Quality Engineering Platform**
-
----
-
-## 1. Executive Vision & Evolution from Gen 1 to Gen 2
-
-### Gen 1 Foundation (Phases 1–10 Completed ✅)
-ASTRA Gen 1 established the scientific foundation of autonomous software quality testing for Python FastAPI microservices:
-- **Phase 1–2**: Core infrastructure, Docker, PostgreSQL, Redis, Celery, and Tree-Sitter AST extraction.
-- **Phase 3–5**: Deterministic invariant generation, ASGITransport sandboxing, SSRF guards, and requirement NLP intelligence.
-- **Phase 6–7**: Semantic failure classification, PKG fault localization, canonical clustering, and XGBoost failure prioritization.
-- **Phase 8–9**: Change-impact selective regression (AST diff $\rightarrow$ PKG reachability $\rightarrow$ Tier 1 / Tier 2 partitioning) and closed-loop GitHub CI/CD webhooks.
-- **Phase 10**: 50-bug empirical benchmark across 4 microservices, 100 negative controls, multi-mode ablation study ($94.0\%$ recall, $99.0\%$ specificity), and academic research viva package.
-- **Verification**: 128/128 containerized tests passing (100% pass rate).
-
-### The Gen 2 Paradigm Shift
-In enterprise cloud-native systems, software quality faces four critical bottlenecks that Gen 1 did not address:
-1. **The Polyglot Reality**: Enterprise microservice architectures are rarely written in a single language. Real-world meshes combine **Go (Gin/Fiber)**, **TypeScript/Node.js (Express/NestJS)**, **Java (Spring Boot)**, and Python.
-2. **The Open-Loop Defect Bottleneck**: Gen 1 detects, localizes, and clusters bugs—but the developer must still manually craft the patch. Gen 2 introduces **Automated Program Repair (APR)** to synthesize patches, verify zero regressions, and open pull requests autonomously.
-3. **The Static-Dynamic Observability Gap**: Gen 1 builds static Program Knowledge Graphs from source code, which cannot discover cross-microservice network calls over HTTP or gRPC. Gen 2 ingests **OpenTelemetry (OTel) distributed traces** to synthesize dynamic cross-service PKG graphs.
-4. **The Synthetic vs. Real Traffic Gap**: Gen 1 evaluates synthetic test cases. Gen 2 introduces **Shadow Traffic Replay** to mirror sanitized production HTTP traffic against sandbox staging environments for semantic regression diffing.
-5. **Adversarial Security**: Gen 2 deploys **Autonomous Red-Team Fuzzing Agents** targeting the OWASP API Security Top 10 alongside Blue-Team assertion validators.
+> **ASTRA Gen 2 — Enterprise Quality Engineering, Polyglot Intelligence & Autonomous Self-Healing Platform**  
+> **Status**: In Active Execution (Phase 1 Canonical Platform Core Completed & Verified ✅)  
+> **Last Updated**: 2026-10-11  
 
 ---
 
-## 2. Gen 2 Architecture Diagram
+## 1. Executive Summary & Progress Dashboard
 
-```text
-                                 ┌────────────────────────────────────────────────────────┐
-                                 │           POLYGLOT REPOSITORIES (GIT COMMITS)          │
-                                 │    Python (FastAPI) • Go (Gin) • TS (Nest) • Java      │
-                                 └───────────────────────────┬────────────────────────────┘
-                                                             │
-                                                             ▼
-                                 ┌────────────────────────────────────────────────────────┐
-                                 │        MULTI-LANGUAGE AST & PKG ENGINE (PHASE 11)      │
-                                 │  Tree-Sitter Parsers • Route Extractors • Struct DTOs  │
-                                 └───────────────────────────┬────────────────────────────┘
-                                                             │
-       ┌─────────────────────────────────────────────────────┼─────────────────────────────────────────────────────┐
-       ▼                                                     ▼                                                     ▼
-┌──────────────────────────────┐              ┌──────────────────────────────┐              ┌──────────────────────────────┐
-│   OPENTELEMETRY TRACING      │              │    CHANGE-IMPACT SELECTIVE   │              │   PRODUCTION SHADOW TRAFFIC  │
-│      ENGINE (PHASE 13)       │              │      REGRESSION (GEN 1)      │              │      REPLAY (PHASE 14)       │
-│ Distributed Trace Ingestion  │              │  AST Diff -> PKG -> Tier 1/2 │              │ Gateway Log Tap -> JSON Diff │
-└──────────────┬───────────────┘              └──────────────┬───────────────┘              └──────────────┬───────────────┘
-               │                                             │                                             │
-               └─────────────────────────────────────────────┼─────────────────────────────────────────────┘
-                                                             │
-                                                             ▼
-                                 ┌────────────────────────────────────────────────────────┐
-                                 │              EXECUTION & VERIFICATION PLANE            │
-                                 │  SSRF Guard • Concurrency Testing • Invariant Oracles  │
-                                 └───────────────────────────┬────────────────────────────┘
-                                                             │
-                                                             ▼
-                                 ┌────────────────────────────────────────────────────────┐
-                                 │           PHASE 6 ROOT-CAUSE & ATTRIBUTION             │
-                                 │    Stack Trace Normalizer • Fault Location Pinpoint    │
-                                 └───────────────────────────┬────────────────────────────┘
-                                                             │
-                                                             ▼
-                                 ┌────────────────────────────────────────────────────────┐
-                                 │      AUTOMATED PROGRAM REPAIR & AUTO-PR (PHASE 12)     │
-                                 │  AST Patch Synthesis • Zero-Regression Gate • Auto-PR  │
-                                 └───────────────────────────┬────────────────────────────┘
-                                                             │
-                                                             ▼
-                                 ┌────────────────────────────────────────────────────────┐
-                                 │     ADVERSARIAL RED-TEAM SECURITY AGENT (PHASE 15)     │
-                                 │   OWASP API Top 10 • IDOR Fuzzing • Auth Stripping     │
-                                 └────────────────────────────────────────────────────────┘
+ASTRA Gen 2 elevates the platform from an API-testing intelligence engine into an **all-in-one autonomous quality engineering platform** covering manual test authoring, automated execution across heterogeneous runners (HTTP, Playwright, k6), requirement traceability, defect lifecycle, and multi-language microservice meshes.
+
+### Overall Status Tracker
+
+```
+[=====================>-----------------------------] 42% Total Gen 2 Completion
+
+✅ DONE:
+  - Canonical Domain Architecture & Data Model Freeze v2.3.0
+  - 34-Dimension Enterprise Testing Benchmark Gap Analysis
+  - Full Backend Security Audit (22 vulnerabilities categorized in security_vulnerabilities.md)
+  - Alembic Migration 0011: Gen 2 Canonical Schema DDL (21 tables created in PostgreSQL 15)
+  - Alembic Migration 0012: Legacy Compatibility Layer (legacy_execution_map & SQL views)
+  - Canonical SQLAlchemy ORM Domain Models (app/models/canonical.py)
+  - Idempotent Migration Backfill Runner (app/db/backfill_gen2.py: Phases A through G)
+  - Mathematical & Cryptographic Invariant Verification (I-1 through I-5: 100% PASS)
+  - Alembic Migration 0013: Canonical Constraints (projects.workspace_id & current_version_id NOT NULL)
+  - Zero-Regression Test Suite (129/129 tests passing across engine and backend)
+
+🔄 IN PROGRESS (Phase 1 Next Milestones):
+  - Milestone 1.2: Gen 2 Canonical REST API Routers & Domain Services
+  - Milestone 1.3: Polyglot AST Parsers (Go Gin/Fiber, Node Express/NestJS, Spring Boot)
+  - Milestone 1.4: Universal Execution Adapters (sandbox_http, playwright, k6, manual)
+  - Milestone 1.5: Frontend UI Expansion (Workspaces, Requirements, Test Library, Defects)
+
+⏳ NOT STARTED (Future Phased Roadmap):
+  - Phase 2 (Phase 12): Automated Program Repair (APR) & Autonomous GitHub PRs
+  - Phase 3 (Phase 13): OpenTelemetry Distributed Tracing & Dynamic Cross-Service PKG
+  - Phase 4 (Phase 14): Production Shadow Traffic Replay & Semantic Diff
+  - Phase 5 (Phase 15): Adversarial Red-Team Multi-Agent Security Fuzzing
+  - Security Workstream: Remediation of 22 Audited Vulnerabilities
 ```
 
 ---
 
-## 3. Gen 2 Phased Master Roadmap
+## 2. Detailed "What's Done" vs "What's Not Done" Matrix
 
-```mermaid
-gantt
-    title ASTRA Gen 2 Master Implementation Roadmap
-    dateFormat  YYYY-MM-DD
-    section Gen 2 Phase 1
-    Polyglot Engine Expansion (Go, TS, Java) :active, p1, 2026-10-15, 14d
-    section Gen 2 Phase 2
-    Automated Program Repair & Auto-PRs      :p2, after p1, 14d
-    section Gen 2 Phase 3
-    OpenTelemetry & Dynamic PKG Tracing      :p3, after p2, 10d
-    section Gen 2 Phase 4
-    Shadow Traffic Replay & Semantic Diff    :p4, after p3, 10d
-    section Gen 2 Phase 5
-    Adversarial Red-Team Multi-Agent Security:p5, after p4, 12d
-```
+### 2.1 Phase 1: Canonical Platform Core & Polyglot Engine
 
-### Phase Summary Table
-
-| Gen 2 Phase | Phase Number | Focus Area | Key Innovations |
-|---|:---:|---|---|
-| **Phase 1** | **Phase 11** | **Polyglot Multi-Language Engine Expansion** | Native Tree-Sitter AST & PKG parsers for Go (Gin/Fiber), TypeScript/Node.js (Express/NestJS), and Java (Spring Boot); cross-language parameter normalization. |
-| **Phase 2** | **Phase 12** | **Automated Program Repair (APR) & Auto-PRs** | AST patch proposal synthesizer, sandboxed patch verification, Zero-Regression Gate, autonomous GitHub Pull Request generator with root-cause explanations. |
-| **Phase 3** | **Phase 13** | **OpenTelemetry Tracing & Dynamic Cross-Service PKG** | Ingestion of Jaeger/Zipkin OTel distributed traces; dynamic multi-microservice dependency edge generation; cross-service impact propagation. |
-| **Phase 4** | **Phase 14** | **Production Shadow Traffic Replay & Semantic Diff** | Gateway access log ingestion, time-travel mock replay, semantic deep JSON diffing to detect silent response changes under real traffic distributions. |
-| **Phase 5** | **Phase 15** | **Adversarial Red-Team Multi-Agent Security Fuzzing** | Autonomous attacker agent targeting OWASP API Top 10 (IDOR, BOLA, JWT stripping, mass assignment) competing against Blue-Team assertion guards. |
+| Component / Deliverable | Status | Verification & Notes |
+|---|:---:|---|
+| **Contract Freeze v2.3.0** | **DONE ✅** | Frozen in [`01_canonical_quality_platform.md`](file:///d:/Astra/planning/gen_2/01_canonical_quality_platform.md); covers 21 canonical tables, adapter protocols, RBAC matrix. |
+| **34-Dimension Gap Analysis** | **DONE ✅** | Complete audit in [`03_benchmark_gap_analysis.md`](file:///d:/Astra/planning/gen_2/03_benchmark_gap_analysis.md) comparing ASTRA against TestRail, Jira, Postman, Playwright, k6. |
+| **Security Audit** | **DONE ✅** | Full codebase audit in [`security_vulnerabilities.md`](file:///d:/Astra/security_vulnerabilities.md) (7 Crit, 6 High, 5 Med, 4 Low). Deferred for security sprint. |
+| **Migration 0011 (Canonical DDL)** | **DONE ✅** | 21 tables created in PostgreSQL 15 (`workspaces` + 20 `g2_*` tables). Pure DDL. |
+| **Migration 0012 (Compatibility)** | **DONE ✅** | Created `legacy_execution_map` and `v_canonical_legacy_runs` view. |
+| **SQLAlchemy ORM Models** | **DONE ✅** | Implemented in [`canonical.py`](file:///d:/Astra/backend/app/models/canonical.py) with dual-dialect SQLite/PostgreSQL support. |
+| **Data Backfill Runner** | **DONE ✅** | [`backfill_gen2.py`](file:///d:/Astra/backend/app/db/backfill_gen2.py) migrated 4 projects, 1 suite, 30 test cases to canonical definitions with `http.v1` specs. |
+| **Verification Invariants** | **DONE ✅** | [`verify_migration_invariants.py`](file:///d:/Astra/backend/app/db/verify_migration_invariants.py) validated I-1, I-2, I-3, I-4, and I-5 (SHA-256 digest match). |
+| **Migration 0013 (Constraints)** | **DONE ✅** | Enforced `NOT NULL` on `projects.workspace_id` and `g2_test_definitions.current_version_id`. |
+| **Test Suite Zero Regression** | **DONE ✅** | 129/129 tests passing (91 engine tests + 38 backend tests). |
+| **Gen 2 REST APIs & Services** | **IN PROGRESS 🔄** | FastAPI routers for `/workspaces`, `/requirements`, `/test-definitions`, `/test-plans`, `/test-cycles`, `/defects`. |
+| **Go AST Parser (Gin/Fiber)** | **NOT DONE ⏳** | Target: Route groups, struct tags (`json:"..." binding:"required"`), path params (`:id`). |
+| **TypeScript AST Parser (Express/Nest)** | **NOT DONE ⏳** | Target: Upgrade `typescript.py` & `javascript.py` to parse Express routes & NestJS decorators. |
+| **Java AST Parser (Spring Boot)** | **NOT DONE ⏳** | Target: `@RestController`, `@GetMapping`, `@PathVariable`, `@Valid @RequestBody DTO`. |
+| **Polyglot PKG Call Graph** | **NOT DONE ⏳** | Target: Cross-language nodes connecting routes $\rightarrow$ handlers $\rightarrow$ models $\rightarrow$ DB. |
+| **Execution Adapters** | **NOT DONE ⏳** | Target: Stateless adapter workers for `sandbox_http`, `playwright`, `k6`, and manual test sessions. |
+| **Frontend Canonical UI** | **NOT DONE ⏳** | Target: Workspaces switcher, Requirements Tree, Test Plan/Cycle board, Defect tracker. |
 
 ---
 
-## 4. Architectural Principles of Gen 2
+### 2.2 [Phase 2 (Phase 12): Automated Program Repair (APR) & Autonomous PRs](file:///d:/Astra/planning/gen_2/04_phase_02_automated_program_repair.md)
 
-1. **Polyglot Uniformity**: The downstream analysis, test generation, ML prioritization, and selective regression engines treat all endpoints equally, whether written in Python, Go, TypeScript, or Java.
-2. **Zero-Regression Guarantee**: Every upgrade must preserve 100% pass rates across all 128 existing Gen 1 test suites.
-3. **Deterministic Safety in APR**: Automated Program Repair will never push code to production directly. It creates isolated temporary branches, verifies zero regressions via Tier 1 selective suites, and opens human-reviewable GitHub Pull Requests.
-4. **Privacy & Security by Design**: Production shadow traffic replay strictly redacts PII, credentials, and Authorization headers before persistent storage or staging replay.
-5. **Offline Scientific Verifiability**: All multi-language parsers, trace synthesizers, and repair benchmarks must run deterministically in containerized environments without reliance on external cloud APIs.
+| Component / Deliverable | Status | Key Scope |
+|---|:---:|---|
+| **Fault Localization to AST Node** | **NOT DONE ⏳** | Map Tarantula/Ochiai SBFL suspiciousness score directly to precise AST statement node. |
+| **AST Patch Synthesis Engine** | **NOT DONE ⏳** | Generate candidate AST replacement nodes for boundary bugs, off-by-one, missing null checks, and auth guards. |
+| **Zero-Regression Verification Gate** | **NOT DONE ⏳** | Sandbox execution of synthesized patch against Tier 1 selective regression suite; fail if any passing test breaks. |
+| **Autonomous GitHub PR Generator** | **NOT DONE ⏳** | Git branch creation, git commit, GitHub Pull Request creation with automated RCA explanation and diff preview. |
+
+---
+
+### 2.3 Phase 3: OpenTelemetry Distributed Tracing & Dynamic Cross-Service PKG
+
+| Component / Deliverable | Status | Key Scope |
+|---|:---:|---|
+| **OTel Trace Ingestion Receiver** | **NOT DONE ⏳** | OTLP HTTP/gRPC receiver endpoint collecting spans and traces from Jaeger/Zipkin/OTel collectors. |
+| **Dynamic Service Dependency Graph** | **NOT DONE ⏳** | Synthesize cross-microservice call edges (HTTP client $\rightarrow$ downstream route) from runtime traces. |
+| **Distributed Impact Propagation** | **NOT DONE ⏳** | When Service A changes, evaluate reachability to Service B and automatically select downstream contract tests. |
+
+---
+
+### 2.4 Phase 4: Production Shadow Traffic Replay & Semantic Diff
+
+| Component / Deliverable | Status | Key Scope |
+|---|:---:|---|
+| **Gateway Log / Mirror Ingestion** | **NOT DONE ⏳** | Ingestion of sanitized HTTP access logs or mirrored network traffic from Envoy/Nginx/Kong. |
+| **PII & Credential Redaction Guard** | **NOT DONE ⏳** | Mandatory real-time scrubbing of authorization tokens, cookies, passwords, and PII before persistence. |
+| **Staging Environment Replay Runner** | **NOT DONE ⏳** | Time-controlled replay of captured traffic against staging release candidates with mock time-travel. |
+| **Semantic JSON Deep Diff Engine** | **NOT DONE ⏳** | Compare production baseline responses against staging replay responses; flag semantic contract regressions. |
+
+---
+
+### 2.5 Phase 5: Adversarial Red-Team Multi-Agent Security Fuzzing
+
+| Component / Deliverable | Status | Key Scope |
+|---|:---:|---|
+| **OWASP API Top 10 Attack Engine** | **NOT DONE ⏳** | Autonomous red-team agents targeting BOLA/IDOR, Broken Authentication, Mass Assignment, and SSRF. |
+| **Blue-Team Defense Evaluator** | **NOT DONE ⏳** | Invariant monitor evaluating whether server responses leak unauthorized tenant data or return 500 crashes. |
+| **Vulnerability Scoring & Auto-Triage** | **NOT DONE ⏳** | CVSS severity scoring, automated PoC reproduction curl scripts, and defect generation in Gen 2 defect lifecycle. |
+
+---
+
+## 3. Immediate Implementation Order (Next Steps)
+
+```
+Step 1: REST API Routers for Gen 2 Canonical Modules (Phase 1.2)
+  ├── Workspaces API (/api/v1/workspaces)
+  ├── Requirements API (/api/v1/projects/{id}/requirements)
+  ├── Test Plans & Cycles API (/api/v1/projects/{id}/test-plans, /test-cycles)
+  └── Defect Lifecycle API (/api/v1/projects/{id}/defects)
+
+Step 2: Polyglot AST Engine (Phase 1.3)
+  ├── Go AST Parser (Gin/Fiber route group & struct tag extractor)
+  ├── TypeScript/Node AST Parser (Express router & NestJS controller extractor)
+  └── Java Spring Boot AST Parser (RestController & DTO extractor)
+
+Step 3: Frontend Gen 2 Experience (Phase 1.4)
+  ├── Workspace selector & navigation
+  ├── Requirements traceability view
+  ├── Hierarchical Test Suite & Definition library
+  └── Defect triage Kanban board
+
+Step 4: Security Remediation Sprint (from security_vulnerabilities.md)
+  ├── CRIT-1: Remove hardcoded auth bypass
+  ├── CRIT-2: Enforce strong JWT secret & short expiry
+  ├── CRIT-3: Implement AES/Fernet encryption for notification URLs
+  ├── CRIT-4: Fix DNS rebinding SSRF protection
+  └── CRIT-7: Add tenant IDOR checks to failure analysis endpoints
+```
