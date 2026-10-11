@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +33,8 @@ def utc_now() -> datetime:
 
 # Pydantic Schemas
 class RepairJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     defect_id: uuid.UUID
     project_id: uuid.UUID
@@ -43,11 +45,10 @@ class RepairJobResponse(BaseModel):
     failure_reason: Optional[str]
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class CandidateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     repair_job_id: uuid.UUID
     defect_id: uuid.UUID
@@ -62,18 +63,17 @@ class CandidateResponse(BaseModel):
     status: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class AuthorizePRRequest(BaseModel):
     reviewer_comment: Optional[str] = "Approved by human engineer."
 
 
 class PullRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: uuid.UUID
     repair_job_id: uuid.UUID
-    candidate_id: uuid.UUID
+    repair_candidate_id: uuid.UUID
     defect_id: uuid.UUID
     github_pr_number: int
     github_pr_url: str
@@ -83,8 +83,6 @@ class PullRequestResponse(BaseModel):
     post_merge_verified: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
 
 
 @router.post("/defects/{defect_id}/trigger", response_model=RepairJobResponse, status_code=status.HTTP_201_CREATED)
