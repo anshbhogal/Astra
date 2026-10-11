@@ -82,10 +82,10 @@ export const AnalyticsDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Header & Project Selector */}
-      <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {/* Top Header & Project Selector - Glass Card with Solid Accent Rail */}
+      <div className="glass-card border-t-4 border-t-brand rounded-2xl p-6 shadow-glass flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-brand font-semibold uppercase tracking-wider mb-1">
+          <div className="flex items-center gap-2 text-xs text-brand font-bold uppercase tracking-wider mb-1">
             <BarChart3 className="w-4 h-4" /> Executive Analytics & Quality Intelligence
           </div>
           <h1 className="text-2xl font-bold text-primary tracking-tight">
@@ -98,12 +98,12 @@ export const AnalyticsDashboard: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Project Selector Dropdown */}
-          <div className="flex items-center gap-2 bg-field border border-border-field rounded-lg px-3 h-10 text-xs">
+          <div className="flex items-center gap-2 bg-field border border-border-field rounded-xl px-3.5 h-10 text-xs shadow-inner">
             <FolderGit2 className="w-4 h-4 text-secondary" />
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="bg-transparent text-primary font-medium focus:outline-none cursor-pointer"
+              className="bg-transparent text-primary font-semibold focus:outline-none cursor-pointer"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id} className="bg-card text-primary">
@@ -125,39 +125,39 @@ export const AnalyticsDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Platform-Wide Overview Strip with 32px Icon Chips */}
+      {/* Platform-Wide Overview Strip with Solid Colored Top Rails */}
       {platformOverview && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+          <div className="glass-card-interactive border-t-4 border-t-indigo-500 rounded-2xl p-5 shadow-glass space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Total Repositories</span>
-              <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+              <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Total Repositories</span>
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                 <FolderGit2 className="w-4 h-4" />
               </div>
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">{platformOverview.total_projects ?? 0}</p>
-              <span className="text-[11px] text-muted">Tracked Microservices</span>
+              <span className="text-[11px] text-muted font-medium">Tracked Microservices</span>
             </div>
           </div>
 
-          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+          <div className="glass-card-interactive border-t-4 border-t-purple-500 rounded-2xl p-5 shadow-glass space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Execution Pipeline</span>
-              <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+              <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Execution Pipeline</span>
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400">
                 <Layers className="w-4 h-4" />
               </div>
             </div>
             <div>
               <p className="text-2xl font-bold text-brand">{platformOverview.total_test_runs ?? 0}</p>
-              <span className="text-[11px] text-muted">Total Test Runs</span>
+              <span className="text-[11px] text-muted font-medium">Total Test Runs</span>
             </div>
           </div>
 
-          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+          <div className="glass-card-interactive border-t-4 border-t-emerald-500 rounded-2xl p-5 shadow-glass space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Pass Rate Average</span>
-              <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed">
+              <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Pass Rate Average</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-status-passed">
                 <BarChart3 className="w-4 h-4" />
               </div>
             </div>
@@ -165,14 +165,14 @@ export const AnalyticsDashboard: React.FC = () => {
               <p className="text-2xl font-bold text-status-passed">
                 {Number(platformOverview.overall_pass_rate ?? 0).toFixed(1)}%
               </p>
-              <span className="text-[11px] text-muted">Across {platformOverview.total_tests_executed ?? 0} tests</span>
+              <span className="text-[11px] text-muted font-medium">Across {platformOverview.total_tests_executed ?? 0} tests</span>
             </div>
           </div>
 
-          <div className="bg-card rounded-xl p-5 border border-border-card shadow-card space-y-2">
+          <div className="glass-card-interactive border-t-4 border-t-cyan-500 rounded-2xl p-5 shadow-glass space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-semibold text-muted tracking-wider">Mean Latency</span>
-              <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent">
+              <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Mean Latency</span>
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
                 <BarChart3 className="w-4 h-4" />
               </div>
             </div>
