@@ -675,3 +675,165 @@ class LegacyExecutionMap(Base):
     migrated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
+
+
+class G2RepairJob(Base):
+    __tablename__ = "g2_repair_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    defect_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_defects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    workspace_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    source_build_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_builds.id", ondelete="SET NULL"), nullable=True
+    )
+    source_commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    base_branch: Mapped[str] = mapped_column(String(100), default="main", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="QUEUED", nullable=False, index=True)
+    trigger_type: Mapped[str] = mapped_column(String(20), default="AUTOMATIC", nullable=False)
+    requested_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    engine_version: Mapped[str] = mapped_column(String(30), nullable=False)
+    config_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    selected_candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    failure_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    candidates: Mapped[List["G2RepairCandidate"]] = relationship(
+        "G2RepairCandidate", back_populates="repair_job", cascade="all, delete-orphan"
+    )
+    pull_requests: Mapped[List["G2RepairPullRequest"]] = relationship(
+        "G2RepairPullRequest", back_populates="repair_job", cascade="all, delete-orphan"
+    )
+
+
+class G2RepairCandidate(Base):
+    __tablename__ = "g2_repair_candidates"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    repair_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_repair_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    defect_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_defects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    candidate_rank: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    generation_method: Mapped[str] = mapped_column(String(30), nullable=False)
+    mutator_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    provider: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    model_version: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    prompt_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    response_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    base_commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_file: Mapped[str] = mapped_column(String(500), nullable=False)
+    target_ast_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_node_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    patch_diff: Mapped[str] = mapped_column(Text, nullable=False)
+    patch_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    candidate_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    patch_scope: Mapped[str] = mapped_column(String(20), default="SCOPE_2", nullable=False)
+    changed_files_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    lines_added: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    lines_removed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    complexity_delta: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    syntax_valid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    policy_valid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ranking_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="GENERATED", nullable=False, index=True)
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    repair_job: Mapped["G2RepairJob"] = relationship("G2RepairJob", back_populates="candidates")
+    verifications: Mapped[List["G2RepairVerification"]] = relationship(
+        "G2RepairVerification", back_populates="candidate", cascade="all, delete-orphan"
+    )
+    pull_requests: Mapped[List["G2RepairPullRequest"]] = relationship(
+        "G2RepairPullRequest", back_populates="candidate", cascade="all, delete-orphan"
+    )
+
+
+class G2RepairVerification(Base):
+    __tablename__ = "g2_repair_verifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_repair_candidates.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    verification_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    execution_attempt_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_execution_attempts.id", ondelete="SET NULL"), nullable=True
+    )
+    build_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_builds.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(30), default="RUNNING", nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tests_total: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tests_passed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tests_failed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tests_error: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    tests_timeout: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    environment_snapshot_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    log_artifact_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    details: Mapped[Dict[str, Any]] = mapped_column(JsonType, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    candidate: Mapped["G2RepairCandidate"] = relationship("G2RepairCandidate", back_populates="verifications")
+
+
+class G2RepairPullRequest(Base):
+    __tablename__ = "g2_repair_pull_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    repair_job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_repair_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    repair_candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_repair_candidates.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    defect_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("g2_defects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    github_pr_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    github_pr_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    branch_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    base_branch: Mapped[str] = mapped_column(String(100), default="main", nullable=False)
+    commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    signing_key_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    pr_status: Mapped[str] = mapped_column(String(30), default="OPEN", nullable=False)
+    post_merge_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    merged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    repair_job: Mapped["G2RepairJob"] = relationship("G2RepairJob", back_populates="pull_requests")
+    candidate: Mapped["G2RepairCandidate"] = relationship("G2RepairCandidate", back_populates="pull_requests")
+
