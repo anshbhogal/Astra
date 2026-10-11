@@ -476,7 +476,7 @@ export const ProjectDetail: React.FC = () => {
       </div>
 
       {/* Project Banner Card */}
-      <div className="bg-card rounded-2xl p-6 border border-border-card shadow-card space-y-5">
+      <div className="glass-card border-t-4 border-t-brand rounded-2xl p-6 shadow-glass space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -575,50 +575,61 @@ export const ProjectDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Real-time Analysis Progress Banner Card - Always Visible */}
-      <div className={`bg-card rounded-2xl p-6 border shadow-card transition-all duration-300 relative overflow-hidden ${
+      {/* Real-time Analysis Progress Banner Card - Clean & Minimalist */}
+      <div className={`glass-card rounded-2xl p-6 shadow-card transition-all duration-200 relative overflow-hidden border ${
         analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing
-          ? 'border-brand ring-1 ring-brand/30'
+          ? 'border-brand/40 ring-1 ring-brand/20'
+          : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
+          ? 'border-emerald-500/25'
+          : analysis?.status === 'FAILED'
+          ? 'border-rose-500/30'
           : 'border-border-card'
       }`}>
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
           <div className="flex items-center gap-3">
             {analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing ? (
-              <span className="relative flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-brand"></span>
-              </span>
+              <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              </div>
             ) : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
-              <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-center shrink-0">
                 <Check className="w-4 h-4 stroke-[2.5]" />
               </div>
             ) : analysis?.status === 'FAILED' ? (
-              <div className="w-8 h-8 rounded-lg bg-status-failed-bg border border-status-failed/30 flex items-center justify-center text-status-failed">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/50 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-4 h-4" />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
-                <Play className="w-3 h-3 fill-current ml-0.5" />
+              <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0">
+                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
               </div>
             )}
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-primary">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h3 className="text-base font-semibold text-primary tracking-tight">
                   Repository Static Analysis Pipeline
                 </h3>
-                <TestStatusBadge
-                  status={
-                    analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED'
-                      ? 'running'
-                      : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                      ? 'passed'
-                      : analysis?.status === 'FAILED'
-                      ? 'failed'
-                      : 'skipped'
-                  }
-                  label={analyzing ? 'RUNNING' : analysis?.status || 'IDLE • READY'}
-                />
+                {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    COMPLETED
+                  </span>
+                ) : analysis?.status === 'RUNNING' || analyzing ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand/10 text-brand border border-brand/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
+                    RUNNING
+                  </span>
+                ) : analysis?.status === 'FAILED' ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    FAILED
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-field text-secondary border border-border-card">
+                    IDLE • READY
+                  </span>
+                )}
               </div>
               <p className="text-xs text-secondary mt-0.5">
                 {getStageInfo(analysis?.current_stage, analysis?.status).desc}
@@ -626,11 +637,11 @@ export const ProjectDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Percentage & Quick Action */}
+          {/* Percentage & Action Button */}
           <div className="flex items-center gap-4 self-start sm:self-auto">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-[11px] uppercase font-semibold text-muted">Progress</span>
-              <span className="text-2xl font-extrabold text-primary">
+              <span className="text-[11px] uppercase font-semibold text-muted tracking-wider">Progress</span>
+              <span className="text-2xl font-bold font-mono text-primary">
                 {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
                   ? 100
                   : analysis?.progress_percent || (analyzing ? 15 : 0)}%
@@ -638,7 +649,7 @@ export const ProjectDetail: React.FC = () => {
             </div>
 
             <Button
-              variant={analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? 'secondary' : 'primary'}
+              variant="secondary"
               size="sm"
               onClick={triggerAnalysis}
               disabled={analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
@@ -652,13 +663,13 @@ export const ProjectDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Animated Progress Bar */}
-        <div className="relative z-10 space-y-1.5 mt-4">
-          <div className="w-full bg-field rounded-full h-2.5 p-0.5 overflow-hidden border border-border-card">
+        {/* Clean Sleek Progress Bar */}
+        <div className="relative z-10 space-y-1 mt-4">
+          <div className="w-full bg-field rounded-full h-2 overflow-hidden border border-border-card">
             <div
-              className={`h-full rounded-full transition-all duration-700 ease-out relative ${
+              className={`h-full rounded-full transition-all duration-500 ease-out ${
                 analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                  ? 'bg-status-passed'
+                  ? 'bg-emerald-500'
                   : 'bg-brand'
               }`}
               style={{
@@ -667,16 +678,12 @@ export const ProjectDetail: React.FC = () => {
                     ? 100
                     : Math.max(analysis?.progress_percent || 0, analyzing ? 15 : 0)}%`,
               }}
-            >
-              {(analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED') && (
-                <div className="absolute inset-0 bg-white/30 rounded-full animate-pulse" />
-              )}
-            </div>
+            />
           </div>
         </div>
 
         {/* 5-Stage Stepper Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 relative z-10">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-4 relative z-10">
           {PIPELINE_STAGES.map((stg, idx) => {
             const stageStatus = getStageStatus(stg.key, analysis?.current_stage, analysis?.status);
             const isCompleted = stageStatus === 'completed';
@@ -685,27 +692,29 @@ export const ProjectDetail: React.FC = () => {
             return (
               <div
                 key={stg.key}
-                className={`rounded-xl p-3 border transition-all ${
+                className={`rounded-xl p-3 border transition-colors ${
                   isActive
-                    ? 'bg-brand/10 border-brand shadow-sm ring-1 ring-brand/30'
+                    ? 'bg-brand/5 border-brand/40 shadow-sm ring-1 ring-brand/20'
                     : isCompleted
-                    ? 'bg-status-passed-bg border-status-passed/30'
-                    : 'bg-field border-border-card'
+                    ? 'bg-card border-emerald-500/25 dark:border-emerald-500/20 shadow-sm'
+                    : 'bg-field/50 border-border-card opacity-60'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   {isCompleted ? (
-                    <CheckCircle2 className="w-4 h-4 text-status-passed shrink-0" />
+                    <div className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
+                    </div>
                   ) : isActive ? (
-                    <RefreshCw className="w-4 h-4 text-brand animate-spin shrink-0" />
+                    <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin shrink-0" />
                   ) : (
-                    <div className="w-4 h-4 rounded-full border border-border-card flex items-center justify-center text-[9px] font-semibold text-muted shrink-0">
+                    <div className="w-4 h-4 rounded-full border border-border-field bg-card flex items-center justify-center text-[9px] font-semibold text-muted shrink-0">
                       {idx + 1}
                     </div>
                   )}
                   <span
-                    className={`text-xs font-semibold truncate ${
-                      isActive ? 'text-brand' : isCompleted ? 'text-status-passed' : 'text-secondary'
+                    className={`text-xs font-medium truncate ${
+                      isActive ? 'text-brand font-semibold' : isCompleted ? 'text-primary' : 'text-secondary'
                     }`}
                   >
                     {stg.label}
@@ -721,49 +730,53 @@ export const ProjectDetail: React.FC = () => {
 
         {/* Live Discovered Telemetry Counters */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-border-card relative z-10 text-xs">
-          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+          {/* Scanned Files */}
+          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
               <FileCode className="w-4 h-4" />
             </div>
             <div>
               <span className="text-muted block text-[10px] uppercase font-semibold">Scanned Files</span>
-              <span className="text-primary font-bold text-base mt-0.5 block">
+              <span className="text-primary font-bold text-base mt-0.5 block font-mono">
                 {analysis?.scanned_files_count || 0}
               </span>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+          {/* Parsed Modules */}
+          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
               <Code2 className="w-4 h-4" />
             </div>
             <div>
               <span className="text-muted block text-[10px] uppercase font-semibold">Parsed Modules</span>
-              <span className="text-primary font-bold text-base mt-0.5 block">
+              <span className="text-primary font-bold text-base mt-0.5 block font-mono">
                 {analysis?.parsed_files_count || 0}
               </span>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed shrink-0">
+          {/* Discovered Endpoints */}
+          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <Cpu className="w-4 h-4" />
             </div>
             <div>
               <span className="text-muted block text-[10px] uppercase font-semibold">Discovered Endpoints</span>
-              <span className="text-status-passed font-bold text-base mt-0.5 block">
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold text-base mt-0.5 block font-mono">
                 {analysis?.endpoint_count || 0}
               </span>
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-field border border-border-card flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+          {/* Knowledge Graph Nodes */}
+          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
+            <div className="w-8 h-8 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
               <Network className="w-4 h-4" />
             </div>
             <div>
               <span className="text-muted block text-[10px] uppercase font-semibold">Knowledge Graph Nodes</span>
-              <span className="text-brand font-bold text-base mt-0.5 block">
+              <span className="text-primary font-bold text-base mt-0.5 block font-mono">
                 {analysis?.graph_node_count || 0}
               </span>
             </div>
@@ -779,39 +792,47 @@ export const ProjectDetail: React.FC = () => {
         )}
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex border-b border-border-card gap-6 text-sm font-semibold text-secondary">
+      {/* Segmented Solid Tabs Navigation */}
+      <div className="p-1.5 rounded-2xl bg-field border border-border-card flex flex-wrap gap-1 text-xs font-semibold shadow-inner">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 transition-all relative ${
-            activeTab === 'overview' ? 'text-brand font-bold border-b-2 border-brand' : 'hover:text-primary'
+          className={`px-4 py-2 rounded-xl transition-all ${
+            activeTab === 'overview'
+              ? 'bg-card text-brand font-bold shadow-sm border border-border-card'
+              : 'text-secondary hover:text-primary hover:bg-hover'
           }`}
         >
           Workspace Overview
         </button>
         <button
           onClick={() => setActiveTab('endpoints')}
-          className={`pb-3 transition-all relative flex items-center gap-1.5 ${
-            activeTab === 'endpoints' ? 'text-brand font-bold border-b-2 border-brand' : 'hover:text-primary'
+          className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            activeTab === 'endpoints'
+              ? 'bg-card text-brand font-bold shadow-sm border border-border-card'
+              : 'text-secondary hover:text-primary hover:bg-hover'
           }`}
         >
-          <Code2 className="w-4 h-4" /> Discovered Endpoints ({endpoints.length})
+          <Code2 className="w-3.5 h-3.5" /> Discovered Endpoints ({endpoints.length})
         </button>
         <button
           onClick={() => setActiveTab('graph')}
-          className={`pb-3 transition-all relative flex items-center gap-1.5 ${
-            activeTab === 'graph' ? 'text-brand font-bold border-b-2 border-brand' : 'hover:text-primary'
+          className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            activeTab === 'graph'
+              ? 'bg-card text-brand font-bold shadow-sm border border-border-card'
+              : 'text-secondary hover:text-primary hover:bg-hover'
           }`}
         >
-          <Network className="w-4 h-4" /> Knowledge Graph ({graph?.nodes.length || 0})
+          <Network className="w-3.5 h-3.5" /> Knowledge Graph ({graph?.nodes.length || 0})
         </button>
         <button
           onClick={() => setActiveTab('testruns')}
-          className={`pb-3 transition-all relative flex items-center gap-1.5 ${
-            activeTab === 'testruns' ? 'text-brand font-bold border-b-2 border-brand' : 'hover:text-primary'
+          className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            activeTab === 'testruns'
+              ? 'bg-card text-brand font-bold shadow-sm border border-border-card'
+              : 'text-secondary hover:text-primary hover:bg-hover'
           }`}
         >
-          <Activity className="w-4 h-4" /> Test Executions ({testRuns.length})
+          <Activity className="w-3.5 h-3.5" /> Test Executions ({testRuns.length})
         </button>
       </div>
 
