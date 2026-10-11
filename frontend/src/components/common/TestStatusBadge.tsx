@@ -62,7 +62,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'passed',
         label: 'Passed',
-        pillClasses: 'bg-status-passed-bg text-status-passed border border-status-passed/30',
+        pillClasses: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/35 shadow-sm',
         Icon: CheckCircle2,
       };
 
@@ -72,7 +72,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'failed',
         label: 'Failed',
-        pillClasses: 'bg-status-failed-bg text-status-failed border border-status-failed/30',
+        pillClasses: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/35 shadow-sm',
         Icon: XCircle,
       };
 
@@ -80,7 +80,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'flaky',
         label: 'Flaky',
-        pillClasses: 'bg-status-flaky-bg text-status-flaky border border-status-flaky/30',
+        pillClasses: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/35 shadow-sm',
         Icon: Shuffle,
       };
 
@@ -91,7 +91,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'running',
         label: 'Running',
-        pillClasses: 'bg-status-running-bg text-status-running border border-status-running/30',
+        pillClasses: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/35 shadow-sm',
         Icon: Loader2,
         spin: true,
       };
@@ -104,7 +104,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'error',
         label: 'Error',
-        pillClasses: 'bg-status-error-bg text-status-error border border-status-error/30',
+        pillClasses: 'bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/35 shadow-sm',
         Icon: AlertTriangle,
       };
 
@@ -116,7 +116,7 @@ const normalizeStatus = (s: string): StatusConfig => {
       return {
         key: 'skipped',
         label: norm === 'SKIPPED' ? 'Skipped' : norm === 'BLOCKED' ? 'Blocked' : norm === 'PENDING' ? 'Pending' : 'Queued',
-        pillClasses: 'bg-status-skipped-bg text-status-skipped border border-status-skipped/30',
+        pillClasses: 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/35 shadow-sm',
         Icon: MinusCircle,
       };
   }
