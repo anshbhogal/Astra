@@ -140,8 +140,8 @@ export const ProjectsList: React.FC = () => {
         </div>
       )}
 
-      {/* Search & Filter Bar */}
-      <div className="flex items-center gap-4">
+      {/* Search & Filter Bar - Glassmorphism Container */}
+      <div className="glass-card p-2 rounded-2xl shadow-glass flex items-center gap-4">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
           <input
@@ -149,7 +149,7 @@ export const ProjectsList: React.FC = () => {
             placeholder="Search repositories by name, language, or URL..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-10 bg-field text-primary text-sm rounded-lg border border-border-field pl-10 pr-4 placeholder-muted focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-app transition-colors"
+            className="w-full h-11 bg-field text-primary text-sm rounded-xl border border-border-field pl-10 pr-4 placeholder-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
           />
         </div>
       </div>
@@ -157,13 +157,13 @@ export const ProjectsList: React.FC = () => {
       {/* Repositories Grid */}
       {loading ? (
         <div className="text-center py-16 text-muted text-sm flex flex-col items-center gap-2">
-          <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-          <span>Loading workspace repositories...</span>
+          <div className="w-8 h-8 border-3 border-brand border-t-transparent rounded-full animate-spin" />
+          <span className="font-medium">Loading workspace repositories...</span>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-card rounded-2xl p-12 text-center space-y-3 border border-border-card shadow-card">
+        <div className="glass-card rounded-2xl p-12 text-center space-y-3 shadow-glass">
           <FolderGit2 className="w-12 h-12 text-muted mx-auto opacity-50" />
-          <h3 className="text-base font-semibold text-primary">No Repositories Found</h3>
+          <h3 className="text-base font-bold text-primary">No Repositories Found</h3>
           <p className="text-xs text-secondary max-w-sm mx-auto">
             {search
               ? 'No repositories match your search query. Try clearing the filter.'
@@ -182,54 +182,66 @@ export const ProjectsList: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredProjects.map((project) => (
-            <Link
-              key={project.id}
-              to={`/projects/${project.id}`}
-              className="bg-card rounded-xl p-5 border border-border-card shadow-card hover:border-brand/50 transition-all duration-150 flex flex-col justify-between space-y-4 group"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand">
-                    {project.language_framework}
-                  </span>
-                  {!isViewer && (
-                    <button
-                      onClick={(e) => handleDeleteProject(project.id, e)}
-                      className="p-1 text-muted hover:text-status-failed rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      title="Delete Repository"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.map((project) => {
+            const lang = project.language_framework?.toUpperCase() || '';
+            const railColor = lang.includes('PYTHON')
+              ? 'border-t-indigo-500'
+              : lang.includes('NODE') || lang.includes('EXPRESS')
+              ? 'border-t-emerald-500'
+              : lang.includes('JAVA')
+              ? 'border-t-amber-500'
+              : 'border-t-sky-500';
+
+            return (
+              <Link
+                key={project.id}
+                to={`/projects/${project.id}`}
+                className={`glass-card-interactive ${railColor} border-t-4 rounded-2xl p-6 shadow-glass flex flex-col justify-between space-y-5 group overflow-hidden`}
+              >
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/25">
+                      {project.language_framework}
+                    </span>
+                    {!isViewer && (
+                      <button
+                        onClick={(e) => handleDeleteProject(project.id, e)}
+                        className="p-1.5 text-muted hover:text-status-failed hover:bg-status-failed-bg rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete Repository"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <h3 className="text-base font-bold text-primary group-hover:text-brand transition-colors flex items-center justify-between">
+                      <span className="truncate">{project.name}</span>
+                      <ArrowUpRight className="w-4 h-4 text-muted group-hover:text-brand transition-colors shrink-0 ml-1" />
+                    </h3>
+                    <p className="text-xs text-secondary line-clamp-2 leading-relaxed">
+                      {project.description || 'No description provided.'}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold text-primary group-hover:text-brand transition-colors flex items-center justify-between">
-                    <span className="truncate">{project.name}</span>
-                    <ArrowUpRight className="w-4 h-4 text-muted group-hover:text-brand transition-colors shrink-0 ml-1" />
-                  </h3>
-                  <p className="text-xs text-secondary line-clamp-2 leading-relaxed">
-                    {project.description || 'No description provided.'}
-                  </p>
+                {/* Solid Structure Card Footer Band */}
+                <div className="pt-3.5 border-t border-border-card text-xs text-secondary space-y-2 bg-field/40 -mx-6 -mb-6 px-6 pb-4">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <ExternalLink className="w-3.5 h-3.5 text-brand shrink-0" />
+                    <span className="truncate text-muted font-mono text-[11px]">{project.repository_url}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted">
+                    <span className="flex items-center gap-1 font-medium">
+                      <GitBranch className="w-3.5 h-3.5 text-secondary" /> <span className="font-mono text-primary">{project.default_branch}</span>
+                    </span>
+                    <span className="font-medium">Owner: <span className="text-primary">{project.owner?.full_name?.split(' ')[0] || 'Admin'}</span></span>
+                  </div>
                 </div>
-              </div>
-
-              <div className="pt-3 border-t border-border-card text-xs text-secondary space-y-1.5">
-                <div className="flex items-center gap-1.5 truncate">
-                  <ExternalLink className="w-3.5 h-3.5 text-muted shrink-0" />
-                  <span className="truncate text-muted font-mono">{project.repository_url}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted">
-                  <span className="flex items-center gap-1">
-                    <GitBranch className="w-3.5 h-3.5" /> <span className="font-mono">{project.default_branch}</span>
-                  </span>
-                  <span>Owner: {project.owner?.full_name?.split(' ')[0] || 'Admin'}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       )}
 
