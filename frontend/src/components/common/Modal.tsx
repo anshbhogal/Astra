@@ -26,8 +26,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/40 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg bg-card rounded-2xl p-6 shadow-xl border border-border-card text-primary">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-lg glass-card-elevated border-t-4 border-t-brand rounded-2xl p-6 shadow-glass-elevated border border-border-glass text-primary">
         <div className="flex items-center justify-between pb-4 border-b border-border-card">
           <h3 className="text-lg font-semibold text-primary">{title}</h3>
           <button
