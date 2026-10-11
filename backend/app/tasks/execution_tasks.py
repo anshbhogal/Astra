@@ -46,6 +46,12 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
                 await db.commit()
 
                 env_config = TargetEnvironmentConfig.from_dict(run.target_environment or {})
+                import os
+                if os.path.exists("/.dockerenv") or os.environ.get("CELERY_BROKER_URL"):
+                    if "localhost:8000" in env_config.base_url or "127.0.0.1:8000" in env_config.base_url:
+                        env_config.base_url = env_config.base_url.replace("localhost:8000", "backend:8000").replace("127.0.0.1:8000", "backend:8000")
+                    elif "localhost" in env_config.base_url or "127.0.0.1" in env_config.base_url:
+                        env_config.base_url = env_config.base_url.replace("localhost", "host.docker.internal").replace("127.0.0.1", "host.docker.internal")
 
                 # Stage 2: Pre-flight Liveness Health Check
                 is_healthy, health_msg = await HealthChecker.check_health(env_config)
@@ -77,10 +83,13 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
                 import redis.asyncio as aioredis
                 r = aioredis.from_url(settings.REDIS_URL)
 
-                for tc in cases:
+                for idx, tc in enumerate(cases):
                     # Cooperative Cancellation Check
                     is_cancelled = await r.get(f"cancel_test_run:{run.id}")
                     if is_cancelled:
+                        env_meta = dict(run.target_environment or {})
+                        env_meta.pop("current_test", None)
+                        run.target_environment = env_meta
                         run.status = TestRunStatus.CANCELLED
                         run.error_message = "Test run cancelled by user."
                         run.completed_at = utc_now()
@@ -91,8 +100,23 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
                     spec_dict = tc.specification or {}
                     spec = TestSpecification.from_dict(spec_dict)
 
+                    # Record current running test step for real-time frontend telemetry
+                    env_meta = dict(run.target_environment or {})
+                    env_meta["current_test"] = {
+                        "index": idx + 1,
+                        "total": len(cases),
+                        "name": tc.name or f"{spec.method} {spec.path}",
+                        "method": spec.method,
+                        "path": spec.path
+                    }
+                    run.target_environment = env_meta
+                    await db.commit()
+
                     # Execute HTTP Spec
                     res_dict = await HTTPXTestRunner.run_spec(spec, env_config)
+
+                    # Small execution pace so real-time telemetry is visible in frontend UI
+                    await asyncio.sleep(0.06)
 
                     outcome_str = res_dict["outcome"]
                     if outcome_str == TestOutcome.PASS.value:
@@ -133,6 +157,9 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
                 await r.aclose()
 
                 # Finish Test Run
+                env_meta = dict(run.target_environment or {})
+                env_meta.pop("current_test", None)
+                run.target_environment = env_meta
                 run.duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
                 run.completed_at = utc_now()
                 if failed_count > 0 or error_count > 0:
@@ -142,6 +169,9 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
                 await db.commit()
 
             except Exception as e:
+                env_meta = dict(run.target_environment or {})
+                env_meta.pop("current_test", None)
+                run.target_environment = env_meta
                 run.status = TestRunStatus.FAILED
                 run.error_message = str(e)
                 run.completed_at = utc_now()

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ExternalLink,
@@ -27,6 +27,8 @@ import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
 import { KnowledgeGraphVisualizer } from '../components/KnowledgeGraphVisualizer';
 import { TestStatusBadge, type TestStatus } from '../components/common/TestStatusBadge';
 import { Button } from '../components/common/Button';
+import { Modal } from '../components/common/Modal';
+import { Input } from '../components/common/Input';
 
 const mapRunStatusToBadge = (status?: string): TestStatus => {
   switch ((status || '').toUpperCase()) {
@@ -242,6 +244,7 @@ const formatFrameworkName = (raw?: string | null): string => {
 
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [endpoints, setEndpoints] = useState<DiscoveredEndpoint[]>([]);
@@ -256,6 +259,9 @@ export const ProjectDetail: React.FC = () => {
   const [dispatchingRun, setDispatchingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'graph' | 'testruns'>('overview');
+  const [selectedSuiteForRun, setSelectedSuiteForRun] = useState<TestSuite | null>(null);
+  const [targetBaseUrl, setTargetBaseUrl] = useState('http://localhost:5000');
+  const [healthCheckPath, setHealthCheckPath] = useState('/health');
 
   useEffect(() => {
     if (!id) return;
@@ -303,6 +309,19 @@ export const ProjectDetail: React.FC = () => {
       if (timer) clearInterval(timer);
     };
   }, [analysis?.status, id]);
+
+  useEffect(() => {
+    const hasRunningTests = testRuns.some(
+      (r) => r.status === 'RUNNING' || r.status === 'STARTING' || r.status === 'PENDING'
+    );
+    if (!hasRunningTests) return;
+
+    const timer = setInterval(() => {
+      fetchTestRuns();
+    }, 1200);
+
+    return () => clearInterval(timer);
+  }, [testRuns, id]);
 
   const fetchLatestAnalysis = async () => {
     if (!id) return;
@@ -409,17 +428,24 @@ export const ProjectDetail: React.FC = () => {
     }
   };
 
-  const dispatchRun = async (suiteId: string) => {
+  const dispatchRun = async (suiteId: string, customUrl?: string, customHealthPath?: string) => {
     setDispatchingRun(true);
+    const resolvedUrl = (customUrl || targetBaseUrl || 'http://localhost:5000').trim();
+    const resolvedHealth = (customHealthPath || healthCheckPath || '/health').trim();
     try {
-      await api.post(`/projects/${id}/test-runs`, {
+      const res = await api.post(`/projects/${id}/test-runs`, {
         suite_id: suiteId,
-        target_base_url: 'http://localhost:8000',
+        target_base_url: resolvedUrl,
         environment_type: 'LOCAL_SANDBOX',
-        health_check_path: '/health',
+        health_check_path: resolvedHealth,
       });
       fetchTestRuns();
-      setActiveTab('testruns');
+      setSelectedSuiteForRun(null);
+      if (res.data?.id) {
+        navigate(`/projects/${id}/test-runs/${res.data.id}`);
+      } else {
+        setActiveTab('testruns');
+      }
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to dispatch test run.');
     } finally {
@@ -1040,7 +1066,7 @@ export const ProjectDetail: React.FC = () => {
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => dispatchRun(s.id)}
+                      onClick={() => setSelectedSuiteForRun(s)}
                       disabled={dispatchingRun}
                       leftIcon={<Play className="w-3 h-3 fill-current" />}
                     >
@@ -1080,16 +1106,50 @@ export const ProjectDetail: React.FC = () => {
                         />
                       </td>
                       <td className="px-4 py-3 text-primary font-bold">
-                        <span className="text-status-passed">{run.passed_tests}</span> / {run.total_tests}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span><span className="text-status-passed">{run.passed_tests}</span> / {run.total_tests}</span>
+                            {run.total_tests > 0 && (
+                              <span className="text-[10px] text-muted font-mono">
+                                ({Math.round(((run.passed_tests + run.failed_tests + run.error_tests) / run.total_tests) * 100)}%)
+                              </span>
+                            )}
+                          </div>
+                          {run.total_tests > 0 && (
+                            <div className="w-24 h-1.5 bg-field rounded-full overflow-hidden border border-border-field">
+                              <div
+                                className={`h-full ${
+                                  run.status === 'RUNNING' || run.status === 'STARTING' || run.status === 'PENDING'
+                                    ? 'bg-brand animate-pulse'
+                                    : run.failed_tests > 0
+                                    ? 'bg-status-failed'
+                                    : 'bg-status-passed'
+                                }`}
+                                style={{
+                                  width: `${Math.min(100, Math.round(((run.passed_tests + run.failed_tests + run.error_tests) / run.total_tests) * 100))}%`
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-secondary font-mono">{Number(run.duration_ms ?? 0).toFixed(0)} ms</td>
                       <td className="px-4 py-3 text-muted">{new Date(run.created_at).toLocaleTimeString()}</td>
                       <td className="px-4 py-3">
                         <Link
                           to={`/projects/${project.id}/test-runs/${run.id}`}
-                          className="inline-flex items-center gap-1 text-brand hover:text-brand-hover font-semibold transition-colors"
+                          className="inline-flex items-center gap-1.5 text-brand hover:text-brand-hover font-semibold transition-colors"
                         >
-                          View Results <ChevronRight className="w-3.5 h-3.5" />
+                          {run.status === 'RUNNING' || run.status === 'STARTING' || run.status === 'PENDING' ? (
+                            <>
+                              <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
+                              View Live <ChevronRight className="w-3.5 h-3.5" />
+                            </>
+                          ) : (
+                            <>
+                              View Results <ChevronRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
                         </Link>
                       </td>
                     </tr>
@@ -1113,6 +1173,86 @@ export const ProjectDetail: React.FC = () => {
             fetchTestRuns();
           }}
         />
+      )}
+
+      {/* Target Sandbox Configuration Modal */}
+      {selectedSuiteForRun && (
+        <Modal
+          isOpen={!!selectedSuiteForRun}
+          onClose={() => setSelectedSuiteForRun(null)}
+          title="Dispatch Test Suite Execution"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3.5 rounded-xl bg-field border border-border-card space-y-1">
+              <span className="font-bold text-primary block text-sm">{selectedSuiteForRun.name}</span>
+              <p className="text-secondary text-[11px]">
+                {selectedSuiteForRun.total_cases} test cases will be executed asynchronously against your target environment.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="font-semibold text-primary block">Target Application Base URL</label>
+              <Input
+                value={targetBaseUrl}
+                onChange={(e) => setTargetBaseUrl(e.target.value)}
+                placeholder="http://localhost:5000"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <span className="text-[10px] text-muted">Presets:</span>
+                {[
+                  { label: 'Flask (:5000)', url: 'http://localhost:5000' },
+                  { label: 'Node (:3000)', url: 'http://localhost:3000' },
+                  { label: 'Spring (:8080)', url: 'http://localhost:8080' },
+                  { label: 'Astra API (:8000)', url: 'http://localhost:8000' },
+                ].map((preset) => (
+                  <button
+                    key={preset.url}
+                    type="button"
+                    onClick={() => setTargetBaseUrl(preset.url)}
+                    className="px-2 py-0.5 rounded text-[10px] bg-card border border-border-card text-secondary hover:text-primary hover:border-brand transition-colors"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted leading-relaxed">
+                Provide the address where your scanned application server is listening. Astra will send all HTTP test specifications directly to this target.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-primary block">Pre-flight Liveness Health Path</label>
+              <Input
+                value={healthCheckPath}
+                onChange={(e) => setHealthCheckPath(e.target.value)}
+                placeholder="/health or /"
+              />
+              <p className="text-[11px] text-muted">
+                Initial ping to verify that the application sandbox is reachable before initiating execution.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-card">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedSuiteForRun(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => dispatchRun(selectedSuiteForRun.id)}
+                disabled={dispatchingRun || !targetBaseUrl.trim()}
+                isLoading={dispatchingRun}
+                leftIcon={<Play className="w-3 h-3 fill-current" />}
+              >
+                Start Execution
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

@@ -646,7 +646,7 @@ class FlakyTestRecordModel(Base):
     latency_mean_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
     latency_std_ms: Mapped[float] = mapped_column(default=0.0, nullable=False)
     status: Mapped[FlakyTestStatus] = mapped_column(
-        SQLEnum(FlakyTestStatus), default=FlakyTestStatus.ACTIVE, nullable=False
+        SQLEnum(FlakyTestStatus, native_enum=False), default=FlakyTestStatus.ACTIVE, nullable=False
     )
     last_evaluated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
@@ -700,7 +700,7 @@ class HealingCandidateModel(Base):
     patch_operations: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     confidence: Mapped[float] = mapped_column(default=0.8, nullable=False)
     status: Mapped[HealingCandidateStatus] = mapped_column(
-        SQLEnum(HealingCandidateStatus), default=HealingCandidateStatus.PENDING, nullable=False
+        SQLEnum(HealingCandidateStatus, native_enum=False), default=HealingCandidateStatus.PENDING, nullable=False
     )
     approved_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -774,7 +774,7 @@ class RegressionAnalysisModel(Base):
     impact_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
     safety_expansion_triggered: Mapped[bool] = mapped_column(default=False, nullable=False)
     status: Mapped[RegressionAnalysisStatus] = mapped_column(
-        SQLEnum(RegressionAnalysisStatus), default=RegressionAnalysisStatus.QUEUED, nullable=False
+        SQLEnum(RegressionAnalysisStatus, native_enum=False), default=RegressionAnalysisStatus.QUEUED, nullable=False
     )
     analysis_warnings: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -835,7 +835,7 @@ class SelectiveExecutionRunModel(Base):
         UUID(as_uuid=True), ForeignKey("test_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     execution_tier: Mapped[ExecutionTier] = mapped_column(
-        SQLEnum(ExecutionTier), default=ExecutionTier.TIER1_TARGETED, nullable=False
+        SQLEnum(ExecutionTier, native_enum=False), default=ExecutionTier.TIER1_TARGETED, nullable=False
     )
     selected_test_details: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     deferred_test_details: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
@@ -915,7 +915,7 @@ class CIPipelineRunModel(Base):
     target_commit: Mapped[str] = mapped_column(String(64), nullable=False)
     branch: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     pipeline_status: Mapped[CIPipelineStatus] = mapped_column(
-        SQLEnum(CIPipelineStatus), default=CIPipelineStatus.QUEUED, nullable=False
+        SQLEnum(CIPipelineStatus, native_enum=False), default=CIPipelineStatus.QUEUED, nullable=False
     )
     quality_gate_status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
     github_check_run_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

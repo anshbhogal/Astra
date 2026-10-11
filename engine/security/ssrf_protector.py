@@ -54,7 +54,7 @@ class SSRFProtector:
         # 2. In LOCAL_SANDBOX mode, allow hostnames explicitly configured (e.g. localhost, testserver, backend, docker service names)
         if config.environment_type == EnvironmentType.LOCAL_SANDBOX:
             allowed_hosts = [h.lower() for h in config.allowed_networks]
-            if hostname.lower() in allowed_hosts or any(hostname.lower().startswith(h) for h in ["localhost", "127.0.0.1", "backend", "astra", "testserver", "test"]):
+            if hostname.lower() in allowed_hosts or any(hostname.lower().startswith(h) for h in ["localhost", "127.0.0.1", "backend", "astra", "testserver", "test", "host.docker.internal"]):
                 return True, hostname
 
         # Resolve IP addresses for hostname

@@ -14,7 +14,7 @@ class TargetEnvironmentConfig:
     environment_type: EnvironmentType = EnvironmentType.LOCAL_SANDBOX
     health_check_path: str = "/health"
     timeout_seconds: float = 10.0
-    allowed_networks: List[str] = field(default_factory=lambda: ["127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "localhost", "backend", "astra_backend", "postgres", "redis"])
+    allowed_networks: List[str] = field(default_factory=lambda: ["127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "localhost", "backend", "astra_backend", "postgres", "redis", "host.docker.internal"])
     verify_ssl: bool = False
     custom_headers: Dict[str, str] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -41,7 +41,7 @@ class TargetEnvironmentConfig:
             environment_type=env_type,
             health_check_path=data.get("health_check_path", "/health"),
             timeout_seconds=float(data.get("timeout_seconds", 10.0)),
-            allowed_networks=data.get("allowed_networks", ["127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "localhost", "backend", "astra_backend", "postgres", "redis"]),
+            allowed_networks=data.get("allowed_networks", ["127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "localhost", "backend", "astra_backend", "postgres", "redis", "host.docker.internal"]),
             verify_ssl=bool(data.get("verify_ssl", False)),
             custom_headers=data.get("custom_headers", {}),
             metadata=data.get("metadata", {})

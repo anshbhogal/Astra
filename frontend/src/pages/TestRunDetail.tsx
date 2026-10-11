@@ -11,22 +11,36 @@ import {
   Layers,
   ChevronRight,
   ChevronDown,
+  Loader2,
+  Activity,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Button } from '../components/common/Button';
 import { TestStatusBadge, type TestStatus } from '../components/common/TestStatusBadge';
 
+interface CurrentTestMeta {
+  index: number;
+  total: number;
+  name: string;
+  method: string;
+  path: string;
+}
+
 interface TestRun {
   id: string;
   project_id: string;
   suite_id: string;
-  status: 'PENDING' | 'STARTING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'TIMED_OUT' | 'CANCELLED' | 'ENVIRONMENT_ERROR';
+  status: 'PENDING' | 'STARTING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'TIMED_OUT' | 'CANCELLED' | 'ENVIRONMENT_ERROR' | 'ERROR';
   total_tests: number;
   passed_tests: number;
   failed_tests: number;
   error_tests: number;
   duration_ms: number;
-  target_environment: { base_url?: string; environment_type?: string };
+  target_environment: {
+    base_url?: string;
+    environment_type?: string;
+    current_test?: CurrentTestMeta;
+  };
   error_message: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -103,14 +117,17 @@ export const TestRunDetail: React.FC = () => {
   }, [runId]);
 
   useEffect(() => {
+    let timer: any = null;
     if (testRun && (testRun.status === 'PENDING' || testRun.status === 'STARTING' || testRun.status === 'RUNNING')) {
-      const timer = setInterval(() => {
+      timer = setInterval(() => {
         fetchTestRun();
         fetchResults();
-      }, 2000);
-      return () => clearInterval(timer);
+      }, 750);
     }
-  }, [testRun]);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [testRun?.status, runId]);
 
   const fetchTestRun = async () => {
     try {
@@ -171,7 +188,13 @@ export const TestRunDetail: React.FC = () => {
 
   const failedCount = testRun.failed_tests || 0;
   const passedCount = testRun.passed_tests || 0;
+  const errorCount = testRun.error_tests || 0;
   const isRunning = testRun.status === 'RUNNING' || testRun.status === 'STARTING' || testRun.status === 'PENDING';
+
+  const currentTest = testRun.target_environment?.current_test;
+  const totalTests = testRun.total_tests || currentTest?.total || (results.length > 0 ? results.length : 1);
+  const completedCount = passedCount + failedCount + errorCount;
+  const progressPercent = totalTests > 0 ? Math.min(100, Math.round((completedCount / totalTests) * 100)) : 0;
 
   return (
     <div className="space-y-6">
@@ -191,7 +214,19 @@ export const TestRunDetail: React.FC = () => {
       {/* Plain Language Status Banner (Status First principle) */}
       <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          {failedCount === 0 ? (
+          {isRunning ? (
+            <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/30 text-brand flex items-center justify-center shrink-0">
+              <Loader2 className="w-6 h-6 animate-spin text-brand" />
+            </div>
+          ) : testRun.status === 'ENVIRONMENT_ERROR' || testRun.status === 'ERROR' ? (
+            <div className="w-10 h-10 rounded-xl bg-status-error-bg border border-status-error/30 text-status-error flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+          ) : testRun.status === 'CANCELLED' ? (
+            <div className="w-10 h-10 rounded-xl bg-field border border-border-card text-muted flex items-center justify-center shrink-0">
+              <StopCircle className="w-6 h-6" />
+            </div>
+          ) : failedCount === 0 ? (
             <div className="w-10 h-10 rounded-xl bg-status-passed-bg border border-status-passed/30 text-status-passed flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-6 h-6" />
             </div>
@@ -201,17 +236,51 @@ export const TestRunDetail: React.FC = () => {
             </div>
           )}
           <div>
-            <h2 className="text-base font-bold text-primary">
-              {failedCount === 0
-                ? `All ${passedCount} tests passed smoothly after your last execution`
-                : `${failedCount} ${failedCount === 1 ? 'test' : 'tests'} failed after your last change`}
-            </h2>
-            <p className="text-xs text-secondary mt-0.5">
-              Target sandbox:{' '}
-              <span className="font-mono text-primary font-semibold">
-                {testRun.target_environment.base_url || 'http://localhost:8000'}
-              </span>
-            </p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-primary">
+                {isRunning
+                  ? currentTest
+                    ? `Running Test Suite: Step ${currentTest.index} of ${currentTest.total}`
+                    : `Starting Test Suite Execution (${completedCount} of ${totalTests} completed)`
+                  : testRun.status === 'ENVIRONMENT_ERROR'
+                  ? 'Pre-flight Health Check Failed'
+                  : testRun.status === 'ERROR'
+                  ? 'Runtime Test Execution Error'
+                  : testRun.status === 'CANCELLED'
+                  ? 'Test Execution Aborted by User'
+                  : failedCount === 0
+                  ? `All ${passedCount} tests passed smoothly after your last execution`
+                  : `${failedCount} ${failedCount === 1 ? 'test' : 'tests'} failed after your last change`}
+              </h2>
+              {isRunning && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand text-on-brand animate-pulse tracking-wider">
+                  LIVE
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-secondary mt-1 flex flex-wrap items-center gap-2">
+              {isRunning && currentTest ? (
+                <>
+                  <span className="text-muted font-medium">Currently testing:</span>
+                  <span className="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-brand/10 text-brand border border-brand/20">
+                    {currentTest.method}
+                  </span>
+                  <span className="font-mono text-primary font-semibold">{currentTest.path}</span>
+                  <span className="text-muted font-sans font-normal">({currentTest.name})</span>
+                </>
+              ) : testRun.error_message ? (
+                <span className="text-status-error font-mono font-medium">
+                  {testRun.error_message}
+                </span>
+              ) : (
+                <span>
+                  Target sandbox:{' '}
+                  <span className="font-mono text-primary font-semibold">
+                    {testRun.target_environment.base_url || 'http://localhost:8000'}
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -231,6 +300,56 @@ export const TestRunDetail: React.FC = () => {
               Abort Run
             </Button>
           )}
+        </div>
+      </div>
+
+      {/* Real-time Execution Telemetry & Progress Card */}
+      <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-3">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-brand" />
+            <span className="font-bold text-primary">Execution Telemetry</span>
+            {isRunning && (
+              <span className="text-[11px] text-muted flex items-center gap-1.5 font-medium ml-1">
+                <span className="w-2 h-2 rounded-full bg-status-passed animate-ping" />
+                Live sandbox runner
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted font-mono">{completedCount} / {totalTests} steps</span>
+            <span className="font-mono font-bold text-brand text-sm px-2.5 py-0.5 bg-brand/10 rounded-lg">
+              {progressPercent}%
+            </span>
+          </div>
+        </div>
+
+        {/* Visual Progress Bar Track */}
+        <div className="w-full h-3 bg-field rounded-full overflow-hidden border border-border-field relative">
+          <div
+            className={`h-full transition-all duration-300 ease-out rounded-full ${
+              isRunning
+                ? 'bg-gradient-to-r from-brand via-brand-hover to-secondaryAccent animate-pulse'
+                : failedCount > 0
+                ? 'bg-gradient-to-r from-status-passed via-status-passed to-status-failed'
+                : 'bg-status-passed'
+            }`}
+            style={{ width: `${Math.max(isRunning ? 5 : 0, progressPercent)}%` }}
+          />
+        </div>
+
+        {/* Micro statistics */}
+        <div className="flex items-center justify-between text-[11px] text-muted pt-1">
+          <span>
+            {isRunning && currentTest
+              ? `Step ${currentTest.index} of ${totalTests} in progress`
+              : `${completedCount} of ${totalTests} tests completed`}
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-status-passed font-semibold">{passedCount} Passed</span>
+            <span className="text-status-failed font-semibold">{failedCount} Failed</span>
+            {errorCount > 0 && <span className="text-status-error font-semibold">{errorCount} Errors</span>}
+          </div>
         </div>
       </div>
 
@@ -359,6 +478,24 @@ export const TestRunDetail: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border-card text-secondary">
+            {isRunning && currentTest && (
+              <tr className="bg-brand/5 border-l-4 border-l-brand hover:bg-brand/10 transition-colors">
+                <td className="px-5 py-3">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-brand/10 text-brand border border-brand/30 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" /> RUNNING
+                  </span>
+                </td>
+                <td className="px-5 py-3 font-mono font-bold text-brand">{currentTest.method}</td>
+                <td className="px-5 py-3 font-mono text-primary font-bold">
+                  <span>{currentTest.path}</span>
+                  <span className="text-[10px] text-muted font-sans font-normal ml-2">({currentTest.name})</span>
+                </td>
+                <td className="px-5 py-3 text-secondary font-medium">Step {currentTest.index} / {currentTest.total}</td>
+                <td className="px-5 py-3 font-mono text-brand font-semibold animate-pulse">in-flight...</td>
+                <td className="px-5 py-3 font-mono text-muted">--</td>
+                <td className="px-5 py-3 text-brand text-[11px] font-semibold">Executing in sandbox</td>
+              </tr>
+            )}
             {filteredResults.map((res) => {
               const isExpanded = expandedId === res.id;
               return (
