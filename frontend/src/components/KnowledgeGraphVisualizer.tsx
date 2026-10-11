@@ -10,6 +10,10 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Minimize2,
+  RotateCcw,
+  PanelLeftClose,
+  PanelLeft,
   List,
   Download,
   ChevronRight,
@@ -457,9 +461,12 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
   const [view, setView] = useState({ k: 1, x: 0, y: 0 });
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [copied, setCopied] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenWrapperRef = useRef<HTMLDivElement | null>(null);
   const panRef = useRef<{ pointerId: number; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
   const pendingFocus = useRef<string | null>(null);
   const markerPrefix = `kg${useId().replace(/:/g, '')}`;
@@ -626,6 +633,79 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
     [selectNode, centerOn]
   );
 
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => {
+      const next = !prev;
+      if (next) {
+        if (fullscreenWrapperRef.current?.requestFullscreen && !document.fullscreenElement) {
+          fullscreenWrapperRef.current.requestFullscreen().catch(() => {});
+        }
+      } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  // Listen to browser native fullscreen events
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  // Keyboard shortcut: Press 'F' to toggle fullscreen, 'Esc' to exit
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+        setIsFullscreen(false);
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === 'f' || e.key === 'F') {
+        if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen, toggleFullscreen]);
+
+  // Adjust body scroll when fullscreen
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFullscreen]);
+
+  // Re-fit view smoothly on fullscreen toggle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (showCanvas && bounds) {
+        fitView(bounds);
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [isFullscreen, showCanvas, bounds, fitView]);
+
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -762,21 +842,77 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
   const maxUsed = hotSpots[0]?.inDegree || 1;
 
   return (
-    <div className="space-y-4">
-      {/* Summary: the whole project in one row */}
-      <div className="bg-card rounded-2xl p-4 border border-border-card shadow-card flex flex-wrap items-center gap-3">
-        <div className="mr-2">
-          <h2 className="text-sm font-bold text-primary">{projectName}</h2>
-          <p className="text-[11px] text-secondary max-w-[260px]">Click any box to see what it uses and what to re-test if it changes.</p>
+    <div
+      ref={fullscreenWrapperRef}
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-50 bg-app p-4 sm:p-5 flex flex-col w-screen h-screen overflow-hidden backdrop-blur-xl animate-fade-in'
+          : 'space-y-4 relative'
+      }
+    >
+      {/* Summary: shown when not in fullscreen */}
+      {!isFullscreen && (
+        <div className="bg-card rounded-2xl p-4 border border-border-card shadow-card flex flex-wrap items-center gap-3">
+          <div className="mr-2">
+            <h2 className="text-sm font-bold text-primary">{projectName}</h2>
+            <p className="text-[11px] text-secondary max-w-[260px]">Click any box to see what it uses and what to re-test if it changes.</p>
+          </div>
+          <Stat label="Modules" value={totals.modules} tone="text-secondaryAccent" />
+          <Stat label="API endpoints" value={totals.endpoints} tone="text-status-passed" />
+          <Stat label="Functions" value={totals.functions} tone="text-brand" />
+          <Stat label="Dependencies" value={totals.links} tone="text-brand" />
         </div>
-        <Stat label="Modules" value={totals.modules} tone="text-secondaryAccent" />
-        <Stat label="API endpoints" value={totals.endpoints} tone="text-status-passed" />
-        <Stat label="Functions" value={totals.functions} tone="text-brand" />
-        <Stat label="Dependencies" value={totals.links} tone="text-brand" />
-      </div>
+      )}
+
+      {/* Full Screen Top Header Bar */}
+      {isFullscreen && (
+        <div className="bg-card/95 border border-border-card rounded-2xl px-5 py-3 shadow-card backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0 mb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-brand/15 border border-brand/30 flex items-center justify-center text-brand shrink-0">
+              <Network className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-primary tracking-tight">{projectName}</h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/15 text-brand border border-brand/30">
+                  Full Screen Explorer
+                </span>
+              </div>
+              <p className="text-[11px] text-muted">
+                {totals.modules} modules • {totals.endpoints} endpoints • {totals.functions} functions • {totals.links} dependencies
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {showCanvas && (
+              <button
+                onClick={() => setIsSidebarOpen((v) => !v)}
+                className="px-2.5 py-1.5 rounded-xl bg-field hover:bg-hover border border-border-card text-xs font-semibold text-secondary hover:text-primary transition-colors flex items-center gap-1.5"
+                title={isSidebarOpen ? 'Hide analysis sidebar' : 'Show analysis sidebar'}
+              >
+                {isSidebarOpen ? <PanelLeftClose className="w-4 h-4 text-brand" /> : <PanelLeft className="w-4 h-4" />}
+                <span className="hidden sm:inline">{isSidebarOpen ? 'Hide Panel' : 'Show Panel'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={toggleFullscreen}
+              className="px-3 py-1.5 rounded-xl bg-brand hover:bg-brand-hover text-on-brand text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+              title="Exit Full Screen Mode (Press Esc or F)"
+            >
+              <Minimize2 className="w-4 h-4" />
+              <span>Exit Full Screen</span>
+              <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-black/20 text-[10px] font-mono text-on-brand/90">
+                ESC
+              </kbd>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Controls */}
-      <div className="bg-card rounded-2xl p-3 border border-border-card shadow-card flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      <div className="bg-card rounded-2xl p-3 border border-border-card shadow-card flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 shrink-0">
         <div role="tablist" aria-label="Graph view" className="flex flex-wrap items-center bg-field border border-border-card rounded-xl p-1 text-xs">
           {tabs.map(({ mode, label, Icon }) => (
             <button key={mode} role="tab" aria-selected={viewMode === mode} onClick={() => setViewMode(mode)} className={tabClass(viewMode === mode)}>
@@ -836,64 +972,97 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           >
             <Download className="w-4 h-4" />
           </button>
+
+          {/* Full Screen Toggle Button */}
+          <button
+            onClick={toggleFullscreen}
+            className={`p-2 sm:px-3 sm:py-2 rounded-xl border transition-all flex items-center gap-1.5 text-xs font-semibold shadow-sm ${
+              isFullscreen
+                ? 'bg-brand text-on-brand border-brand hover:bg-brand-hover'
+                : 'bg-field hover:bg-hover border-border-card text-secondary hover:text-primary'
+            }`}
+            title={isFullscreen ? 'Exit Full Screen Mode (Press Esc or F)' : 'Open Full Screen Mode (Press F)'}
+            aria-label={isFullscreen ? 'Exit Full Screen' : 'Open Full Screen'}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4 text-brand" />}
+            <span className="hidden sm:inline">{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+            <kbd
+              className={`hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                isFullscreen ? 'bg-black/25 text-on-brand' : 'bg-card border border-border-card text-muted'
+              }`}
+            >
+              {isFullscreen ? 'ESC' : 'F'}
+            </kbd>
+          </button>
         </div>
       </div>
 
       {showCanvas ? (
-        <div className="flex flex-col lg:flex-row gap-4">
+        <div className={`flex flex-col lg:flex-row gap-4 ${isFullscreen ? 'flex-1 min-h-0' : ''}`}>
           {/* Sidebar */}
-          <aside className="lg:w-64 shrink-0 space-y-3 lg:max-h-[620px] lg:overflow-y-auto">
-            <Section
-              defaultOpen
-              title={<span className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-status-failed" /> Test these first</span>}
+          {isSidebarOpen && (
+            <aside
+              className={`lg:w-64 shrink-0 space-y-3 ${
+                isFullscreen ? 'h-full overflow-y-auto pr-1' : 'lg:max-h-[620px] lg:overflow-y-auto'
+              }`}
             >
-              <p className="text-[11px] text-muted pb-1">Most-used parts. A bug here reaches the most places.</p>
-              {hotSpots.map((n) => (
-                <button key={n.id} onClick={() => selectAndCenter(n.id)} className="w-full text-left group">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="truncate text-primary group-hover:text-brand">{n.label.split('/').pop()}</span>
-                    <span className="text-secondary ml-2">{n.inDegree}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-field border border-border-card mt-1 overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(n.inDegree / maxUsed) * 100}%`, background: n.heat === 2 ? 'var(--status-failed)' : n.heat === 1 ? AMBER : 'var(--text-muted)' }} />
-                  </div>
-                </button>
-              ))}
-              {hotSpots.length === 0 && <p className="text-[11px] text-muted italic">No dependencies found.</p>}
-              {unlinkedCount > 0 && (
-                <p className="text-[11px] text-muted pt-1">{plural(unlinkedCount, 'module')} with no links (unused, or only reached at runtime).</p>
-              )}
-            </Section>
-
-            {endpointNodes.length > 0 && (
-              <Section title={`API endpoints (${endpointNodes.length})`}>
-                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-                  {endpointNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
-                </div>
+              <Section
+                defaultOpen
+                title={<span className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-status-failed" /> Test these first</span>}
+              >
+                <p className="text-[11px] text-muted pb-1">Most-used parts. A bug here reaches the most places.</p>
+                {hotSpots.map((n) => (
+                  <button key={n.id} onClick={() => selectAndCenter(n.id)} className="w-full text-left group">
+                    <div className="flex items-center justify-between text-xs font-mono">
+                      <span className="truncate text-primary group-hover:text-brand">{n.label.split('/').pop()}</span>
+                      <span className="text-secondary ml-2">{n.inDegree}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-field border border-border-card mt-1 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${(n.inDegree / maxUsed) * 100}%`, background: n.heat === 2 ? 'var(--status-failed)' : n.heat === 1 ? AMBER : 'var(--text-muted)' }} />
+                    </div>
+                  </button>
+                ))}
+                {hotSpots.length === 0 && <p className="text-[11px] text-muted italic">No dependencies found.</p>}
+                {unlinkedCount > 0 && (
+                  <p className="text-[11px] text-muted pt-1">{plural(unlinkedCount, 'module')} with no links (unused, or only reached at runtime).</p>
+                )}
               </Section>
-            )}
 
-            <Section title="How to read this">
-              <ul className="text-[11px] text-secondary space-y-1.5">
-                <li>Each outlined area is a folder.</li>
-                <li><span className="text-status-failed font-bold">HIGH</span> / <span className="text-status-flaky font-bold">MED</span> tags mark parts many others rely on.</li>
-                <li><span className="text-status-flaky font-bold">Amber</span>: re-test if the selected item changes.</li>
-                <li><span className="text-secondaryAccent font-bold">Cyan</span>: what the selected item depends on.</li>
-                <li>Arrows point from the caller to the dependency.</li>
-              </ul>
-            </Section>
-          </aside>
+              {endpointNodes.length > 0 && (
+                <Section title={`API endpoints (${endpointNodes.length})`}>
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                    {endpointNodes.map((n) => <NodeLink key={n.id} node={n} onClick={selectAndCenter} />)}
+                  </div>
+                </Section>
+              )}
+
+              <Section title="How to read this">
+                <ul className="text-[11px] text-secondary space-y-1.5">
+                  <li>Each outlined area is a folder.</li>
+                  <li><span className="text-status-failed font-bold">HIGH</span> / <span className="text-status-flaky font-bold">MED</span> tags mark parts many others rely on.</li>
+                  <li><span className="text-status-flaky font-bold">Amber</span>: re-test if the selected item changes.</li>
+                  <li><span className="text-secondaryAccent font-bold">Cyan</span>: what the selected item depends on.</li>
+                  <li>Arrows point from the caller to the dependency.</li>
+                </ul>
+              </Section>
+            </aside>
+          )}
 
           {/* Canvas */}
           <div
             ref={containerRef}
-            className="relative flex-1 min-w-0 h-[620px] bg-field rounded-2xl border border-border-card overflow-hidden shadow-card select-none"
+            className={`relative flex-1 min-w-0 bg-field rounded-2xl border border-border-card overflow-hidden shadow-card select-none ${
+              isFullscreen ? 'h-full min-h-0' : 'h-[620px]'
+            }`}
             onKeyDown={(e) => e.key === 'Escape' && setSelectedNodeId(null)}
           >
             <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-card/90 border border-border-card rounded-xl p-1 shadow-card backdrop-blur-md">
               <button onClick={() => zoomBy(1.2)} className={iconBtn} title="Zoom in" aria-label="Zoom in"><ZoomIn className="w-4 h-4" /></button>
               <button onClick={() => zoomBy(1 / 1.2)} className={iconBtn} title="Zoom out" aria-label="Zoom out"><ZoomOut className="w-4 h-4" /></button>
-              <button onClick={() => { setSelectedNodeId(null); fitView(live.current.bounds); }} className={iconBtn} title="Show whole project" aria-label="Show whole project"><Maximize2 className="w-4 h-4" /></button>
+              <button onClick={() => { setSelectedNodeId(null); fitView(live.current.bounds); }} className={iconBtn} title="Fit to view (Reset zoom)" aria-label="Fit to view"><RotateCcw className="w-4 h-4" /></button>
+              <button onClick={toggleFullscreen} className={iconBtn} title={isFullscreen ? 'Exit Full Screen (Esc)' : 'Open Full Screen (F)'} aria-label="Toggle full screen">
+                {isFullscreen ? <Minimize2 className="w-4 h-4 text-brand" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
             </div>
 
             {baseNodes.length === 0 && (
@@ -1030,14 +1199,14 @@ export const KnowledgeGraphVisualizer: React.FC<KnowledgeGraphVisualizerProps> =
           </div>
         </div>
       ) : (
-        <div className="bg-card rounded-2xl border border-border-card overflow-hidden shadow-card">
-          <div className="p-4 border-b border-border-card bg-field flex items-center justify-between">
+        <div className={`bg-card rounded-2xl border border-border-card overflow-hidden shadow-card flex flex-col ${isFullscreen ? 'flex-1 min-h-0' : ''}`}>
+          <div className="p-4 border-b border-border-card bg-field flex items-center justify-between shrink-0">
             <h4 className="text-xs font-semibold text-secondary">
               {tableRows.length} of {rawNodes.length} items
             </h4>
             <span className="text-xs font-mono text-brand font-semibold">{rawEdges.length} dependencies</span>
           </div>
-          <div className="overflow-x-auto">
+          <div className={`overflow-x-auto ${isFullscreen ? 'flex-1 overflow-y-auto min-h-0' : ''}`}>
             <table className="w-full text-left text-xs font-mono">
               <thead className="bg-field text-secondary border-b border-border-card text-[11px]">
                 <tr>
