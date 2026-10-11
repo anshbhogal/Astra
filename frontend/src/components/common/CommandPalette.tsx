@@ -152,16 +152,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-primary/40 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-black/45 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-card rounded-2xl shadow-xl border border-border-card overflow-hidden flex flex-col max-h-[480px]"
+        className="w-full max-w-xl glass-card-elevated border-t-4 border-t-brand rounded-2xl shadow-glass-elevated border border-border-glass overflow-hidden flex flex-col max-h-[480px]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Search Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border-card bg-field">
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border-card bg-field/60">
           <Search className="w-4 h-4 text-muted shrink-0" />
           <input
             ref={inputRef}
