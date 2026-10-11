@@ -76,10 +76,10 @@ export const Login: React.FC = () => {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-brand/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-secondaryAccent/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md bg-card rounded-2xl p-8 border border-border-card shadow-card space-y-6">
+      <div className="relative w-full max-w-md glass-card-elevated border-t-4 border-t-brand rounded-3xl p-8 border border-border-glass shadow-glass-elevated space-y-6 z-10">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-brand text-on-brand items-center justify-center shadow-sm mb-2">
+          <div className="inline-flex w-12 h-12 rounded-2xl bg-brand text-on-brand items-center justify-center shadow-md mb-2">
             <Sparkles className="w-6 h-6" />
           </div>
           <h1 className="text-2xl font-bold text-primary tracking-tight">ASTRA QA Cockpit</h1>
