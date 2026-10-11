@@ -20,7 +20,9 @@ router = APIRouter()
 
 class TriggerBenchmarkRequest(BaseModel):
     mode: str = Field("MODE_D_HYBRID", description="MODE_0_BASELINE, MODE_A_RULES, MODE_B_ML, MODE_C_AI, MODE_D_HYBRID")
-    repetitions: Optional[int] = Field(1, ge=1, le=5, description="Number of evaluation repetitions")
+    repetitions: Optional[int] = Field(None, ge=1, le=5, description="Number of evaluation repetitions")
+    trials_count: Optional[int] = Field(None, description="Alias for repetitions from UI")
+    execution_profile: Optional[str] = Field(None, description="Optional profile from UI")
     seed: Optional[int] = Field(42, description="Random seed for reproducibility")
 
 
@@ -70,6 +72,7 @@ async def list_benchmark_bugs(
     }
 
 
+@router.post("/runs")
 @router.post("/run")
 async def trigger_benchmark_evaluation(
     req: TriggerBenchmarkRequest,
@@ -77,19 +80,37 @@ async def trigger_benchmark_evaluation(
     db: AsyncSession = Depends(get_db),
 ):
     """Executes empirical ablation benchmark evaluation across target operational mode."""
-    try:
-        op_mode = OperationalMode(req.mode)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid operational mode '{req.mode}'. Must be one of {[m.value for m in OperationalMode]}."
-        )
+    mode_map = {
+        "MODE_0": OperationalMode.MODE_0_BASELINE,
+        "MODE_A": OperationalMode.MODE_A_RULES,
+        "MODE_B": OperationalMode.MODE_B_ML,
+        "MODE_C": OperationalMode.MODE_C_AI,
+        "MODE_D": OperationalMode.MODE_D_HYBRID,
+        "MODE_0_BASELINE": OperationalMode.MODE_0_BASELINE,
+        "MODE_A_RULES": OperationalMode.MODE_A_RULES,
+        "MODE_B_ML": OperationalMode.MODE_B_ML,
+        "MODE_C_AI": OperationalMode.MODE_C_AI,
+        "MODE_D_HYBRID": OperationalMode.MODE_D_HYBRID,
+    }
+    mode_key = req.mode.upper().strip()
+    if mode_key in mode_map:
+        op_mode = mode_map[mode_key]
+    else:
+        try:
+            op_mode = OperationalMode(req.mode)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid operational mode '{req.mode}'. Must be one of {[m.value for m in OperationalMode]}."
+            )
+
+    reps = req.trials_count or req.repetitions or 1
 
     # Execute benchmark run
     report = await BenchmarkRunner.run_evaluation(
         mode=op_mode,
         budget=TestBudget(max_tests=50, is_constrained=False),
-        repetitions=req.repetitions or 1,
+        repetitions=reps,
         seed=req.seed or 42
     )
 
@@ -120,6 +141,8 @@ async def trigger_benchmark_evaluation(
     }
 
 
+@router.get("/runs/matrix")
+@router.get("/matrix")
 @router.get("/latest")
 async def get_latest_benchmark_ablation_matrix(
     current_user: User = Depends(get_current_user),
@@ -128,6 +151,7 @@ async def get_latest_benchmark_ablation_matrix(
     """Retrieves latest ablation study comparison matrix comparing all 5 operational modes."""
     matrix = await AnalyticsService.get_latest_benchmark_matrix(db)
     return {"matrix": matrix}
+
 
 
 @router.get("/runs/{run_id}")

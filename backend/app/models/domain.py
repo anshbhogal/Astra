@@ -997,7 +997,7 @@ class BenchmarkRunModel(Base):
     astra_commit_sha: Mapped[str] = mapped_column(String(64), default="HEAD", nullable=False)
     seed: Mapped[int] = mapped_column(default=42, nullable=False)
     status: Mapped[BenchmarkRunStatus] = mapped_column(
-        SQLEnum(BenchmarkRunStatus), default=BenchmarkRunStatus.QUEUED, nullable=False
+        SQLEnum(BenchmarkRunStatus, native_enum=False), default=BenchmarkRunStatus.QUEUED, nullable=False
     )
     total_injected_bugs: Mapped[int] = mapped_column(default=50, nullable=False)
     true_positives: Mapped[int] = mapped_column(default=0, nullable=False)
