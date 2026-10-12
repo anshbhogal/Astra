@@ -11,7 +11,10 @@ from app.schemas.analyzer import (
     KnowledgeGraphResponse,
     DiscoveredEndpointResponse,
     KnowledgeGraphNode,
-    KnowledgeGraphEdge
+    KnowledgeGraphEdge,
+    DiscoveredFunctionResponse,
+    FunctionCatalogResponse,
+    UnitTestRunResponse
 )
 from app.services import analyzer_service
 from app.core.security import get_current_user
