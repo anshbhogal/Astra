@@ -91,3 +91,27 @@ class TestRunListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class TestCaseResponse(BaseModel):
+    id: uuid.UUID
+    suite_id: uuid.UUID
+    endpoint_id: Optional[uuid.UUID] = None
+    name: str
+    test_type: TestType
+    specification: Dict[str, Any]
+    execution_order: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TestCaseListResponse(BaseModel):
+    items: List[TestCaseResponse]
+    total: int
+
+
+class SandboxStartRequest(BaseModel):
+    port: Optional[int] = Field(None, description="Optional port number, defaults to auto-detected free port")
+    mode: str = Field("HYBRID", description="ENDPOINT_SANDBOX, NATIVE_COMMAND, or HYBRID")
+    custom_command: Optional[str] = Field(None, description="Optional launch command for NATIVE_COMMAND mode")
