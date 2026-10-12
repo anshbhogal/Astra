@@ -35,10 +35,36 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
     }
   };
 
-  const handleDownload = (format: 'html' | 'pdf') => {
+  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
+
+  const handleDownload = async (format: 'html' | 'pdf') => {
     if (!generatedReport) return;
-    const url = `/api/v1/analytics/reports/${generatedReport.id}/export?format=${format}`;
-    window.open(url, '_blank');
+    setDownloadingFormat(format);
+    try {
+      const res = await api.get(`/analytics/reports/${generatedReport.id}/export?format=${format}`, {
+        responseType: 'blob',
+      });
+      const mime = format === 'pdf' ? 'application/pdf' : 'text/html; charset=utf-8';
+      const blob = new Blob([res.data], { type: mime });
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      if (format === 'html') {
+        window.open(blobUrl, '_blank');
+      } else {
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `astra_audit_report_${generatedReport.id.substring(0, 8)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+    } catch (err: any) {
+      const token = localStorage.getItem('token') || '';
+      window.open(`/api/v1/analytics/reports/${generatedReport.id}/export?format=${format}&token=${token}`, '_blank');
+    } finally {
+      setDownloadingFormat(null);
+    }
   };
 
   return (
