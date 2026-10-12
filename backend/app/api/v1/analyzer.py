@@ -97,3 +97,26 @@ async def get_project_knowledge_graph(
                 properties=e.get("properties") if isinstance(e.get("properties"), dict) else {}
             ))
     return KnowledgeGraphResponse(nodes=nodes, edges=edges)
+
+
+@router.get("/{project_id}/functions", response_model=FunctionCatalogResponse)
+async def list_discovered_functions(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve catalog of callable functions discovered during AST analysis."""
+    func_dicts = await analyzer_service.get_analysis_functions(db, project_id, current_user)
+    items = [DiscoveredFunctionResponse.model_validate(f) for f in func_dicts]
+    return FunctionCatalogResponse(items=items, total=len(items))
+
+
+@router.post("/{project_id}/unit-tests/run", response_model=UnitTestRunResponse)
+async def run_unit_tests(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
+):
+    """Execute synthesized unit test suite for the project in sandbox."""
+    res = await analyzer_service.run_project_unit_tests(db, project_id, current_user)
+    return UnitTestRunResponse.model_validate(res)
