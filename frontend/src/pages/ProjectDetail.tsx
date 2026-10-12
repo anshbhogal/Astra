@@ -130,6 +130,40 @@ interface KnowledgeGraph {
   edges: Array<{ source: string; target: string; type: string; properties: any }>;
 }
 
+interface DiscoveredFunction {
+  function_id: string;
+  qualified_name: string;
+  file_path: string;
+  line_number: number;
+  parameters: Array<{ name: string; type_annotation?: string; has_default?: boolean }>;
+  return_schema: string;
+  docstring: string | null;
+  side_effects: string[];
+  called_functions: string[];
+  purity_estimate: number;
+  cyclomatic_complexity: number;
+  is_async: boolean;
+}
+
+interface UnitTestOutcome {
+  nodeid: string;
+  outcome: string;
+  duration: number;
+  message?: string;
+}
+
+interface UnitTestRunResult {
+  total_tests: number;
+  passed_tests: number;
+  failed_tests: number;
+  skipped_tests: number;
+  duration_ms: number;
+  coverage_percent: number;
+  test_outcomes: UnitTestOutcome[];
+  raw_stdout: string;
+  exit_code: number;
+}
+
 const PIPELINE_STAGES = [
   { key: 'CLONING', label: '1. Git Clone', desc: 'Fetch source tree & branch' },
   { key: 'SCANNING', label: '2. File Scan', desc: 'Scan files & detect language' },
