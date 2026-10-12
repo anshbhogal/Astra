@@ -342,6 +342,7 @@ export const ProjectDetail: React.FC = () => {
 
   const loadChildResources = () => {
     fetchLatestAnalysis();
+    fetchFunctions();
     fetchTestSuites();
     fetchTestRuns();
   };
@@ -379,12 +380,37 @@ export const ProjectDetail: React.FC = () => {
 
       if (res.data && (res.data.status === 'COMPLETED' || res.data.status === 'COMPLETED_WITH_WARNINGS')) {
         fetchEndpoints();
+        fetchFunctions();
         fetchGraph();
         fetchTestSuites();
         fetchTestRuns();
       }
     } catch (err) {
       setAnalysis(null);
+    }
+  };
+
+  const fetchFunctions = async () => {
+    if (!id) return;
+    try {
+      const res = await api.get(`/projects/${id}/functions`);
+      setFunctions(res.data.items || []);
+    } catch (err) {
+      setFunctions([]);
+    }
+  };
+
+  const runUnitTests = async () => {
+    if (!id) return;
+    setRunningUnitTests(true);
+    try {
+      const res = await api.post(`/projects/${id}/unit-tests/run`);
+      setUnitTestResult(res.data);
+      setActiveTab('testruns');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to execute unit tests.');
+    } finally {
+      setRunningUnitTests(false);
     }
   };
 
