@@ -6,17 +6,25 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.models.domain import Project, User, UserRole, AuditLog
+from app.models.canonical import Workspace
 from app.schemas.project import ProjectCreate, ProjectUpdate
 
 
 async def create_new_project(db: AsyncSession, payload: ProjectCreate, owner: User) -> Project:
+    workspace_id = getattr(payload, "workspace_id", None)
+    if not workspace_id:
+        ws_stmt = select(Workspace.id).limit(1)
+        workspace_id = (await db.execute(ws_stmt)).scalar_one_or_none()
+
     project = Project(
         name=payload.name,
         description=payload.description,
         repository_url=payload.repository_url,
         default_branch=payload.default_branch,
         language_framework=payload.language_framework,
-        owner_id=owner.id
+        owner_id=owner.id,
+        workspace_id=workspace_id,
+        actor_type="USER"
     )
     db.add(project)
     await db.flush()
