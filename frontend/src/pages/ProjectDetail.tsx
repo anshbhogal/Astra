@@ -1128,6 +1128,125 @@ export const ProjectDetail: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'functions' && (
+        <div className="space-y-4">
+          <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-primary flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand" />
+                  Discovered Functions ({functions.length})
+                </h3>
+                <p className="text-xs text-secondary">
+                  Functions extracted via AST analysis with cyclomatic complexity, purity estimation, and side-effect detection.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Search function or file..."
+                  value={functionSearch}
+                  onChange={(e) => setFunctionSearch(e.target.value)}
+                  className="w-64 text-xs"
+                />
+                <Button
+                  variant="primary"
+                  onClick={runUnitTests}
+                  disabled={runningUnitTests || functions.length === 0}
+                  isLoading={runningUnitTests}
+                  leftIcon={<Sparkles className="w-3.5 h-3.5 fill-current" />}
+                >
+                  Generate & Run Suite
+                </Button>
+              </div>
+            </div>
+
+            {functions.length === 0 ? (
+              <div className="p-8 text-center space-y-3">
+                <Code2 className="w-10 h-10 text-muted mx-auto" />
+                <h3 className="text-base font-bold text-primary">No Functions Discovered Yet</h3>
+                <p className="text-xs text-secondary">Run analysis on this repository to extract callable functions.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-border-card">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3">Function Signature</th>
+                      <th className="px-5 py-3">File Location</th>
+                      <th className="px-5 py-3">Complexity</th>
+                      <th className="px-5 py-3">Purity</th>
+                      <th className="px-5 py-3">Side Effects</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-card text-secondary">
+                    {functions
+                      .filter((fn) =>
+                        fn.qualified_name.toLowerCase().includes(functionSearch.toLowerCase()) ||
+                        fn.file_path.toLowerCase().includes(functionSearch.toLowerCase())
+                      )
+                      .map((fn) => {
+                        const isHighComp = fn.cyclomatic_complexity > 5;
+                        const isPure = fn.purity_estimate >= 0.9;
+                        return (
+                          <tr key={fn.function_id} className="hover:bg-hover transition-colors">
+                            <td className="px-5 py-3 font-mono">
+                              <span className="text-primary font-bold">{fn.qualified_name}</span>
+                              <span className="text-muted text-[11px]">
+                                ({fn.parameters.map((p) => `${p.name}${p.type_annotation ? ': ' + p.type_annotation : ''}`).join(', ')})
+                              </span>
+                              {fn.return_schema && fn.return_schema !== 'Any' && (
+                                <span className="text-brand text-[11px]"> → {fn.return_schema}</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3 text-muted font-mono flex items-center gap-1.5">
+                              <FileCode className="w-3.5 h-3.5 text-muted" />
+                              {fn.file_path}:{fn.line_number}
+                            </td>
+                            <td className="px-5 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                                fn.cyclomatic_complexity <= 3
+                                  ? 'bg-status-passed-bg text-status-passed'
+                                  : isHighComp
+                                  ? 'bg-status-failed-bg text-status-failed'
+                                  : 'bg-amber-500/10 text-amber-500'
+                              }`}>
+                                CC: {fn.cyclomatic_complexity}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                isPure
+                                  ? 'bg-status-passed-bg text-status-passed'
+                                  : 'bg-field text-secondary border border-border-card'
+                              }`}>
+                                {isPure ? 'Pure Function' : `${Math.round(fn.purity_estimate * 100)}% Pure`}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {fn.side_effects && fn.side_effects.length > 0 ? (
+                                  fn.side_effects.map((se) => (
+                                    <span key={se} className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-field border border-border-card text-muted">
+                                      {se}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-muted text-[11px]">None (Deterministic)</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {activeTab === 'graph' && (
         <div className="space-y-4">
           {!graph || graph.nodes.length === 0 ? (
@@ -1153,19 +1272,125 @@ export const ProjectDetail: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-primary">Test Suites & Execution Telemetry</h3>
-              <p className="text-xs text-secondary">Generate synthetic test specifications and execute async HTTP test runs.</p>
+              <p className="text-xs text-secondary">Synthesize unit test suites or execute async HTTP API test runs.</p>
             </div>
 
-            <Button
-              variant="primary"
-              onClick={generateTestSuite}
-              disabled={generatingSuite || endpoints.length === 0}
-              isLoading={generatingSuite}
-              leftIcon={<Zap className="w-4 h-4 fill-current" />}
-            >
-              Generate Synthetic Suite
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="primary"
+                onClick={runUnitTests}
+                disabled={runningUnitTests || functions.length === 0}
+                isLoading={runningUnitTests}
+                leftIcon={<Sparkles className="w-4 h-4 fill-current" />}
+              >
+                Generate & Run Unit Suite ({functions.length} funcs)
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={generateTestSuite}
+                disabled={generatingSuite || endpoints.length === 0}
+                isLoading={generatingSuite}
+                leftIcon={<Zap className="w-4 h-4 fill-current" />}
+              >
+                Generate Synthetic API Suite
+              </Button>
+            </div>
           </div>
+
+          {/* Unit Test Execution Telemetry Card */}
+          {unitTestResult && (
+            <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-card">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-primary flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-brand" />
+                      Multi-Layer Unit Suite Execution
+                    </h4>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                      unitTestResult.exit_code === 0
+                        ? 'bg-status-passed-bg text-status-passed border border-status-passed/30'
+                        : 'bg-status-failed-bg text-status-failed border border-status-failed/30'
+                    }`}>
+                      {unitTestResult.exit_code === 0 ? 'PASSED (Exit 0)' : `FAILED (Exit ${unitTestResult.exit_code})`}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-field text-secondary border border-border-card">
+                      100% Offline • $0 Cost • AI Mocks Active
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted mt-0.5">
+                    Spec-grounded invariant and boundary tests executed in isolated runner sandbox.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowStdout(!showStdout)}
+                  >
+                    {showStdout ? 'Hide Logs' : 'View Pytest Stdout'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stat Counters */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="p-3 rounded-xl bg-field border border-border-card text-center">
+                  <span className="text-[10px] font-semibold uppercase text-muted block">Total Tests</span>
+                  <span className="text-lg font-bold text-primary font-mono block mt-0.5">{unitTestResult.total_tests}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-status-passed-bg/30 border border-status-passed/20 text-center">
+                  <span className="text-[10px] font-semibold uppercase text-status-passed block">Passed</span>
+                  <span className="text-lg font-bold text-status-passed font-mono block mt-0.5">{unitTestResult.passed_tests}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-status-failed-bg/30 border border-status-failed/20 text-center">
+                  <span className="text-[10px] font-semibold uppercase text-status-failed block">Failed</span>
+                  <span className="text-lg font-bold text-status-failed font-mono block mt-0.5">{unitTestResult.failed_tests}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-field border border-border-card text-center">
+                  <span className="text-[10px] font-semibold uppercase text-muted block">Execution Time</span>
+                  <span className="text-lg font-bold text-brand font-mono block mt-0.5">{unitTestResult.duration_ms} ms</span>
+                </div>
+                <div className="p-3 rounded-xl bg-field border border-border-card text-center">
+                  <span className="text-[10px] font-semibold uppercase text-muted block">Pass Rate</span>
+                  <span className="text-lg font-bold text-primary font-mono block mt-0.5">
+                    {unitTestResult.total_tests > 0 ? Math.round((unitTestResult.passed_tests / unitTestResult.total_tests) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Individual Test Cases List */}
+              {unitTestResult.test_outcomes && unitTestResult.test_outcomes.length > 0 && (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {unitTestResult.test_outcomes.map((t, idx) => (
+                    <div key={idx} className="p-2.5 rounded-lg bg-field border border-border-card flex items-center justify-between text-xs font-mono">
+                      <div className="flex items-center gap-2 truncate pr-2">
+                        <span className={`w-2 h-2 rounded-full ${t.outcome === 'passed' ? 'bg-status-passed' : 'bg-status-failed'}`} />
+                        <span className="text-primary truncate">{t.nodeid.split('::').pop()}</span>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-muted text-[11px]">{(t.duration * 1000).toFixed(1)} ms</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          t.outcome === 'passed' ? 'text-status-passed bg-status-passed-bg' : 'text-status-failed bg-status-failed-bg'
+                        }`}>
+                          {t.outcome}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Stdout Console */}
+              {showStdout && (
+                <div className="mt-3 p-3 rounded-xl bg-black/80 border border-border-card text-[11px] font-mono text-zinc-300 max-h-60 overflow-y-auto whitespace-pre-wrap">
+                  {unitTestResult.raw_stdout}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Step 1: Target Sandbox Server Lifecycle Controller */}
           {id && project && (
