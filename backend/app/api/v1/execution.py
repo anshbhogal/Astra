@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
 from app.db.session import get_db
 from app.schemas.execution import (
     TestSuiteGenerateRequest,
@@ -12,12 +13,16 @@ from app.schemas.execution import (
     TestRunResponse,
     TestRunListResponse,
     TestResultResponse,
-    TestResultListResponse
+    TestResultListResponse,
+    TestCaseResponse,
+    TestCaseListResponse,
+    SandboxStartRequest,
 )
 from app.services import execution_service
+from app.services.sandbox_server_service import SandboxServerService
 from app.core.security import get_current_user
 from app.core.rbac import require_roles
-from app.models.domain import User, UserRole
+from app.models.domain import User, UserRole, TestCase, Project
 
 router = APIRouter(prefix="", tags=["Test Execution Engine"])
 
@@ -129,3 +134,81 @@ async def cancel_active_test_run(
     """Trigger cooperative cancellation for a running test execution."""
     run = await execution_service.cancel_test_run(db, test_run_id, current_user)
     return run
+
+
+@router.get("/test-suites/{suite_id}/cases", response_model=TestCaseListResponse)
+async def list_suite_test_cases(
+    suite_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve all test case specifications and assertions for a test suite."""
+    stmt = (
+        select(TestCase)
+        .where(TestCase.suite_id == suite_id)
+        .order_by(TestCase.execution_order.asc())
+    )
+    res = await db.execute(stmt)
+    cases = res.scalars().all()
+    return TestCaseListResponse(
+        items=[TestCaseResponse.model_validate(c) for c in cases],
+        total=len(cases)
+    )
+
+
+@router.get("/projects/{project_id}/sandbox/available-port")
+async def get_sandbox_available_port(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Scan and retrieve a free open port and server configuration suggestion."""
+    port = SandboxServerService.get_suggested_port()
+    stmt_p = select(Project).where(Project.id == project_id)
+    res = await db.execute(stmt_p)
+    proj = res.scalar_one_or_none()
+    proj_name = proj.name if proj else "Target App"
+    return {
+        "project_id": project_id,
+        "suggested_port": port,
+        "project_name": proj_name,
+        "suggested_mode": "HYBRID",
+        "health_check_path": "/health"
+    }
+
+
+@router.post("/projects/{project_id}/sandbox/start")
+async def start_sandbox_server(
+    project_id: uuid.UUID,
+    payload: SandboxStartRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
+):
+    """Launch the application sandbox server on an allocated free port."""
+    status_info = await SandboxServerService.start_server(
+        db=db,
+        project_id=project_id,
+        port=payload.port,
+        mode=payload.mode,
+        custom_command=payload.custom_command
+    )
+    return status_info
+
+
+@router.get("/projects/{project_id}/sandbox/status")
+async def get_sandbox_server_status(
+    project_id: uuid.UUID,
+    current_user: User = Depends(get_current_user)
+):
+    """Check the real-time operational status of the project's sandbox server."""
+    return SandboxServerService.get_server_status(str(project_id))
+
+
+@router.post("/projects/{project_id}/sandbox/stop")
+async def stop_sandbox_server(
+    project_id: uuid.UUID,
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
+):
+    """Terminate and turn off the active sandbox server."""
+    return await SandboxServerService.stop_server(str(project_id))
+
