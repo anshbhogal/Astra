@@ -82,7 +82,14 @@ export const ProjectsList: React.FC = () => {
       setRepositoryUrl('');
       fetchProjects();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create project.');
+      const detail = err.response?.data?.detail || err.response?.data?.error || err.message;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((d: any) => d.msg || d.message || JSON.stringify(d)).join(', '));
+      } else {
+        setError('Failed to create project. Please verify repository inputs.');
+      }
     } finally {
       setSubmitting(false);
     }
