@@ -3,13 +3,13 @@
 import uuid
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Query, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.domain import User, UserRole, Project, QualityReportModel
-from app.core.security import get_current_user
+from app.core.security import get_current_user, decode_token
 from app.services.analytics_service import AnalyticsService
 from engine.reporting.html_report_generator import HTMLReportGenerator
 from engine.reporting.pdf_report_generator import PDFReportGenerator
@@ -122,10 +122,48 @@ async def list_project_quality_reports(
 async def export_quality_report(
     report_id: uuid.UUID,
     format: str = Query("html", pattern="^(html|pdf)$"),
-    current_user: User = Depends(get_current_user),
+    token: Optional[str] = Query(None, description="Optional JWT token for direct browser links"),
+    authorization: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db),
 ):
     """Exports executive report as downloadable HTML or PDF."""
+    raw_token = None
+    if authorization and authorization.lower().startswith("bearer "):
+        raw_token = authorization[7:].strip()
+    elif token:
+        raw_token = token.strip()
+
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token required via Authorization header or ?token= query parameter.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    payload = decode_token(raw_token)
+    if not payload or not payload.get("sub"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired authentication token.",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    try:
+        user_uuid = uuid.UUID(payload["sub"])
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed token user identifier."
+        )
+
+    res_user = await db.execute(select(User).where(User.id == user_uuid))
+    current_user = res_user.scalar_one_or_none()
+    if not current_user or not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account inactive or not found."
+        )
+
     res = await db.execute(select(QualityReportModel).where(QualityReportModel.id == report_id))
     report = res.scalar_one_or_none()
     if not report:
@@ -133,11 +171,22 @@ async def export_quality_report(
 
     await _verify_project_access(report.project_id, current_user, db)
 
+    user_payload = {
+        "email": current_user.email,
+        "full_name": current_user.full_name or "Astra Engineer",
+        "role": current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role),
+        "user_id": str(current_user.id)
+    }
+
     if format == "pdf":
         pdf_bytes, mime = PDFReportGenerator.generate_report(
             project_name=report.title,
             analytics_data=report.summary_metrics,
-            report_title=report.title
+            report_title=report.title,
+            user_info=user_payload,
+            report_id=str(report.id),
+            sha256_hash=report.sha256_hash,
+            created_at=report.created_at.isoformat()
         )
         return Response(
             content=pdf_bytes,
