@@ -29,6 +29,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Clear token and Zustand auth state on 401 Unauthorized
       useAuthStore.getState().logout();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
