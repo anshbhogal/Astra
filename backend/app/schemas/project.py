@@ -13,6 +13,7 @@ class ProjectCreate(BaseModel):
     repository_url: str = Field(..., min_length=5, max_length=500)
     default_branch: str = Field(default="main", min_length=1, max_length=100)
     language_framework: LanguageFramework
+    workspace_id: Optional[uuid.UUID] = None
 
     @field_validator("repository_url")
     def validate_repo_url(cls, v: str) -> str:
