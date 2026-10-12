@@ -889,6 +889,19 @@ export const ProjectDetail: React.FC = () => {
             </div>
           </div>
 
+          {/* Discovered Functions */}
+          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors cursor-pointer" onClick={() => setActiveTab('functions')}>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-muted block text-[10px] uppercase font-semibold">Functions Discovered</span>
+              <span className="text-amber-600 dark:text-amber-400 font-bold text-base mt-0.5 block font-mono">
+                {functions.length}
+              </span>
+            </div>
+          </div>
+
           {/* Knowledge Graph Nodes */}
           <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
             <div className="w-8 h-8 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
@@ -933,6 +946,16 @@ export const ProjectDetail: React.FC = () => {
           }`}
         >
           <Code2 className="w-3.5 h-3.5" /> Discovered Endpoints ({endpoints.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('functions')}
+          className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            activeTab === 'functions'
+              ? 'bg-card text-brand font-bold shadow-sm border border-border-card'
+              : 'text-secondary hover:text-primary hover:bg-hover'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-brand" /> Functions Discovered ({functions.length})
         </button>
         <button
           onClick={() => setActiveTab('graph')}
