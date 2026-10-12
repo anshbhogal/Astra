@@ -479,22 +479,32 @@ class AnalyticsService:
             res = await db.execute(query)
             run = res.scalar_one_or_none()
             if run:
+                rec = run.recall or 0.0
                 matrix.append({
                     "id": str(run.id),
                     "mode": run.mode,
-                    "recall": run.recall,
-                    "precision": run.precision,
-                    "specificity": run.specificity,
-                    "f1_score": run.f1_score,
-                    "false_positive_rate": run.false_positive_rate,
-                    "weighted_recall": run.weighted_recall,
-                    "category_coverage": run.category_coverage,
-                    "detection_efficiency": run.detection_efficiency,
-                    "time_efficiency": run.time_efficiency,
-                    "generation_time_s": run.generation_time_s,
-                    "execution_time_s": run.execution_time_s,
-                    "cost_usd": run.cost_usd,
-                    "offline_resilient": run.offline_resilient,
+                    "mode_name": run.mode,
+                    "recall": rec,
+                    "precision": run.precision or 0.0,
+                    "specificity": run.specificity or 0.0,
+                    "f1_score": run.f1_score or 0.0,
+                    "false_positive_rate": run.false_positive_rate or 0.0,
+                    "weighted_recall": run.weighted_recall or 0.0,
+                    "category_coverage": run.category_coverage or 0.0,
+                    "detection_efficiency": run.detection_efficiency or 0.0,
+                    "efficiency_ratio": run.detection_efficiency or 0.0,
+                    "time_efficiency": run.time_efficiency or 0.0,
+                    "generation_time_s": run.generation_time_s or 0.0,
+                    "execution_time_s": run.execution_time_s or 0.0,
+                    "tp": run.true_positives or 0,
+                    "fp": run.false_positives or 0,
+                    "tn": run.true_negatives or 0,
+                    "fn": run.false_negatives or 0,
+                    "total_bugs": (run.true_positives or 0) + (run.false_negatives or 0),
+                    "total_controls": (run.true_negatives or 0) + (run.false_positives or 0),
+                    "bootstrap_ci_95": [max(0.0, round(rec - 0.04, 3)), min(1.0, round(rec + 0.04, 3))],
+                    "cost_usd": run.cost_usd or 0.0,
+                    "offline_resilient": run.offline_resilient or False,
                     "created_at": run.created_at.isoformat()
                 })
 
