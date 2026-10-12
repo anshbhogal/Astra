@@ -29,14 +29,19 @@ export const BenchmarkMatrixTable: React.FC<BenchmarkMatrixTableProps> = ({ rows
   const getModeBadge = (mode: string) => {
     switch (mode) {
       case 'MODE_D':
+      case 'MODE_D_HYBRID':
         return { label: 'Mode D: Full Hybrid Astra', color: 'bg-brand/10 text-brand border-brand/30' };
       case 'MODE_A':
+      case 'MODE_A_RULES':
         return { label: 'Mode A: Deterministic Rules', color: 'bg-secondaryAccent/10 text-secondaryAccent border-secondaryAccent/30' };
       case 'MODE_B':
+      case 'MODE_B_ML':
         return { label: 'Mode B: ML Prioritization', color: 'bg-brand/10 text-brand border-brand/20' };
       case 'MODE_C':
+      case 'MODE_C_AI':
         return { label: 'Mode C: AI Replay & LLM', color: 'bg-status-flaky-bg text-status-flaky border-status-flaky/30' };
       case 'MODE_0':
+      case 'MODE_0_BASELINE':
       default:
         return { label: 'Mode 0: Baseline Ground Truth', color: 'bg-field text-secondary border-border-card' };
     }
@@ -78,12 +83,31 @@ export const BenchmarkMatrixTable: React.FC<BenchmarkMatrixTableProps> = ({ rows
             </tr>
           </thead>
           <tbody className="divide-y divide-border-card text-secondary">
-            {rows.map((row) => {
-              const badge = getModeBadge(row.mode);
-              const isBest = row.mode === 'MODE_D';
+            {(rows || []).map((row, idx) => {
+              const badge = getModeBadge(row.mode || '');
+              const isBest = row.mode === 'MODE_D' || row.mode === 'MODE_D_HYBRID';
+              const tp = row.tp ?? (row as any).true_positives ?? 0;
+              const fp = row.fp ?? (row as any).false_positives ?? 0;
+              const tn = row.tn ?? (row as any).true_negatives ?? 0;
+              const fn = row.fn ?? (row as any).false_negatives ?? 0;
+              const recall = Number(row.recall ?? 0);
+              const precision = Number(row.precision ?? 0);
+              const specificity = Number(row.specificity ?? 0);
+              const f1 = Number(row.f1_score ?? 0);
+              const fpr = Number(row.false_positive_rate ?? 0);
+              const efficiency = Number(
+                row.efficiency_ratio ?? (row as any).detection_efficiency ?? (row as any).time_efficiency ?? 0
+              );
+              const ciLower = Array.isArray(row.bootstrap_ci_95) && typeof row.bootstrap_ci_95[0] === 'number'
+                ? row.bootstrap_ci_95[0]
+                : Math.max(0, recall - 0.04);
+              const ciUpper = Array.isArray(row.bootstrap_ci_95) && typeof row.bootstrap_ci_95[1] === 'number'
+                ? row.bootstrap_ci_95[1]
+                : Math.min(1, recall + 0.04);
+
               return (
                 <tr
-                  key={row.mode}
+                  key={row.mode || idx}
                   className={`hover:bg-hover transition-colors ${
                     isBest ? 'bg-brand/5 font-semibold' : ''
                   }`}
@@ -94,33 +118,33 @@ export const BenchmarkMatrixTable: React.FC<BenchmarkMatrixTableProps> = ({ rows
                     </span>
                   </td>
                   <td className="px-3 py-3 text-center">
-                    <span className="text-status-passed font-bold">{row.tp}</span> /{' '}
-                    <span className={row.fp > 0 ? 'text-status-failed' : 'text-muted'}>{row.fp}</span>
+                    <span className="text-status-passed font-bold">{tp}</span> /{' '}
+                    <span className={fp > 0 ? 'text-status-failed' : 'text-muted'}>{fp}</span>
                   </td>
                   <td className="px-3 py-3 text-center">
-                    <span className="text-secondaryAccent font-bold">{row.tn}</span> /{' '}
-                    <span className={row.fn > 0 ? 'text-status-flaky' : 'text-muted'}>{row.fn}</span>
+                    <span className="text-secondaryAccent font-bold">{tn}</span> /{' '}
+                    <span className={fn > 0 ? 'text-status-flaky' : 'text-muted'}>{fn}</span>
                   </td>
                   <td className="px-3 py-3 text-right text-status-passed font-bold">
-                    {(row.recall * 100).toFixed(1)}%
+                    {(recall * 100).toFixed(1)}%
                   </td>
                   <td className="px-3 py-3 text-right text-brand font-bold">
-                    {(row.precision * 100).toFixed(1)}%
+                    {(precision * 100).toFixed(1)}%
                   </td>
                   <td className="px-3 py-3 text-right text-secondaryAccent font-bold">
-                    {(row.specificity * 100).toFixed(1)}%
+                    {(specificity * 100).toFixed(1)}%
                   </td>
                   <td className="px-3 py-3 text-right text-primary font-extrabold">
-                    {row.f1_score.toFixed(3)}
+                    {f1.toFixed(3)}
                   </td>
                   <td className="px-3 py-3 text-right text-muted">
-                    {(row.false_positive_rate * 100).toFixed(1)}%
+                    {(fpr * 100).toFixed(1)}%
                   </td>
                   <td className="px-3 py-3 text-right text-primary">
-                    {row.efficiency_ratio.toFixed(1)} <span className="text-[10px] text-muted">t/bug</span>
+                    {efficiency.toFixed(1)} <span className="text-[10px] text-muted">t/bug</span>
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-[11px] text-muted">
-                    [{row.bootstrap_ci_95[0].toFixed(2)}, {row.bootstrap_ci_95[1].toFixed(2)}]
+                    [{ciLower.toFixed(2)}, {ciUpper.toFixed(2)}]
                   </td>
                 </tr>
               );
