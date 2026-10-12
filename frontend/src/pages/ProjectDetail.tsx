@@ -289,6 +289,11 @@ export const ProjectDetail: React.FC = () => {
   const [suites, setSuites] = useState<TestSuite[]>([]);
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
+  const [functions, setFunctions] = useState<DiscoveredFunction[]>([]);
+  const [functionSearch, setFunctionSearch] = useState('');
+  const [unitTestResult, setUnitTestResult] = useState<UnitTestRunResult | null>(null);
+  const [runningUnitTests, setRunningUnitTests] = useState(false);
+  const [showStdout, setShowStdout] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -296,7 +301,7 @@ export const ProjectDetail: React.FC = () => {
   const [generatingSuite, setGeneratingSuite] = useState(false);
   const [dispatchingRun, setDispatchingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'graph' | 'testruns'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'functions' | 'graph' | 'testruns'>('overview');
   const [selectedSuiteForRun, setSelectedSuiteForRun] = useState<TestSuite | null>(null);
   const [viewingSuite, setViewingSuite] = useState<TestSuite | null>(null);
   const [serverIsRunning, setServerIsRunning] = useState(false);
