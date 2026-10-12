@@ -60,6 +60,38 @@ export const AnalyticsDashboard: React.FC = () => {
     }
   };
 
+  const [exportingReportKey, setExportingReportKey] = useState<string | null>(null);
+
+  const handleExportReport = async (reportId: string, format: 'html' | 'pdf') => {
+    const key = `${reportId}-${format}`;
+    setExportingReportKey(key);
+    try {
+      const res = await api.get(`/analytics/reports/${reportId}/export?format=${format}`, {
+        responseType: 'blob',
+      });
+      const mime = format === 'pdf' ? 'application/pdf' : 'text/html; charset=utf-8';
+      const blob = new Blob([res.data], { type: mime });
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      if (format === 'html') {
+        window.open(blobUrl, '_blank');
+      } else {
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `astra_audit_report_${reportId.substring(0, 8)}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+    } catch (err: any) {
+      const token = localStorage.getItem('token') || '';
+      window.open(`/api/v1/analytics/reports/${reportId}/export?format=${format}&token=${token}`, '_blank');
+    } finally {
+      setExportingReportKey(null);
+    }
+  };
+
   const fetchProjectAnalytics = async (projId: string, range: string) => {
     try {
       const res = await api.get(`/analytics/projects/${projId}?time_range=${range}`);
@@ -272,22 +304,24 @@ export const AnalyticsDashboard: React.FC = () => {
                         </td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <a
-                              href={`/api/v1/analytics/reports/${report.id}/export?format=html`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-3 py-1.5 rounded-lg bg-card border border-border-field hover:bg-hover text-primary text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                            <button
+                              type="button"
+                              onClick={() => handleExportReport(report.id, 'html')}
+                              disabled={exportingReportKey === `${report.id}-html`}
+                              className="px-3 py-1.5 rounded-lg bg-card border border-border-field hover:bg-hover text-primary text-[11px] font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                             >
-                              <ExternalLink className="w-3 h-3 text-brand" /> HTML
-                            </a>
-                            <a
-                              href={`/api/v1/analytics/reports/${report.id}/export?format=pdf`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-3 py-1.5 rounded-lg bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                              <ExternalLink className="w-3 h-3 text-brand" />
+                              {exportingReportKey === `${report.id}-html` ? 'Opening...' : 'HTML'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleExportReport(report.id, 'pdf')}
+                              disabled={exportingReportKey === `${report.id}-pdf`}
+                              className="px-3 py-1.5 rounded-lg bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand text-[11px] font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                             >
-                              <Download className="w-3 h-3 text-brand" /> PDF
-                            </a>
+                              <Download className="w-3 h-3 text-brand" />
+                              {exportingReportKey === `${report.id}-pdf` ? 'Downloading...' : 'PDF'}
+                            </button>
                           </div>
                         </td>
                       </tr>
