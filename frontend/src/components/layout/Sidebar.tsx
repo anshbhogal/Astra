@@ -33,19 +33,17 @@ export const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 bg-[#171344] dark:bg-[#090A1A] text-white border-r border-black/30 dark:border-white/10 flex flex-col h-screen shrink-0 select-none z-20 transition-colors duration-150">
       {/* Brand Header */}
-      <div className="p-5 flex items-center gap-3 border-b border-white/10">
-        <div className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center text-white shadow-sm shrink-0">
-          <Zap className="w-5 h-5 fill-current" />
-        </div>
-        <div className="min-w-0">
-          <h1 className="font-bold text-base text-white tracking-tight leading-tight flex items-center gap-1.5">
-            ASTRA
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-brand/35 text-white border border-brand/50">
-              v2.0
-            </span>
-          </h1>
-          <p className="text-xs text-indigo-200/90 truncate font-medium">Automated Quality Platform</p>
-        </div>
+      <div className="p-4 px-5 flex items-center justify-between border-b border-white/10">
+        <NavLink to="/" className="flex items-center gap-2 group">
+          <img
+            src="/astra-logo-dark.svg"
+            alt="ASTRA"
+            className="h-8 w-auto object-contain transition-transform group-hover:scale-[1.02]"
+          />
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 shrink-0">
+            v2.0
+          </span>
+        </NavLink>
       </div>
 
       {/* Navigation Links */}
