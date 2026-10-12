@@ -85,3 +85,35 @@ class AnalysisResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class DiscoveredFunctionResponse(BaseModel):
+    function_id: str
+    qualified_name: str
+    file_path: str
+    line_number: int
+    parameters: List[Dict[str, Any]] = Field(default_factory=list)
+    return_schema: str = "Any"
+    docstring: Optional[str] = None
+    side_effects: List[str] = Field(default_factory=list)
+    called_functions: List[str] = Field(default_factory=list)
+    purity_estimate: float = 1.0
+    cyclomatic_complexity: int = 1
+    is_async: bool = False
+
+
+class FunctionCatalogResponse(BaseModel):
+    items: List[DiscoveredFunctionResponse]
+    total: int
+
+
+class UnitTestRunResponse(BaseModel):
+    total_tests: int
+    passed_tests: int
+    failed_tests: int
+    skipped_tests: int
+    duration_ms: float
+    coverage_percent: float
+    test_outcomes: List[Dict[str, Any]] = Field(default_factory=list)
+    raw_stdout: str
+    exit_code: int
