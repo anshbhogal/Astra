@@ -139,3 +139,100 @@ async def get_analysis_graph(
         return {"nodes": [], "edges": []}
 
     return analysis.knowledge_graph
+
+
+async def get_analysis_functions(
+    db: AsyncSession, project_id: uuid.UUID, current_user: User
+) -> List[dict]:
+    project = await get_project_by_id(db, project_id, current_user)
+    analysis = await get_latest_project_analysis(db, project_id, current_user)
+    
+    # 1. Check if cached in knowledge_graph
+    if analysis and analysis.knowledge_graph and "functions" in analysis.knowledge_graph:
+        return analysis.knowledge_graph["functions"]
+
+    # 2. Extract dynamically from repo directory
+    import os
+    repo_dir = None
+    candidates = [
+        f"/app/scratch/{project.id}",
+        f"/app/workspaces/{project.id}/repository",
+        "/app/scratch/lecturerag" if "lecturerag" in project.repository_url.lower() else None
+    ]
+    for c in candidates:
+        if c and os.path.exists(c):
+            repo_dir = c
+            break
+
+    if not repo_dir:
+        # Clone repo to scratch if needed
+        scratch_dir = f"/app/scratch/{project.id}"
+        from engine.analyzer.repo_cloner import GitRepoCloner
+        cloner = GitRepoCloner()
+        try:
+            cloner.clone(project.repository_url, scratch_dir, branch=project.default_branch)
+            repo_dir = scratch_dir
+        except Exception:
+            return []
+
+    from engine.analyzer.function_extractor import FunctionExtractor
+    contracts = FunctionExtractor.extract_from_directory(repo_dir)
+    func_dicts = [c.to_dict() for c in contracts]
+
+    # Cache in analysis if exists
+    if analysis:
+        kg = dict(analysis.knowledge_graph or {})
+        kg["functions"] = func_dicts
+        kg["function_count"] = len(func_dicts)
+        analysis.knowledge_graph = kg
+        await db.commit()
+
+    return func_dicts
+
+
+async def run_project_unit_tests(
+    db: AsyncSession, project_id: uuid.UUID, current_user: User
+) -> dict:
+    project = await get_project_by_id(db, project_id, current_user)
+    
+    import os
+    repo_dir = None
+    candidates = [
+        f"/app/scratch/{project.id}",
+        f"/app/workspaces/{project.id}/repository",
+        "/app/scratch/lecturerag" if "lecturerag" in project.repository_url.lower() else None
+    ]
+    for c in candidates:
+        if c and os.path.exists(c):
+            repo_dir = c
+            break
+
+    if not repo_dir:
+        scratch_dir = f"/app/scratch/{project.id}"
+        from engine.analyzer.repo_cloner import GitRepoCloner
+        cloner = GitRepoCloner()
+        cloner.clone(project.repository_url, scratch_dir, branch=project.default_branch)
+        repo_dir = scratch_dir
+
+    from engine.analyzer.function_extractor import FunctionExtractor
+    from engine.execution.unit_test_executor import UnitTestExecutor
+
+    contracts = FunctionExtractor.extract_from_directory(repo_dir)
+    if not contracts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No callable functions discovered in this repository for unit testing."
+        )
+
+    exec_result = UnitTestExecutor.execute_for_repo(repo_dir, contracts)
+    return {
+        "total_tests": exec_result.total_tests,
+        "passed_tests": exec_result.passed_tests,
+        "failed_tests": exec_result.failed_tests,
+        "skipped_tests": exec_result.skipped_tests,
+        "duration_ms": exec_result.duration_ms,
+        "coverage_percent": exec_result.coverage_percent,
+        "test_outcomes": exec_result.test_outcomes,
+        "raw_stdout": exec_result.raw_stdout,
+        "exit_code": exec_result.exit_code
+    }
