@@ -78,11 +78,19 @@ export const Login: React.FC = () => {
 
       <div className="relative w-full max-w-md glass-card-elevated border-t-4 border-t-brand rounded-3xl p-8 border border-border-glass shadow-glass-elevated space-y-6 z-10">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-brand text-on-brand items-center justify-center shadow-md mb-2">
-            <Sparkles className="w-6 h-6" />
+        <div className="text-center space-y-3">
+          <div className="flex justify-center mb-1">
+            <img
+              src="/astra-logo.svg"
+              alt="ASTRA - Automated Software Testing"
+              className="h-14 w-auto object-contain dark:hidden drop-shadow-sm"
+            />
+            <img
+              src="/astra-logo-dark.svg"
+              alt="ASTRA - Automated Software Testing"
+              className="h-14 w-auto object-contain hidden dark:block drop-shadow-sm"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-primary tracking-tight">ASTRA QA Cockpit</h1>
           <p className="text-xs text-secondary">
             {isRegister ? 'Enroll your credentials to manage software pipelines' : 'Authenticate to access the autonomous quality cockpit'}
           </p>
