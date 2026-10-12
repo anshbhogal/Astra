@@ -47,11 +47,31 @@ async def execute_test_run_pipeline(test_run_id_str: str) -> None:
 
                 env_config = TargetEnvironmentConfig.from_dict(run.target_environment or {})
                 import os
+                import socket
+                from urllib.parse import urlparse
+
                 if os.path.exists("/.dockerenv") or os.environ.get("CELERY_BROKER_URL"):
-                    if "localhost:8000" in env_config.base_url or "127.0.0.1:8000" in env_config.base_url:
-                        env_config.base_url = env_config.base_url.replace("localhost:8000", "backend:8000").replace("127.0.0.1:8000", "backend:8000")
-                    elif "localhost" in env_config.base_url or "127.0.0.1" in env_config.base_url:
-                        env_config.base_url = env_config.base_url.replace("localhost", "host.docker.internal").replace("127.0.0.1", "host.docker.internal")
+                    parsed_url = urlparse(env_config.base_url)
+                    hostname = parsed_url.hostname or ""
+                    if hostname in ["localhost", "127.0.0.1"]:
+                        target_port = parsed_url.port or 80
+                        # Probe if the target port is active inside the backend container (where Astra sandbox servers run)
+                        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        s.settimeout(0.3)
+                        is_on_backend = False
+                        try:
+                            s.connect(("backend", target_port))
+                            is_on_backend = True
+                        except Exception:
+                            is_on_backend = False
+                        finally:
+                            s.close()
+
+                        if is_on_backend:
+                            env_config.base_url = env_config.base_url.replace(hostname, "backend")
+                        else:
+                            env_config.base_url = env_config.base_url.replace(hostname, "host.docker.internal")
+
 
                 # Stage 2: Pre-flight Liveness Health Check
                 is_healthy, health_msg = await HealthChecker.check_health(env_config)
