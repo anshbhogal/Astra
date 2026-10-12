@@ -21,9 +21,13 @@ import {
   Zap,
   Check,
   Sparkles,
+  Eye,
+  Server,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
+import { TestSuiteViewerDrawer } from '../components/TestSuiteViewerDrawer';
+import { SandboxServerControl } from '../components/SandboxServerControl';
 import { KnowledgeGraphVisualizer } from '../components/KnowledgeGraphVisualizer';
 import { TestStatusBadge, type TestStatus } from '../components/common/TestStatusBadge';
 import { Button } from '../components/common/Button';
@@ -260,6 +264,11 @@ export const ProjectDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'graph' | 'testruns'>('overview');
   const [selectedSuiteForRun, setSelectedSuiteForRun] = useState<TestSuite | null>(null);
+  const [viewingSuite, setViewingSuite] = useState<TestSuite | null>(null);
+  const [serverIsRunning, setServerIsRunning] = useState(false);
+  const [serverPort, setServerPort] = useState<number | null>(null);
+  const [serverWarningModalOpen, setServerWarningModalOpen] = useState(false);
+  const [pendingRunSuite, setPendingRunSuite] = useState<TestSuite | null>(null);
   const [targetBaseUrl, setTargetBaseUrl] = useState('http://localhost:5000');
   const [healthCheckPath, setHealthCheckPath] = useState('/health');
 
@@ -426,6 +435,26 @@ export const ProjectDetail: React.FC = () => {
     } finally {
       setGeneratingSuite(false);
     }
+  };
+
+  const handleServerStateChange = (isRunning: boolean, port: number | null) => {
+    setServerIsRunning(isRunning);
+    setServerPort(port);
+    if (isRunning && port) {
+      setTargetBaseUrl(`http://localhost:${port}`);
+    }
+  };
+
+  const handleInitiateRun = (suite: TestSuite) => {
+    if (!serverIsRunning) {
+      setPendingRunSuite(suite);
+      setServerWarningModalOpen(true);
+      return;
+    }
+    if (serverPort) {
+      setTargetBaseUrl(`http://localhost:${serverPort}`);
+    }
+    setSelectedSuiteForRun(suite);
   };
 
   const dispatchRun = async (suiteId: string, customUrl?: string, customHealthPath?: string) => {
@@ -1050,9 +1079,23 @@ export const ProjectDetail: React.FC = () => {
             </Button>
           </div>
 
+          {/* Step 1: Target Sandbox Server Lifecycle Controller */}
+          {id && project && (
+            <SandboxServerControl
+              projectId={id}
+              projectName={project.name}
+              onServerStateChange={handleServerStateChange}
+            />
+          )}
+
           {/* Generated Test Suites */}
           <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-3">
-            <h4 className="text-sm font-bold text-primary">Generated Test Suites ({suites.length})</h4>
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-primary">Generated Test Suites ({suites.length})</h4>
+                <p className="text-xs text-muted">Inspect specifications, endpoints & assertions before executing</p>
+              </div>
+            </div>
             {suites.length === 0 ? (
               <p className="text-xs text-muted">No test suites generated yet. Click "Generate Synthetic Suite" above.</p>
             ) : (
@@ -1063,15 +1106,25 @@ export const ProjectDetail: React.FC = () => {
                       <span className="text-primary font-bold block">{s.name}</span>
                       <span className="text-muted text-[11px] block">{s.total_cases} test cases • v{s.version}</span>
                     </div>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => setSelectedSuiteForRun(s)}
-                      disabled={dispatchingRun}
-                      leftIcon={<Play className="w-3 h-3 fill-current" />}
-                    >
-                      Run Suite
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewingSuite(s)}
+                        leftIcon={<Eye className="w-3.5 h-3.5" />}
+                      >
+                        View Tests ({s.total_cases})
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleInitiateRun(s)}
+                        disabled={dispatchingRun}
+                        leftIcon={<Play className="w-3 h-3 fill-current" />}
+                      >
+                        Run Suite
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1175,6 +1228,100 @@ export const ProjectDetail: React.FC = () => {
         />
       )}
 
+      {/* Step 2: Test Suite Case Inspector Drawer */}
+      <TestSuiteViewerDrawer
+        isOpen={!!viewingSuite}
+        onClose={() => setViewingSuite(null)}
+        suiteId={viewingSuite?.id || null}
+        suiteName={viewingSuite?.name || ''}
+        totalCasesCount={viewingSuite?.total_cases || 0}
+        isServerRunning={serverIsRunning}
+        serverPort={serverPort}
+        onRunSuite={(suiteId) => {
+          const st = suites.find((x) => x.id === suiteId) || viewingSuite;
+          setViewingSuite(null);
+          if (st) {
+            handleInitiateRun(st);
+          }
+        }}
+        onRequestStartServer={() => {
+          setViewingSuite(null);
+          window.scrollTo({ top: 300, behavior: 'smooth' });
+        }}
+      />
+
+      {/* Target Server Warning Modal */}
+      {serverWarningModalOpen && pendingRunSuite && (
+        <Modal
+          isOpen={serverWarningModalOpen}
+          onClose={() => {
+            setServerWarningModalOpen(false);
+            setPendingRunSuite(null);
+          }}
+          title="Target Server Not Running"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 space-y-2">
+              <div className="flex items-center gap-2 font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Target Server Offline</span>
+              </div>
+              <p className="text-[11px] text-secondary leading-relaxed">
+                You are about to execute test suite <strong className="text-primary font-semibold">{pendingRunSuite.name}</strong>, but the target sandbox server is currently <strong>NOT RUNNING</strong>.
+                Running tests without an active server will result in connection failures.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-field border border-border-card space-y-2">
+              <span className="font-bold text-primary block">Step 1: Start Target Server</span>
+              <p className="text-secondary text-[11px]">
+                Please start the target server above using the <strong>"Start Target Server"</strong> button. The system will auto-allocate a free port (e.g. 5000) and emulate your scanned endpoints.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-border-card">
+              <button
+                type="button"
+                onClick={() => {
+                  setServerWarningModalOpen(false);
+                  const st = pendingRunSuite;
+                  setPendingRunSuite(null);
+                  if (st) setSelectedSuiteForRun(st);
+                }}
+                className="text-[11px] text-muted hover:text-primary underline"
+              >
+                Continue Anyway with External URL &rarr;
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setServerWarningModalOpen(false);
+                    setPendingRunSuite(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setServerWarningModalOpen(false);
+                    setPendingRunSuite(null);
+                    window.scrollTo({ top: 300, behavior: 'smooth' });
+                  }}
+                  leftIcon={<Server className="w-3.5 h-3.5" />}
+                >
+                  Go to Start Server
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Target Sandbox Configuration Modal */}
       {selectedSuiteForRun && (
         <Modal
@@ -1184,7 +1331,23 @@ export const ProjectDetail: React.FC = () => {
         >
           <div className="space-y-4 text-xs">
             <div className="p-3.5 rounded-xl bg-field border border-border-card space-y-1">
-              <span className="font-bold text-primary block text-sm">{selectedSuiteForRun.name}</span>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-primary block text-sm">{selectedSuiteForRun.name}</span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    serverIsRunning
+                      ? 'bg-status-passed-bg text-status-passed border-status-passed/30'
+                      : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      serverIsRunning ? 'bg-status-passed animate-ping' : 'bg-amber-500'
+                    }`}
+                  />
+                  {serverIsRunning ? `Server Running (Port ${serverPort})` : 'Server Not Running'}
+                </span>
+              </div>
               <p className="text-secondary text-[11px]">
                 {selectedSuiteForRun.total_cases} test cases will be executed asynchronously against your target environment.
               </p>
@@ -1200,13 +1363,14 @@ export const ProjectDetail: React.FC = () => {
               <div className="flex items-center gap-1.5 flex-wrap pt-1">
                 <span className="text-[10px] text-muted">Presets:</span>
                 {[
+                  ...(serverPort ? [{ label: `Active Sandbox (:${serverPort})`, url: `http://localhost:${serverPort}` }] : []),
                   { label: 'Flask (:5000)', url: 'http://localhost:5000' },
                   { label: 'Node (:3000)', url: 'http://localhost:3000' },
                   { label: 'Spring (:8080)', url: 'http://localhost:8080' },
                   { label: 'Astra API (:8000)', url: 'http://localhost:8000' },
                 ].map((preset) => (
                   <button
-                    key={preset.url}
+                    key={`${preset.label}-${preset.url}`}
                     type="button"
                     onClick={() => setTargetBaseUrl(preset.url)}
                     className="px-2 py-0.5 rounded text-[10px] bg-card border border-border-card text-secondary hover:text-primary hover:border-brand transition-colors"
