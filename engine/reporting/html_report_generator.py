@@ -675,14 +675,46 @@ class HTMLReportGenerator:
 </head>
 <body>
     <div class="report-card">
-        <div class="header">
-            <div>
-                <h1 class="brand-title">ASTRA QUALITY AUDIT</h1>
-                <p class="meta-text">Target Repository: <strong>{safe_project}</strong> | Generated: {timestamp}</p>
+        <div class="header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #334155; padding-bottom: 20px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 18px;">
+                <div style="width: 175px; height: 50px; flex-shrink: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 220" width="100%" height="100%" role="img" aria-label="ASTRA">
+                      <defs>
+                        <linearGradient id="bg_hdr" x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0" stop-color="#6D28D9"/>
+                          <stop offset="0.55" stop-color="#2563EB"/>
+                          <stop offset="1" stop-color="#06B6D4"/>
+                        </linearGradient>
+                        <linearGradient id="chk_hdr" x1="0" y1="0" x2="1" y2="1">
+                          <stop offset="0" stop-color="#F97316"/>
+                          <stop offset="1" stop-color="#EC4899"/>
+                        </linearGradient>
+                        <linearGradient id="word_hdr" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0" stop-color="#FFFFFF"/>
+                          <stop offset="1" stop-color="#E0E7FF"/>
+                        </linearGradient>
+                      </defs>
+                      <g transform="translate(10,10)">
+                        <rect width="200" height="200" rx="48" fill="url(#bg_hdr)"/>
+                        <circle cx="100" cy="100" r="82" fill="none" stroke="#fff" stroke-opacity="0.25" stroke-width="3" stroke-dasharray="4 10" stroke-linecap="round"/>
+                        <circle cx="170" cy="58" r="7" fill="#FDE047"/>
+                        <circle cx="32" cy="146" r="5" fill="#fff" fill-opacity="0.8"/>
+                        <path d="M100 26 L113 87 L174 100 L113 113 L100 174 L87 113 L26 100 L87 87 Z" fill="#fff"/>
+                        <path d="M70 102 L91 124 L132 74" fill="none" stroke="url(#chk_hdr)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+                      </g>
+                      <text x="244" y="132" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="100" font-weight="800" letter-spacing="8" fill="url(#word_hdr)">ASTRA</text>
+                      <rect x="248" y="150" width="64" height="6" rx="3" fill="url(#chk_hdr)"/>
+                      <text x="246" y="190" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="21" font-weight="600" letter-spacing="5" fill="#CBD5E1">AUTOMATED SOFTWARE TESTING</text>
+                    </svg>
+                </div>
+                <div style="border-left: 2px solid #334155; padding-left: 18px;">
+                    <h1 class="brand-title" style="font-size: 20px; margin: 0; line-height: 1.2;">SOFTWARE QUALITY AUDIT</h1>
+                    <p class="meta-text" style="margin: 4px 0 0 0;">Target System: <strong>{safe_project}</strong> &bull; Generated: {timestamp}</p>
+                </div>
             </div>
             <div style="text-align: right;">
-                <span class="pill-badge pill-purple" style="font-size: 11px; padding: 5px 12px;">
-                    ASTRA ENGINE v1.0 ENTERPRISE
+                <span class="pill-badge pill-purple" style="font-size: 11px; padding: 6px 14px; font-weight: 700; letter-spacing: 0.05em;">
+                    ASTRA ENGINE v2.0 ENTERPRISE
                 </span>
             </div>
         </div>
