@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, User as UserIcon, Shield, ArrowRight, Sparkles } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Shield, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore, UserRole } from '../store/authStore';
 import { Button } from '../components/common/Button';
@@ -15,6 +15,7 @@ export const Login: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
@@ -43,10 +44,11 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (isRegister) {
-        // Register Flow
+        // Register Flow - Account created as pending admin approval
         await api.post('/auth/register', {
           email,
           password,
@@ -54,15 +56,14 @@ export const Login: React.FC = () => {
           role,
         });
 
-        // Auto Login after registration
-        const loginRes = await api.post('/auth/login', { email, password });
-        setAuth(loginRes.data.user, loginRes.data.access_token);
+        setIsRegister(false);
+        setSuccessMessage('Registration submitted successfully! Your account is pending administrator approval. You can log in once an admin activates your account.');
       } else {
         // Login Flow
         const loginRes = await api.post('/auth/login', { email, password });
         setAuth(loginRes.data.user, loginRes.data.access_token);
+        navigate('/');
       }
-      navigate('/');
     } catch (err: any) {
       setError(extractErrorMessage(err.response?.data?.detail));
     } finally {
