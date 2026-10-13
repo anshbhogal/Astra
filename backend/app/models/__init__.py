@@ -11,6 +11,8 @@ from app.models.domain import (
     TestResult,
     FailureAnalysisModel,
     DefectClusterModel,
+    ProjectMember,
+    DefectComment,
     BenchmarkRunModel,
     CIPipelineRunModel,
     NotificationChannelModel,
