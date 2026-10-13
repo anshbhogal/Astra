@@ -225,6 +225,99 @@ async def run_project_unit_tests(
         )
 
     exec_result = UnitTestExecutor.execute_for_repo(repo_dir, contracts)
+
+    # 1. Cache latest unit run in ProjectAnalysis knowledge graph
+    analysis = await get_latest_project_analysis(db, project_id, current_user)
+    if analysis:
+        kg = dict(analysis.knowledge_graph or {})
+        kg["latest_unit_run"] = {
+            "total_tests": exec_result.total_tests,
+            "passed_tests": exec_result.passed_tests,
+            "failed_tests": exec_result.failed_tests,
+            "duration_ms": exec_result.duration_ms,
+            "exit_code": exec_result.exit_code,
+            "test_outcomes": exec_result.test_outcomes
+        }
+        analysis.knowledge_graph = kg
+
+    # 2. Persist TestSuite & TestRun records for analytics & reports
+    try:
+        from app.models.domain import (
+            TestSuite, TestCase, TestRun, TestResult, TestRunStatus, TestOutcome, TestType, utc_now
+        )
+        stmt_suite = select(TestSuite).where(
+            TestSuite.project_id == project.id,
+            TestSuite.name == "Multi-Layer Unit Test Suite"
+        )
+        suite = (await db.execute(stmt_suite)).scalar_one_or_none()
+        if not suite:
+            suite = TestSuite(
+                project_id=project.id,
+                analysis_id=analysis.id if analysis else None,
+                name="Multi-Layer Unit Test Suite",
+                description="Autonomous spec-grounded invariant and boundary unit test suite.",
+                total_cases=exec_result.total_tests,
+                version="1.0.0",
+                is_immutable=True
+            )
+            db.add(suite)
+            await db.flush()
+        else:
+            suite.total_cases = exec_result.total_tests
+
+        run_status = TestRunStatus.COMPLETED if exec_result.exit_code == 0 else TestRunStatus.FAILED
+        test_run = TestRun(
+            project_id=project.id,
+            suite_id=suite.id,
+            status=run_status,
+            total_tests=exec_result.total_tests,
+            passed_tests=exec_result.passed_tests,
+            failed_tests=exec_result.failed_tests,
+            error_tests=exec_result.skipped_tests,
+            duration_ms=exec_result.duration_ms,
+            target_environment={"type": "SANDBOX_UNIT", "framework": "pytest", "isolation": "0_EGRESS"},
+            triggered_by=current_user.id,
+            completed_at=utc_now()
+        )
+        db.add(test_run)
+        await db.flush()
+
+        for idx, t in enumerate(exec_result.test_outcomes):
+            nodeid = t.get("nodeid") or f"test_unit_{idx}"
+            fn_label = nodeid.split("::")[-1]
+            test_case = TestCase(
+                suite_id=suite.id,
+                name=fn_label,
+                test_type=TestType.HAPPY_PATH,
+                execution_order=idx + 1,
+                specification={"nodeid": nodeid, "duration": t.get("duration", 0.0)},
+                depends_on=[]
+            )
+            db.add(test_case)
+            await db.flush()
+
+            outcome = TestOutcome.PASS if t.get("outcome") == "passed" else TestOutcome.FAIL
+            result_rec = TestResult(
+                test_run_id=test_run.id,
+                test_case_id=test_case.id,
+                endpoint=fn_label,
+                method="UNIT",
+                test_type=TestType.HAPPY_PATH,
+                outcome=outcome,
+                status_code=0 if outcome == TestOutcome.PASS else 1,
+                request_data={"nodeid": nodeid},
+                response_data={"outcome": t.get("outcome")},
+                execution_time_ms=round(t.get("duration", 0.0) * 1000, 2),
+                assertion_failures=[t.get("crash_message")] if t.get("crash_message") else [],
+                error_message=t.get("crash_message")
+            )
+            db.add(result_rec)
+
+        await db.commit()
+    except Exception as e:
+        import logging
+        logging.getLogger("astra").warning(f"Could not persist unit test run to DB: {e}")
+
     return {
         "total_tests": exec_result.total_tests,
         "passed_tests": exec_result.passed_tests,
