@@ -9,7 +9,7 @@ import redis.asyncio as aioredis
 
 from app.core.config import settings
 from app.db.session import engine
-from app.api.v1 import auth, projects, tasks, analyzer, execution, generator, intelligence, failure_analysis, ml, regression, webhooks, cicd, analytics, benchmarks, repair
+from app.api.v1 import auth, admin, projects, tasks, analyzer, execution, generator, intelligence, failure_analysis, ml, regression, webhooks, cicd, analytics, benchmarks, repair
 
 # Configure logging
 logging.basicConfig(
@@ -113,6 +113,7 @@ async def readiness_check():
 
 # Register V1 API Routers
 app.include_router(auth.router, prefix=settings.API_V1_STR)
+app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(projects.router, prefix=settings.API_V1_STR)
 app.include_router(tasks.router, prefix=settings.API_V1_STR)
 app.include_router(analyzer.router, prefix=settings.API_V1_STR)
