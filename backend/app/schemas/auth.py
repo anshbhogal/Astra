@@ -44,9 +44,22 @@ class UserResponse(BaseModel):
     full_name: str
     role: UserRole
     is_active: bool
+    is_approved: bool = True
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
+    full_name: str = Field(..., min_length=2, max_length=255)
+    role: UserRole = UserRole.DEVELOPER
+    project_ids: Optional[list[uuid.UUID]] = None
+
+    @field_validator("email", mode="before")
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower() if isinstance(v, str) else v
 
 
 class Token(BaseModel):
