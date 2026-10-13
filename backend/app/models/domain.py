@@ -80,6 +80,7 @@ class User(Base):
         SQLEnum(UserRole), default=UserRole.DEVELOPER, nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
@@ -89,6 +90,9 @@ class User(Base):
 
     projects: Mapped[List["Project"]] = relationship(
         "Project", back_populates="owner", cascade="all, delete-orphan"
+    )
+    memberships: Mapped[List["ProjectMember"]] = relationship(
+        "ProjectMember", back_populates="user", cascade="all, delete-orphan"
     )
     audit_logs: Mapped[List["AuditLog"]] = relationship(
         "AuditLog", back_populates="actor"
@@ -132,6 +136,33 @@ class Project(Base):
     test_runs: Mapped[List["TestRun"]] = relationship(
         "TestRun", back_populates="project", cascade="all, delete-orphan"
     )
+    members: Mapped[List["ProjectMember"]] = relationship(
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )
+
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_user"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    role: Mapped[UserRole] = mapped_column(
+        SQLEnum(UserRole), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    project: Mapped["Project"] = relationship("Project", back_populates="members")
+    user: Mapped["User"] = relationship("User", back_populates="memberships")
 
 
 class AnalysisStatus(str, Enum):
@@ -545,9 +576,42 @@ class FailureAnalysisModel(Base):
     classification_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
     attribution_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
     root_cause_confidence: Mapped[float] = mapped_column(default=1.0, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="OPEN", nullable=False)
+    assigned_to_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
+
+    comments: Mapped[List["DefectComment"]] = relationship(
+        "DefectComment", back_populates="defect", cascade="all, delete-orphan"
+    )
+
+
+class DefectComment(Base):
+    __tablename__ = "defect_comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    defect_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("failure_analyses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    status_change: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+
+    defect: Mapped["FailureAnalysisModel"] = relationship("FailureAnalysisModel", back_populates="comments")
+    user: Mapped["User"] = relationship("User")
 
 
 class DefectClusterModel(Base):
