@@ -23,8 +23,11 @@ import {
   Sparkles,
   Eye,
   Server,
+  Users,
+  FlaskConical,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
 import { TestSuiteViewerDrawer } from '../components/TestSuiteViewerDrawer';
 import { SandboxServerControl } from '../components/SandboxServerControl';
@@ -283,7 +286,13 @@ const formatFrameworkName = (raw?: string | null): string => {
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+  const isTester = user?.role === 'TESTER';
+  const canRunTests = isAdmin || isTester;
+
   const [project, setProject] = useState<Project | null>(null);
+  const [members, setMembers] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [endpoints, setEndpoints] = useState<DiscoveredEndpoint[]>([]);
   const [suites, setSuites] = useState<TestSuite[]>([]);
@@ -319,9 +328,13 @@ export const ProjectDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get(`/projects/${id}`);
+        const [res, memRes] = await Promise.all([
+          api.get(`/projects/${id}`),
+          api.get(`/projects/${id}/members`).catch(() => ({ data: [] }))
+        ]);
         if (!isMounted) return;
         setProject(res.data);
+        setMembers(memRes.data || []);
         loadChildResources();
       } catch (err: any) {
         if (!isMounted) return;
@@ -613,9 +626,10 @@ export const ProjectDetail: React.FC = () => {
               variant="primary"
               size="md"
               onClick={triggerAnalysis}
-              disabled={analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
+              disabled={!canRunTests || analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
               isLoading={analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED'}
               leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
+              title={!canRunTests ? "Only Testers and Admins can trigger repository analysis" : undefined}
             >
               {analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED'
                 ? `Analyzing (${analysis?.progress_percent ?? 0}%)`
@@ -628,8 +642,9 @@ export const ProjectDetail: React.FC = () => {
               variant="secondary"
               size="md"
               onClick={() => setIsDrawerOpen(true)}
-              disabled={!analysis || endpoints.length === 0}
+              disabled={!canRunTests || !analysis || endpoints.length === 0}
               leftIcon={<Sliders className="w-3.5 h-3.5 text-brand" />}
+              title={!canRunTests ? "Only Testers and Admins can generate synthetic suites" : undefined}
             >
               Advanced Suite Generator
             </Button>
@@ -695,7 +710,60 @@ export const ProjectDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Real-time Analysis Progress Banner Card - Clean & Minimalist */}
+      {/* Repository Team Governance Strip */}
+      <div className="glass-card rounded-2xl p-4 shadow-card border border-border-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <Users className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Assigned Team</span>
+              <span className="text-xs font-semibold text-primary block">{members.length} Member(s)</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <FlaskConical className="w-3 h-3" /> Testers ({members.filter(m => m.role === 'TESTER').length})
+              </span>
+              <span className="text-secondary font-medium">
+                {members.filter(m => m.role === 'TESTER').map(m => m.user?.full_name).join(', ') || <span className="text-muted italic">None</span>}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 flex items-center gap-1">
+                <Code2 className="w-3 h-3" /> Developers ({members.filter(m => m.role === 'DEVELOPER').length})
+              </span>
+              <span className="text-secondary font-medium">
+                {members.filter(m => m.role === 'DEVELOPER').map(m => m.user?.full_name).join(', ') || <span className="text-muted italic">None</span>}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                <Eye className="w-3 h-3" /> Viewers ({members.filter(m => m.role === 'VIEWER').length})
+              </span>
+              <span className="text-secondary font-medium">
+                {members.filter(m => m.role === 'VIEWER').map(m => m.user?.full_name).join(', ') || <span className="text-muted italic">None</span>}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/admin')}
+            leftIcon={<Shield className="w-3.5 h-3.5 text-purple-400" />}
+          >
+            Manage Team
+          </Button>
+        )}
+      </div>
       <div className={`glass-card rounded-2xl p-6 shadow-card transition-all duration-200 relative overflow-hidden border ${
         analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing
           ? 'border-brand/40 ring-1 ring-brand/20'
@@ -1152,9 +1220,10 @@ export const ProjectDetail: React.FC = () => {
                 <Button
                   variant="primary"
                   onClick={runUnitTests}
-                  disabled={runningUnitTests || functions.length === 0}
+                  disabled={!canRunTests || runningUnitTests || functions.length === 0}
                   isLoading={runningUnitTests}
                   leftIcon={<Sparkles className="w-3.5 h-3.5 fill-current" />}
+                  title={!canRunTests ? "Only Testers and Admins can execute unit test suites" : undefined}
                 >
                   Generate & Run Suite
                 </Button>
