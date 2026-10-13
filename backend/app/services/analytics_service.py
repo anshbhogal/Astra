@@ -229,6 +229,41 @@ class AnalyticsService:
             for tr in test_results
         ]
 
+        # Fallback to latest_unit_run if no HTTP TestResult rows exist
+        if not executed_tests_sample:
+            stmt_an = (
+                select(ProjectAnalysis)
+                .where(ProjectAnalysis.project_id == project_id)
+                .order_by(ProjectAnalysis.created_at.desc())
+                .limit(1)
+            )
+            an_res = await db.execute(stmt_an)
+            latest_an = an_res.scalar_one_or_none()
+            if latest_an and latest_an.knowledge_graph:
+                unit_run = latest_an.knowledge_graph.get("latest_unit_run", {})
+                for t in unit_run.get("test_outcomes", []):
+                    nodeid = t.get("nodeid") or ""
+                    fn_label = nodeid.split("::")[-1]
+                    outcome_str = (t.get("outcome") or "passed").upper()
+                    executed_tests_sample.append({
+                        "id": nodeid,
+                        "endpoint": fn_label or nodeid,
+                        "method": "UNIT",
+                        "test_type": "UNIT_INVARIANT",
+                        "outcome": outcome_str,
+                        "status_code": 0 if outcome_str in ("PASSED", "PASS") else 1,
+                        "execution_time_ms": round(t.get("duration", 0.0) * 1000, 1),
+                        "assertion_failures": [t.get("crash_message")] if t.get("crash_message") else [],
+                        "error_message": t.get("crash_message")
+                    })
+
+                if executed_tests_sample and total_tests_executed == 0:
+                    total_tests_executed = len(executed_tests_sample)
+                    passed_tests = sum(1 for t in executed_tests_sample if t.get("outcome") in ("PASSED", "PASS"))
+                    failed_tests = total_tests_executed - passed_tests
+                    pass_rate = round((passed_tests / max(1, total_tests_executed)) * 100.0, 1)
+                    quality_score = max(quality_score, round(pass_rate * 0.95, 1))
+
         # 11. Query Detailed Defect Disclosures (Bugs Found)
         fa_detail_query = (
             select(FailureAnalysisModel)
