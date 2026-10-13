@@ -216,6 +216,7 @@ class HTMLReportGenerator:
                     "PUT": "background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3);",
                     "DELETE": "background: rgba(248,113,113,0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3);",
                     "PATCH": "background: rgba(192,132,252,0.15); color: #c084fc; border: 1px solid rgba(192,132,252,0.3);",
+                    "UNIT": "background: rgba(129,140,248,0.15); color: #818cf8; border: 1px solid rgba(129,140,248,0.3);",
                 }
                 meth_style = meth_colors.get(meth, "background: #334155; color: #94a3b8;")
 
@@ -235,6 +236,8 @@ class HTMLReportGenerator:
                     detail_str = f'<div style="color: #f87171; font-size: 11px; font-family: monospace;">{html.escape(str(failures_list[0]))}</div>'
                 elif err_msg and outcome != "PASSED":
                     detail_str = f'<div style="color: #f87171; font-size: 11px; font-family: monospace;">{err_msg[:90]}...</div>'
+                elif meth == "UNIT":
+                    detail_str = '<span style="color: #10b981; font-size: 11px;">Function Invariant & Boundary Assertions Passed</span>'
                 else:
                     detail_str = '<span style="color: #64748b; font-size: 11px;">Schema & Response Invariants Satisfied</span>'
 
