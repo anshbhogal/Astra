@@ -118,7 +118,7 @@ async def list_discovered_functions(
 async def run_unit_tests(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.TESTER])
 ):
     """Execute synthesized unit test suite for the project in sandbox."""
     res = await analyzer_service.run_project_unit_tests(db, project_id, current_user)
