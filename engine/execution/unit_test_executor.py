@@ -62,28 +62,36 @@ class UnitTestExecutor:
 
         report_json_path = tests_dir / ".report.json"
 
-        # 3. Execute Pytest Command
+        # 3. Execute Pytest Command with strict per-test timeout
         cmd = [
             "python", "-m", "pytest",
             str(test_file),
             f"--json-report-file={report_json_path}",
             "--json-report",
             "-v",
-            "--tb=short"
+            "--tb=short",
+            "--timeout=5"
         ]
 
         env = os.environ.copy()
         env["PYTHONPATH"] = f"{root_path}{os.pathsep}{env.get('PYTHONPATH', '')}"
 
         start_time = time.time()
-        proc = subprocess.run(
-            cmd,
-            cwd=str(root_path),
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=60
-        )
+        try:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(root_path),
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=45
+            )
+            raw_stdout = proc.stdout or proc.stderr or ""
+            exit_code = proc.returncode
+        except subprocess.TimeoutExpired as exc:
+            raw_stdout = (exc.stdout or "") + f"\n\n[ASTRA TIMEOUT] Suite execution exceeded 45s sandbox limit. Process terminated gracefully."
+            exit_code = 124
+
         duration_ms = round((time.time() - start_time) * 1000, 2)
 
         total = 0
@@ -124,6 +132,6 @@ class UnitTestExecutor:
             duration_ms=duration_ms,
             coverage_percent=pass_rate,
             test_outcomes=outcomes,
-            raw_stdout=proc.stdout or proc.stderr,
-            exit_code=proc.returncode
+            raw_stdout=raw_stdout,
+            exit_code=exit_code
         )
