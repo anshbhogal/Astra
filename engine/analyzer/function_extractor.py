@@ -238,7 +238,11 @@ class FunctionExtractor:
         root = Path(repo_root)
         all_contracts: list[FunctionContract] = []
 
-        ignore_dirs = {".git", ".venv", "venv", "__pycache__", "node_modules", "dist", "build", "tests", "test", ".pytest_cache"}
+        ignore_dirs = {
+            ".git", ".github", ".venv", "venv", "env", "__pycache__",
+            "node_modules", "dist", "build", "tests", "test", ".pytest_cache",
+            "docs", "doc", "examples", "example", "samples"
+        }
 
         for p in root.rglob("*.py"):
             if any(part in ignore_dirs for part in p.parts):
@@ -253,4 +257,4 @@ class FunctionExtractor:
                 -c.cyclomatic_complexity,
             )
         )
-        return all_contracts
+        return all_contracts[:50]
