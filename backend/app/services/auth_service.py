@@ -17,14 +17,15 @@ async def register_new_user(db: AsyncSession, payload: UserRegister) -> User:
             detail="An account with this email address already exists."
         )
 
-    # 2. Hash password & create user
+    # 2. Hash password & create user (pending admin approval)
     hashed_pwd = get_password_hash(payload.password)
     user = User(
         email=payload.email,
         hashed_password=hashed_pwd,
         full_name=payload.full_name,
         role=payload.role,
-        is_active=True
+        is_active=True,
+        is_approved=False
     )
     db.add(user)
     await db.flush()
@@ -32,10 +33,10 @@ async def register_new_user(db: AsyncSession, payload: UserRegister) -> User:
     # 3. Create Audit Log
     audit_entry = AuditLog(
         actor_id=user.id,
-        action="USER_REGISTERED",
+        action="USER_REGISTERED_PENDING_APPROVAL",
         resource_type="USER",
         resource_id=str(user.id),
-        details={"email": user.email, "role": user.role.value}
+        details={"email": user.email, "role": user.role.value, "is_approved": False}
     )
     db.add(audit_entry)
     await db.commit()
@@ -63,8 +64,14 @@ async def authenticate_user(db: AsyncSession, payload: UserLogin) -> User:
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is inactive"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account has been deactivated. Contact your system administrator."
+        )
+
+    if not user.is_approved and user.role != UserRole.ADMIN and user.email != "admin@astra.local":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending administrator approval before you can access the platform."
         )
 
     # Create Audit Log for login event
