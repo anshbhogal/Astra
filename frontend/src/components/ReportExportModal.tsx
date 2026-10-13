@@ -19,6 +19,7 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
   const [generating, setGenerating] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -34,8 +35,6 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       setGenerating(false);
     }
   };
-
-  const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
 
   const handleDownload = async (format: 'html' | 'pdf') => {
     if (!generatedReport) return;
