@@ -44,6 +44,7 @@ export const ProjectsList: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isAdmin = user?.role === 'ADMIN';
   const isViewer = user?.role === 'VIEWER';
 
   useEffect(() => {
@@ -125,25 +126,31 @@ export const ProjectsList: React.FC = () => {
             </span>
           </div>
           <p className="text-sm text-secondary mt-0.5">
-            Target codebases connected for automated AST parsing, test generation, and defect tracking.
+            {isAdmin
+              ? 'Target codebases connected for automated AST parsing, test generation, and defect tracking.'
+              : `Repositories assigned to you by the Administrator for ${user?.role?.toLowerCase() || 'team'} workflow.`}
           </p>
         </div>
 
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          disabled={isViewer}
-          variant="primary"
-          leftIcon={<Plus className="w-4 h-4" />}
-          title={isViewer ? 'Viewer role is restricted to read-only access' : 'Register Repository'}
-        >
-          Register Repository
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            variant="primary"
+            leftIcon={<Plus className="w-4 h-4" />}
+          >
+            Register Repository
+          </Button>
+        )}
       </div>
 
-      {isViewer && (
-        <div className="p-3.5 rounded-xl bg-status-flaky-bg border border-status-flaky/30 text-status-flaky text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>You have Viewer permissions. Adding or deleting repositories requires Developer or Admin access.</span>
+      {!isAdmin && (
+        <div className="p-3.5 rounded-xl bg-field border border-border-card text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-secondary">
+            <AlertCircle className="w-4 h-4 text-brand shrink-0" />
+            <span>
+              Signed in as <strong>{user?.role}</strong> ({user?.full_name}). Displaying repositories assigned to your account by the Administrator. Only Admins can register new repositories.
+            </span>
+          </div>
         </div>
       )}
 
