@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.models.domain import User, AuditLog
+from app.models.domain import User, AuditLog, UserRole
 from app.schemas.auth import UserRegister, UserLogin
 from app.core.security import get_password_hash, verify_password
 
