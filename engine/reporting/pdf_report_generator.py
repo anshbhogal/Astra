@@ -285,23 +285,24 @@ class PDFReportGenerator:
                 elements.append(Spacer(1, 12))
 
             # -----------------------------------------------------------------
-            # 6. Executed Tests Ledger Sample Table
+            # 6. Executed Tests Ledger Table (Unit & API Invariants)
             # -----------------------------------------------------------------
             tests_sample = analytics_data.get("executed_tests", [])
+            elements.append(Paragraph("<b>Executed Tests & Unit Verification Ledger</b>", styles['Heading3']))
+            elements.append(Spacer(1, 3))
+
+            cell_style = ParagraphStyle(
+                'TestCellWrap',
+                parent=styles['Normal'],
+                fontName='Helvetica',
+                fontSize=7,
+                leading=8.5,
+                textColor=colors.HexColor("#1e293b")
+            )
+
             if tests_sample:
-                elements.append(Paragraph("<b>Executed Tests Ledger Sample</b>", styles['Heading3']))
-                elements.append(Spacer(1, 3))
-                tests_data = [["Method", "Endpoint Route Path", "HTTP", "Latency", "Outcome"]]
-                for ts in tests_sample[:8]:
-                    tests_data.append([
-                        str(ts.get("method", "GET")),
-                        str(ts.get("endpoint", "/"))[:32],
-                        str(ts.get("status_code", 200)),
-                        f"{ts.get('execution_time_ms', 0)} ms",
-                        str(ts.get("outcome", "PASSED"))
-                    ])
-                t_tests = Table(tests_data, colWidths=[60, 230, 60, 90, 100])
-                t_tests.setStyle(TableStyle([
+                tests_data = [["Type", "Test Identifier / Target Location", "Status", "Latency", "Outcome"]]
+                row_styles = [
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1e293b")),
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -309,9 +310,64 @@ class PDFReportGenerator:
                     ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
                     ('TOPPADDING', (0, 0), (-1, -1), 3),
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                ]
+                
+                # Show up to 35 test cases in the PDF ledger
+                for idx, ts in enumerate(tests_sample[:35], start=1):
+                    meth = str(ts.get("method", "UNIT")).upper()
+                    ep_text = str(ts.get("endpoint", "/"))
+                    code_val = str(ts.get("status_code", 0 if meth == "UNIT" else 200))
+                    dur_val = f"{ts.get('execution_time_ms', 0)} ms"
+                    outcome_str = str(ts.get("outcome", "PASSED")).upper()
+
+                    tests_data.append([
+                        meth,
+                        Paragraph(ep_text, cell_style),
+                        code_val,
+                        dur_val,
+                        outcome_str
+                    ])
+
+                    # Alternating row background
+                    bg_color = colors.HexColor("#f8fafc") if idx % 2 == 0 else colors.HexColor("#ffffff")
+                    row_styles.append(('BACKGROUND', (0, idx), (-1, idx), bg_color))
+
+                    # Method badge font bold
+                    row_styles.append(('FONTNAME', (0, idx), (0, idx), 'Helvetica-Bold'))
+                    if meth == "UNIT":
+                        row_styles.append(('TEXTCOLOR', (0, idx), (0, idx), colors.HexColor("#6366f1")))
+
+                    # Outcome color coding
+                    row_styles.append(('FONTNAME', (4, idx), (4, idx), 'Helvetica-Bold'))
+                    if outcome_str in ("PASSED", "PASS"):
+                        row_styles.append(('TEXTCOLOR', (4, idx), (4, idx), colors.HexColor("#10b981")))
+                    elif outcome_str in ("FAILED", "FAIL"):
+                        row_styles.append(('TEXTCOLOR', (4, idx), (4, idx), colors.HexColor("#ef4444")))
+                    else:
+                        row_styles.append(('TEXTCOLOR', (4, idx), (4, idx), colors.HexColor("#8b5cf6")))
+
+                t_tests = Table(tests_data, colWidths=[55, 255, 60, 80, 90], repeatRows=1)
+                t_tests.setStyle(TableStyle(row_styles))
+                elements.append(t_tests)
+            else:
+                empty_data = [
+                    ["Type", "Test Identifier / Target Location", "Status", "Latency", "Outcome"],
+                    ["NOTICE", Paragraph("No test executions recorded yet for this project. Execute unit tests or synthetic API tests to populate telemetry.", cell_style), "-", "-", "PENDING"]
+                ]
+                t_tests = Table(empty_data, colWidths=[55, 255, 60, 80, 90])
+                t_tests.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1e293b")),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 7.5),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                    ('TEXTCOLOR', (4, 1), (4, 1), colors.HexColor("#f59e0b")),
                 ]))
                 elements.append(t_tests)
-                elements.append(Spacer(1, 12))
+
+            elements.append(Spacer(1, 12))
 
             # -----------------------------------------------------------------
             # 7. Security & Invariant Audit Attestation Box
