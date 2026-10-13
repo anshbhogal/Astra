@@ -155,6 +155,14 @@ export const Login: React.FC = () => {
           </div>
         )}
 
+        {/* Success / Pending Approval Notification */}
+        {successMessage && (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-start gap-2.5">
+            <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{successMessage}</span>
+          </div>
+        )}
+
         {/* Error Notification */}
         {error && (
           <div className="p-3 rounded-xl bg-status-failed-bg border border-status-failed/30 text-status-failed text-xs font-medium">
