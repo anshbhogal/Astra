@@ -22,6 +22,7 @@ export const Sidebar: React.FC = () => {
     { to: '/projects', label: 'Repositories', icon: FolderGit2 },
     { to: '/analytics', label: 'Quality Analytics', icon: BarChart3 },
     { to: '/benchmarks', label: 'Research Benchmarks', icon: FlaskConical },
+    ...(user?.role === 'ADMIN' ? [{ to: '/admin', label: 'Admin Console', icon: Shield }] : []),
   ];
 
   const engineModules = [
