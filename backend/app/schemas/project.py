@@ -3,8 +3,28 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
-from app.models.domain import LanguageFramework
+from app.models.domain import LanguageFramework, UserRole
 from app.schemas.auth import UserResponse
+
+
+class ProjectMemberResponse(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    user_id: uuid.UUID
+    role: UserRole
+    created_at: datetime
+    user: Optional[UserResponse] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ProjectMemberAssign(BaseModel):
+    user_id: uuid.UUID
+    role: UserRole
+
+
+class ProjectTeamBulkAssign(BaseModel):
+    members: List[ProjectMemberAssign]
 
 
 class ProjectCreate(BaseModel):
@@ -40,6 +60,7 @@ class ProjectResponse(BaseModel):
     language_framework: LanguageFramework
     owner_id: uuid.UUID
     owner: Optional[UserResponse] = None
+    members: Optional[List[ProjectMemberResponse]] = None
     created_at: datetime
     updated_at: datetime
 
