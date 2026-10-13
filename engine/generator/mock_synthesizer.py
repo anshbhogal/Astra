@@ -19,10 +19,16 @@ class MockSynthesizer:
         return '''# ASTRA Automated Synthetic Test Fixtures (conftest.py)
 import os
 import sys
+import io
 import json
 import pytest
+import builtins
 import numpy as np
 from unittest.mock import MagicMock
+
+# Prevent blocking on stdin / interactive prompts
+builtins.input = lambda *args, **kwargs: ""
+sys.stdin = io.StringIO("")
 
 # ── 1. Top-Level Module Stubs (Sys.Modules Isolation) ───────────────────────
 class FakeChoice:
