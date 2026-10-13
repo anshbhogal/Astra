@@ -11,6 +11,7 @@ import { RequirementIntelligence } from './pages/RequirementIntelligence';
 import { DefectDashboard } from './pages/DefectDashboard';
 import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
 import { BenchmarkEvaluationPage } from './pages/BenchmarkEvaluationPage';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -104,6 +105,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <BenchmarkEvaluationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />
