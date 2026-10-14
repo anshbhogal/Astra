@@ -12,7 +12,9 @@ import { DefectDashboard } from './pages/DefectDashboard';
 import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
 import { BenchmarkEvaluationPage } from './pages/BenchmarkEvaluationPage';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { CodeStudio } from './pages/CodeStudio';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { FirstTimePasswordModal } from './components/FirstTimePasswordModal';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useAuthStore();
@@ -20,9 +22,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
   return (
-    <Layout>
-      <ErrorBoundary>{children}</ErrorBoundary>
-    </Layout>
+    <>
+      <FirstTimePasswordModal />
+      <Layout>
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </Layout>
+    </>
   );
 };
 
@@ -113,6 +118,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/projects/:id/ide"
+          element={
+            <ProtectedRoute>
+              <CodeStudio />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ide"
+          element={
+            <ProtectedRoute>
+              <CodeStudio />
             </ProtectedRoute>
           }
         />
