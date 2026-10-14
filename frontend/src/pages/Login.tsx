@@ -48,6 +48,19 @@ export const Login: React.FC = () => {
 
     try {
       if (isRegister) {
+        // Enforce password complexity criteria
+        const hasMinLen = password.length >= 8;
+        const hasUpper = /[A-Z]/.test(password);
+        const hasLower = /[a-z]/.test(password);
+        const hasNum = /\d/.test(password);
+        const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~` ]/.test(password);
+
+        if (!hasMinLen || !hasUpper || !hasLower || !hasNum || !hasSpecial) {
+          setError('Password must be at least 8 characters and contain a mix of uppercase, lowercase, numbers, and special characters (!@#$%^&*).');
+          setLoading(false);
+          return;
+        }
+
         // Register Flow - Account created as pending admin approval
         await api.post('/auth/register', {
           email,
@@ -205,6 +218,12 @@ export const Login: React.FC = () => {
           />
 
           {isRegister && (
+            <p className="text-[11px] text-muted -mt-2 leading-tight">
+              Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters (!@#$%^&*).
+            </p>
+          )}
+
+          {isRegister && (
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-secondary">
                 Workspace Role
@@ -218,11 +237,14 @@ export const Login: React.FC = () => {
                   onChange={(e) => setRole(e.target.value as UserRole)}
                   className="w-full h-10 bg-field text-primary text-sm rounded-lg border border-border-field hover:border-brand focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-card pl-10 pr-3.5 outline-none transition-colors"
                 >
-                  <option value="DEVELOPER">Developer (Create & Manage Projects)</option>
-                  <option value="TESTER">QA Tester (Trigger & Run Tests)</option>
-                  <option value="VIEWER">Viewer (Read Only Access)</option>
+                  <option value="DEVELOPER">Developer (Collaborate & Patch Bugs)</option>
+                  <option value="TESTER">QA Tester (Trigger & Review Automated Tests)</option>
+                  <option value="VIEWER">Viewer (Inspect Reports & Defect Logs)</option>
                 </select>
               </div>
+              <p className="text-[10px] text-muted">
+                Note: Administrator accounts cannot be self-requested and require direct leadership provisioning.
+              </p>
             </div>
           )}
 
