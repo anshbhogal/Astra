@@ -3,11 +3,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.domain import User, AuditLog, UserRole
-from app.schemas.auth import UserRegister, UserLogin
+from app.schemas.auth import UserRegister, UserLogin, ChangePasswordRequest
 from app.core.security import get_password_hash, verify_password
 
 
 async def register_new_user(db: AsyncSession, payload: UserRegister) -> User:
+    # 0. Reject public registration for Admin role
+    if payload.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration for Administrator role is not permitted. Only an Administrator can grant this role."
+        )
+
     # 1. Check for existing account by normalized email
     stmt = select(User).where(User.email == payload.email)
     existing_user = (await db.execute(stmt)).scalar_one_or_none()
@@ -84,4 +91,29 @@ async def authenticate_user(db: AsyncSession, payload: UserLogin) -> User:
     )
     db.add(audit_entry)
     await db.commit()
+    return user
+
+
+async def change_user_password(db: AsyncSession, user: User, payload: ChangePasswordRequest) -> User:
+    """Update user password (e.g., forced change upon first login) and clear must_change_password flag."""
+    if payload.current_password:
+        if not verify_password(payload.current_password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect."
+            )
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.must_change_password = False
+
+    audit_entry = AuditLog(
+        actor_id=user.id,
+        action="USER_PASSWORD_CHANGED",
+        resource_type="USER",
+        resource_id=str(user.id),
+        details={"email": user.email, "forced_first_change": True}
+    )
+    db.add(audit_entry)
+    await db.commit()
+    await db.refresh(user)
     return user
