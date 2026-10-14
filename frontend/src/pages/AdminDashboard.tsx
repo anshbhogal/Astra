@@ -192,7 +192,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const pendingUsers = users.filter((u) => !u.is_approved);
+  const pendingUsers = users.filter((u) => !u.is_approved && u.role !== 'ADMIN');
   const filteredUsers = users.filter((u) => {
     const matchSearch =
       u.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -223,7 +223,7 @@ export const AdminDashboard: React.FC = () => {
         );
       case 'VIEWER':
         return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1.5 w-fit">
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 flex items-center gap-1.5 w-fit">
             <Eye className="w-3 h-3" /> Viewer
           </span>
         );
@@ -242,9 +242,6 @@ export const AdminDashboard: React.FC = () => {
               <Shield className="w-5 h-5" />
             </div>
             <h1 className="text-2xl font-bold text-primary tracking-tight">Admin Governance Cockpit</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20">
-              Highest Level Coordinator
-            </span>
           </div>
           <p className="text-xs text-secondary mt-1">
             Provision user credentials, approve self-registered engineers, and orchestrate repository groups for Testers, Developers, and Viewers.
@@ -278,7 +275,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <div className="p-4 rounded-xl bg-card border border-border-card shadow-card space-y-1">
           <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Pending Approvals</span>
-          <div className={`text-xl font-bold font-mono ${pendingUsers.length > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+          <div className={`text-xl font-bold font-mono ${pendingUsers.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-500'}`}>
             {pendingUsers.length}
           </div>
         </div>
@@ -302,17 +299,12 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Pending Approvals Alert Banner */}
       {pendingUsers.length > 0 && activeTab !== 'approvals' && (
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4">
+        <div className="p-3.5 px-4 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 dark:border-amber-700/50 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-sm font-bold text-amber-300">
-                {pendingUsers.length} New Self-Registered Account(s) Awaiting Approval
-              </p>
-              <p className="text-xs text-amber-200/80">
-                Users cannot access the platform until an Administrator approves their role and repository assignments.
-              </p>
-            </div>
+            <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+              {pendingUsers.length} New Self-Registered Account(s) Awaiting Approval
+            </p>
           </div>
           <Button
             variant="secondary"
@@ -426,11 +418,11 @@ export const AdminDashboard: React.FC = () => {
                         <td className="py-3 px-4">{getRoleBadge(u.role)}</td>
                         <td className="py-3 px-4">
                           {u.is_approved ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                               Active & Approved
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                               Pending Approval
                             </span>
                           )}
@@ -500,7 +492,7 @@ export const AdminDashboard: React.FC = () => {
                       <h3 className="text-base font-bold text-primary">{u.full_name}</h3>
                       <p className="text-xs font-mono text-muted">{u.email}</p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
                       Requested: {u.role}
                     </span>
                   </div>
