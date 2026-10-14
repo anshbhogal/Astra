@@ -8,6 +8,7 @@ export interface User {
   full_name: string;
   role: UserRole;
   is_active: boolean;
+  must_change_password?: boolean;
   created_at: string;
 }
 
@@ -15,6 +16,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   setAuth: (user: User, token: string) => void;
+  updateUser: (updatedUser: Partial<User>) => void;
   logout: () => void;
 }
 
@@ -30,13 +32,20 @@ if (savedUserStr) {
   }
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: savedUser,
   token: savedToken,
   setAuth: (user, token) => {
     localStorage.setItem('astra_token', token);
     localStorage.setItem('astra_user', JSON.stringify(user));
     set({ user, token });
+  },
+  updateUser: (updatedUser) => {
+    const current = get().user;
+    if (!current) return;
+    const merged = { ...current, ...updatedUser };
+    localStorage.setItem('astra_user', JSON.stringify(merged));
+    set({ user: merged });
   },
   logout: () => {
     localStorage.removeItem('astra_token');
