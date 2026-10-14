@@ -20,7 +20,25 @@ async def test_admin_governance_and_rbac_flow():
         rand_id = uuid.uuid4().hex[:6]
         user_email = f"self_{rand_id}@example.com"
 
-        # 2. Self-register a new user (pending approval)
+        # 1a. Verify NO ONE can request to be an ADMIN
+        admin_request_res = await client.post("/api/v1/auth/register", json={
+            "full_name": f"Hacker Admin {rand_id}",
+            "email": f"fake_admin_{rand_id}@example.com",
+            "password": "ValidPassword123!",
+            "role": "ADMIN"
+        })
+        assert admin_request_res.status_code in (400, 422)
+
+        # 1b. Verify weak password (no mix / < 8 chars) is rejected
+        weak_pwd_res = await client.post("/api/v1/auth/register", json={
+            "full_name": f"Weak User {rand_id}",
+            "email": f"weak_{rand_id}@example.com",
+            "password": "weak",
+            "role": "DEVELOPER"
+        })
+        assert weak_pwd_res.status_code == 422
+
+        # 2. Self-register a new user with strong password (pending approval)
         reg_res = await client.post("/api/v1/auth/register", json={
             "full_name": f"Dev User {rand_id}",
             "email": user_email,
@@ -67,6 +85,7 @@ async def test_admin_governance_and_rbac_flow():
             "role": "TESTER"
         }, headers=admin_headers)
         assert gen_tester_res.status_code == 201
+        assert gen_tester_res.json()["must_change_password"] is True
 
         # 8. Check Developer initially sees 0 assigned repositories
         dev_repos = await client.get("/api/v1/projects/", headers=dev_headers)
@@ -95,10 +114,33 @@ async def test_admin_governance_and_rbac_flow():
         dev_run_test = await client.post(f"/api/v1/projects/{repo_id}/unit-tests/run", headers=dev_headers)
         assert dev_run_test.status_code == 403
 
-        # 12. Login as Tester
+        # 12. Login as Tester (initial temporary password requires change)
         tester_login = await client.post("/api/v1/auth/login", json={"email": tester_email, "password": "Password123!"})
         assert tester_login.status_code == 200
+        assert tester_login.json()["user"]["must_change_password"] is True
         tester_token = tester_login.json()["access_token"]
+        tester_headers = {"Authorization": f"Bearer {tester_token}"}
+
+        # 12a. Attempting weak password change is rejected (422)
+        weak_pwd_change = await client.post("/api/v1/auth/change-password", json={
+            "current_password": "Password123!",
+            "new_password": "short"
+        }, headers=tester_headers)
+        assert weak_pwd_change.status_code == 422
+
+        # 12b. Tester changes password to strong password (min 8 chars, mix of everything)
+        new_pwd_change = await client.post("/api/v1/auth/change-password", json={
+            "current_password": "Password123!",
+            "new_password": "StrongTester2026!#"
+        }, headers=tester_headers)
+        assert new_pwd_change.status_code == 200
+        assert new_pwd_change.json()["must_change_password"] is False
+
+        # 12c. Login with new password succeeds and must_change_password is False
+        new_login = await client.post("/api/v1/auth/login", json={"email": tester_email, "password": "StrongTester2026!#"})
+        assert new_login.status_code == 200
+        assert new_login.json()["user"]["must_change_password"] is False
+        tester_token = new_login.json()["access_token"]
         tester_headers = {"Authorization": f"Bearer {tester_token}"}
 
         # Assign Tester to repo
