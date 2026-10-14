@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token
+from app.schemas.auth import UserRegister, UserLogin, UserResponse, Token, ChangePasswordRequest
 from app.services import auth_service
 from app.core.security import get_current_user, create_access_token
 from app.models.domain import User
@@ -33,6 +33,17 @@ async def login(
         token_type="bearer",
         user=UserResponse.model_validate(user)
     )
+
+
+@router.post("/change-password", response_model=UserResponse)
+async def change_password(
+    payload: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Change current authenticated user's password (e.g. required first login)."""
+    user = await auth_service.change_user_password(db, current_user, payload)
+    return user
 
 
 @router.get("/me", response_model=UserResponse)
