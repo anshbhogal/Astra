@@ -11,6 +11,7 @@ import {
   Zap,
   LogOut,
   Shield,
+  Code2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -20,6 +21,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { to: '/', label: 'Overview', icon: LayoutDashboard },
     { to: '/projects', label: 'Repositories', icon: FolderGit2 },
+    { to: '/ide', label: 'Code Studio (IDE)', icon: Code2 },
     { to: '/analytics', label: 'Quality Analytics', icon: BarChart3 },
     { to: '/benchmarks', label: 'Research Benchmarks', icon: FlaskConical },
     ...(user?.role === 'ADMIN' ? [{ to: '/admin', label: 'Admin Console', icon: Shield }] : []),
