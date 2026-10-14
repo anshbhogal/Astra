@@ -641,6 +641,16 @@ export const ProjectDetail: React.FC = () => {
             <Button
               variant="secondary"
               size="md"
+              onClick={() => navigate(`/projects/${id}/ide`)}
+              leftIcon={<Code2 className="w-3.5 h-3.5 text-sky-400" />}
+              className="border-sky-500/30 text-sky-400 hover:border-sky-500"
+            >
+              Open in Code Studio (IDE)
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => setIsDrawerOpen(true)}
               disabled={!canRunTests || !analysis || endpoints.length === 0}
               leftIcon={<Sliders className="w-3.5 h-3.5 text-brand" />}
