@@ -1,3 +1,4 @@
+import os
 import asyncio
 import sys
 from sqlalchemy import select
@@ -5,30 +6,43 @@ from app.db.session import AsyncSessionLocal, engine, Base
 from app.models.domain import User, UserRole, Project, LanguageFramework
 from app.core.security import get_password_hash
 
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").lower()
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@astra.local")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Password123!")
+
+KNOWN_INSECURE_DEFAULTS = {"Password123!", "Admin123!", "admin", "password", "secret", "changeme"}
+
+if ENVIRONMENT == "production":
+    if not os.environ.get("ADMIN_PASSWORD") or ADMIN_PASSWORD in KNOWN_INSECURE_DEFAULTS:
+        raise ValueError(
+            "FATAL: Refusing to seed database in production environment with missing, default, or insecure ADMIN_PASSWORD. "
+            "Please configure a strong ADMIN_PASSWORD in production environment variables."
+        )
+
 TEST_USERS = [
     {
-        "email": "admin@astra.local",
+        "email": ADMIN_EMAIL,
         "full_name": "System Administrator",
         "role": UserRole.ADMIN,
-        "password": "Password123!",
+        "password": ADMIN_PASSWORD,
     },
     {
-        "email": "dev@astra.local",
+        "email": os.environ.get("DEV_EMAIL", "dev@astra.local"),
         "full_name": "Lead Developer",
         "role": UserRole.DEVELOPER,
-        "password": "Password123!",
+        "password": os.environ.get("DEV_PASSWORD", "Password123!"),
     },
     {
-        "email": "tester@astra.local",
+        "email": os.environ.get("TESTER_EMAIL", "tester@astra.local"),
         "full_name": "QA Specialist",
         "role": UserRole.TESTER,
-        "password": "Password123!",
+        "password": os.environ.get("TESTER_PASSWORD", "Password123!"),
     },
     {
-        "email": "viewer@astra.local",
+        "email": os.environ.get("VIEWER_EMAIL", "viewer@astra.local"),
         "full_name": "Guest Observer",
         "role": UserRole.VIEWER,
-        "password": "Password123!",
+        "password": os.environ.get("VIEWER_PASSWORD", "Password123!"),
     },
 ]
 

@@ -58,9 +58,6 @@ async def authenticate_user(db: AsyncSession, payload: UserLogin) -> User:
     valid_password = False
     if user:
         valid_password = verify_password(payload.password, user.hashed_password)
-        # Allow both Admin123! and Password123! for seeded dummy admin
-        if not valid_password and user.email == "admin@astra.local" and payload.password in ("Admin123!", "Password123!"):
-            valid_password = True
 
     if not user or not valid_password:
         raise HTTPException(
