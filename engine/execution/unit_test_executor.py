@@ -18,6 +18,15 @@ from typing import Any, Dict, List, Optional
 from engine.analyzer.function_extractor import FunctionContract
 from engine.generator.mock_synthesizer import MockSynthesizer
 from engine.generator.unit_test_synthesizer import UnitTestSynthesizer
+from engine.execution.sandbox_client import SandboxClient
+
+
+@dataclass
+class TestCaseResult:
+    test_case_id: str
+    status: str
+    execution_time_ms: float
+    error_message: Optional[str] = None
 
 
 @dataclass
@@ -31,6 +40,24 @@ class UnitTestExecutionResult:
     test_outcomes: List[Dict[str, Any]]
     raw_stdout: str
     exit_code: int
+
+    @property
+    def pass_rate(self) -> float:
+        return (self.passed_tests / max(1, self.total_tests))
+
+    @property
+    def test_results(self) -> List[TestCaseResult]:
+        results = []
+        for o in self.test_outcomes:
+            outcome_val = str(o.get("outcome", "")).upper()
+            status_val = "PASSED" if outcome_val == "PASSED" else "FAILED"
+            results.append(TestCaseResult(
+                test_case_id=o.get("nodeid", ""),
+                status=status_val,
+                execution_time_ms=round(float(o.get("duration", 0)) * 1000, 2),
+                error_message=o.get("crash_message")
+            ))
+        return results
 
 
 class UnitTestExecutor:
@@ -62,7 +89,7 @@ class UnitTestExecutor:
 
         report_json_path = tests_dir / ".report.json"
 
-        # 3. Execute Pytest Command with strict per-test timeout
+        # 3. Execute Pytest Command inside isolated Sandbox Runner
         cmd = [
             "python", "-m", "pytest",
             str(test_file),
@@ -73,26 +100,25 @@ class UnitTestExecutor:
             "--timeout=5"
         ]
 
-        env = os.environ.copy()
-        env["PYTHONPATH"] = f"{root_path}{os.pathsep}{env.get('PYTHONPATH', '')}"
+        env = {
+            "PYTHONPATH": f"{root_path}{os.pathsep}{os.environ.get('PYTHONPATH', '')}"
+        }
 
         start_time = time.time()
-        try:
-            proc = subprocess.run(
-                cmd,
-                cwd=str(root_path),
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=45
-            )
-            raw_stdout = proc.stdout or proc.stderr or ""
-            exit_code = proc.returncode
-        except subprocess.TimeoutExpired as exc:
-            raw_stdout = (exc.stdout or "") + f"\n\n[ASTRA TIMEOUT] Suite execution exceeded 45s sandbox limit. Process terminated gracefully."
-            exit_code = 124
+        sandbox_client = SandboxClient()
+        sandbox_res = sandbox_client.execute(
+            command=cmd,
+            workspace_path=str(root_path),
+            timeout_seconds=45,
+            environment=env
+        )
 
-        duration_ms = round((time.time() - start_time) * 1000, 2)
+        raw_stdout = sandbox_res.stdout or sandbox_res.stderr or ""
+        exit_code = sandbox_res.exit_code
+        if sandbox_res.timed_out:
+            raw_stdout += "\n\n[ASTRA TIMEOUT] Suite execution exceeded 45s sandbox limit. Process terminated gracefully."
+
+        duration_ms = sandbox_res.duration_ms or round((time.time() - start_time) * 1000, 2)
 
         total = 0
         passed = 0
