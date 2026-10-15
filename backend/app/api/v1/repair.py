@@ -11,6 +11,9 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.core.security import get_current_user
+from app.models.domain import User, UserRole
+from app.core.permissions import get_project_or_403
 from app.models.canonical import (
     G2Defect,
     G2DefectHistory,
@@ -89,11 +92,18 @@ class PullRequestResponse(BaseModel):
 async def trigger_defect_repair(
     defect_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Triggers an Automated Program Repair job for a defect.
     Evaluates safety eligibility, freezes repair context, and records a repair job.
     """
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEVELOPER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Administrators and Developers can trigger program repair."
+        )
+
     # 1. Fetch Defect
     res = await db.execute(select(G2Defect).where(G2Defect.id == defect_id))
     defect = res.scalar_one_or_none()
@@ -102,6 +112,9 @@ async def trigger_defect_repair(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Defect '{defect_id}' not found.",
         )
+
+    # Verify project access
+    await get_project_or_403(project_id=defect.project_id, current_user=current_user, db=db)
 
     # 2. Check Eligibility
     eligible, reason = RepairEligibilityPolicy.evaluate(
@@ -206,6 +219,7 @@ async def trigger_defect_repair(
 async def get_repair_job(
     job_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Fetches status and metrics for a specific repair job."""
     res = await db.execute(select(G2RepairJob).where(G2RepairJob.id == job_id))
@@ -215,6 +229,7 @@ async def get_repair_job(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Repair job '{job_id}' not found.",
         )
+    await get_project_or_403(project_id=job.project_id, current_user=current_user, db=db)
     return job
 
 
@@ -222,14 +237,24 @@ async def get_repair_job(
 async def list_defect_candidates(
     defect_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Lists all candidate patches generated for a defect, ranked by score."""
-    res = await db.execute(
+    res = await db.execute(select(G2Defect).where(G2Defect.id == defect_id))
+    defect = res.scalar_one_or_none()
+    if not defect:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Defect '{defect_id}' not found.",
+        )
+    await get_project_or_403(project_id=defect.project_id, current_user=current_user, db=db)
+
+    res_cands = await db.execute(
         select(G2RepairCandidate)
         .where(G2RepairCandidate.defect_id == defect_id)
         .order_by(G2RepairCandidate.candidate_rank.asc())
     )
-    return res.scalars().all()
+    return res_cands.scalars().all()
 
 
 @router.post("/candidates/{candidate_id}/authorize-pr", response_model=PullRequestResponse)
@@ -237,11 +262,18 @@ async def authorize_candidate_pr(
     candidate_id: uuid.UUID,
     body: AuthorizePRRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Formal Human Approval Gate:
     Authorizes a verified candidate patch and dispatches an autonomous GitHub Pull Request.
     """
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEVELOPER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Administrators and Developers can authorize pull request generation."
+        )
+
     res = await db.execute(select(G2RepairCandidate).where(G2RepairCandidate.id == candidate_id))
     candidate = res.scalar_one_or_none()
     if not candidate:
@@ -257,6 +289,8 @@ async def authorize_candidate_pr(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Associated defect not found.",
         )
+
+    await get_project_or_403(project_id=defect.project_id, current_user=current_user, db=db)
 
     # Dispatch PR via dispatcher
     dispatcher = AutonomousPRDispatcher()

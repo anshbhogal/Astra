@@ -94,7 +94,7 @@
 | `POST` | `/api/v1/test-runs/{test_run_id}/cancel` | `get_current_user` | Any authenticated user | Enforced |
 | `GET` | `/api/v1/test-runs/{test_run_id}/results` | `get_current_user` | Any authenticated user | Enforced |
 | `GET` | `/api/v1/test-suites/{suite_id}/cases` | `get_current_user` | Any authenticated user | Enforced |
-| `POST` | `/api/v1/repair/defects/{defect_id}/trigger` | `get_current_user` | `ADMIN`, `DEVELOPER` + defect project access (P0-3) | Pending P0-3 |
-| `GET` | `/api/v1/repair/defects/{defect_id}/candidates` | `get_current_user` | defect project access (P0-3) | Pending P0-3 |
-| `POST` | `/api/v1/repair/candidates/{candidate_id}/authorize-pr` | `get_current_user` | `ADMIN`, `DEVELOPER` + defect project access (P0-3) | Pending P0-3 |
-| `GET` | `/api/v1/repair/jobs/{job_id}` | `get_current_user` | defect project access (P0-3) | Pending P0-3 |
+| `POST` | `/api/v1/repair/defects/{defect_id}/trigger` | `get_current_user` | `ADMIN`, `DEVELOPER` + `get_project_or_403` | Enforced |
+| `GET` | `/api/v1/repair/defects/{defect_id}/candidates` | `get_current_user` | `get_project_or_403` | Enforced |
+| `POST` | `/api/v1/repair/candidates/{candidate_id}/authorize-pr` | `get_current_user` | `ADMIN`, `DEVELOPER` + `get_project_or_403` | Enforced |
+| `GET` | `/api/v1/repair/jobs/{job_id}` | `get_current_user` | `get_project_or_403` | Enforced |
