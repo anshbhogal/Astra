@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from app.models.domain import TestRunStatus, TestOutcome, TestType
 
 
@@ -111,7 +112,14 @@ class TestCaseListResponse(BaseModel):
     total: int
 
 
+class SandboxServerMode(str, Enum):
+    HYBRID = "HYBRID"
+    ENDPOINT_SANDBOX = "ENDPOINT_SANDBOX"
+
+
 class SandboxStartRequest(BaseModel):
-    port: Optional[int] = Field(None, description="Optional port number, defaults to auto-detected free port")
-    mode: str = Field("HYBRID", description="ENDPOINT_SANDBOX, NATIVE_COMMAND, or HYBRID")
-    custom_command: Optional[str] = Field(None, description="Optional launch command for NATIVE_COMMAND mode")
+    model_config = ConfigDict(extra="forbid")
+
+    port: Optional[int] = Field(None, ge=1024, le=65535, description="Port between 1024 and 65535, defaults to auto-detected free port")
+    mode: SandboxServerMode = Field(default=SandboxServerMode.HYBRID, description="Fixed sandbox execution mode: HYBRID or ENDPOINT_SANDBOX")
+

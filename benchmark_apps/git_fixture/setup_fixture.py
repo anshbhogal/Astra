@@ -14,7 +14,9 @@ def init_git_benchmark_fixture(target_dir: Optional[Path] = None) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
 
     def run_cmd(cmd: str):
-        subprocess.run(cmd, shell=True, cwd=str(target_dir), check=True, capture_output=True, text=True)
+        import shlex
+        args = shlex.split(cmd)
+        subprocess.run(args, cwd=str(target_dir), check=True, capture_output=True, text=True)
 
     # Initialize git repo if not already a git repo
     if not (target_dir / ".git").exists():

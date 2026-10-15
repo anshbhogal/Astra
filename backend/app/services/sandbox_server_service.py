@@ -86,7 +86,6 @@ class SandboxServerInstance:
         pid: int,
         process: Optional[subprocess.Popen] = None,
         script_path: Optional[str] = None,
-        custom_command: Optional[str] = None,
         started_at: Optional[datetime] = None
     ):
         self.project_id = project_id
@@ -95,7 +94,6 @@ class SandboxServerInstance:
         self.pid = pid
         self.process = process
         self.script_path = script_path
-        self.custom_command = custom_command
         self.started_at = started_at or utc_now()
 
     def is_alive(self) -> bool:
@@ -196,7 +194,6 @@ class SandboxServerService:
                 "port": inst.port,
                 "base_url": f"http://localhost:{inst.port}",
                 "mode": inst.mode,
-                "custom_command": inst.custom_command,
                 "started_at": inst.started_at.isoformat(),
                 "uptime_seconds": round(uptime, 1)
             }
@@ -221,7 +218,6 @@ class SandboxServerService:
                     mode=entry.get("mode", "HYBRID"),
                     pid=pid,
                     script_path=entry.get("script_path"),
-                    custom_command=entry.get("custom_command"),
                     started_at=started_dt
                 )
                 ACTIVE_SANDBOX_SERVERS[project_id] = inst
@@ -232,7 +228,6 @@ class SandboxServerService:
                     "port": inst.port,
                     "base_url": f"http://localhost:{inst.port}",
                     "mode": inst.mode,
-                    "custom_command": inst.custom_command,
                     "started_at": started_dt.isoformat(),
                     "uptime_seconds": round(uptime, 1)
                 }
@@ -285,8 +280,7 @@ class SandboxServerService:
         db: AsyncSession,
         project_id: uuid.UUID,
         port: Optional[int] = None,
-        mode: str = "HYBRID",
-        custom_command: Optional[str] = None
+        mode: str = "HYBRID"
     ) -> Dict[str, Any]:
         pid_str = str(project_id)
 
@@ -324,39 +318,12 @@ class SandboxServerService:
             endpoints = (await db.execute(stmt_ep)).scalars().all()
 
         mode_upper = mode.upper().strip()
+        if mode_upper not in ["HYBRID", "ENDPOINT_SANDBOX"]:
+            mode_upper = "HYBRID"
         chosen_mode = mode_upper
         storage_dir = cls._get_storage_dir()
         script_file_name = f"sandbox_{pid_str.replace('-', '_')}.py"
         script_path = os.path.join(storage_dir, script_file_name)
-
-        # 4. Launch Native Command mode if selected
-        if mode_upper == "NATIVE_COMMAND" and custom_command:
-            proc = subprocess.Popen(
-                custom_command,
-                shell=True,
-                env={**os.environ, "PORT": str(target_port)},
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            inst = SandboxServerInstance(
-                project_id=pid_str,
-                port=target_port,
-                mode="NATIVE_COMMAND",
-                pid=proc.pid,
-                process=proc,
-                custom_command=custom_command
-            )
-            ACTIVE_SANDBOX_SERVERS[pid_str] = inst
-            disk_data[pid_str] = {
-                "pid": proc.pid,
-                "port": target_port,
-                "mode": "NATIVE_COMMAND",
-                "custom_command": custom_command,
-                "started_at": utc_now().isoformat()
-            }
-            cls._save_disk_registry(disk_data)
-            await cls._wait_for_server_ready(target_port, timeout_s=4.0)
-            return cls.get_server_status(pid_str)
 
         # 5. Hybrid or Endpoint Sandbox: Write script to external storage_dir (outside /app)
         endpoints_data = [

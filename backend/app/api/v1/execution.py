@@ -194,8 +194,7 @@ async def start_sandbox_server(
         db=db,
         project_id=project_id,
         port=payload.port,
-        mode=payload.mode,
-        custom_command=payload.custom_command
+        mode=payload.mode.value if hasattr(payload.mode, "value") else str(payload.mode)
     )
     return status_info
 
