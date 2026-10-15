@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio
@@ -29,9 +30,8 @@ async def test_register_admin_role_security_downgrade(client: AsyncClient):
         "role": "ADMIN"
     }
     response = await client.post("/api/v1/auth/register", json=payload)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["role"] == "DEVELOPER"  # Automatically downgraded to DEVELOPER
+    assert response.status_code in [400, 422]
+    assert "Administrator role is not permitted" in str(response.json())
 
 
 @pytest.mark.asyncio
@@ -50,7 +50,10 @@ async def test_register_duplicate_email_fails(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_login_success(client: AsyncClient):
+async def test_login_success(client: AsyncClient, db_session: AsyncSession):
+    from sqlalchemy import select
+    from app.models.domain import User
+
     # Register first
     reg_payload = {
         "email": "loginuser@example.com",
@@ -58,6 +61,12 @@ async def test_login_success(client: AsyncClient):
         "full_name": "Login Tester"
     }
     await client.post("/api/v1/auth/register", json=reg_payload)
+
+    # Administrator approves the registered user
+    stmt = select(User).where(User.email == "loginuser@example.com")
+    user = (await db_session.execute(stmt)).scalar_one()
+    user.is_approved = True
+    await db_session.commit()
 
     # Login
     login_payload = {

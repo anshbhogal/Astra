@@ -102,6 +102,7 @@ async def change_user_password(db: AsyncSession, user: User, payload: ChangePass
 
     user.hashed_password = get_password_hash(payload.new_password)
     user.must_change_password = False
+    user.token_version = (user.token_version or 1) + 1
 
     audit_entry = AuditLog(
         actor_id=user.id,

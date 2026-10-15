@@ -82,7 +82,8 @@ async def dev_user(db_session: AsyncSession) -> User:
         hashed_password=get_password_hash("DevSecret123!"),
         full_name="Lead Developer",
         role=UserRole.DEVELOPER,
-        is_active=True
+        is_active=True,
+        is_approved=True
     )
     db_session.add(user)
     await db_session.commit()
@@ -97,7 +98,8 @@ async def tester_user(db_session: AsyncSession) -> User:
         hashed_password=get_password_hash("TesterSecret123!"),
         full_name="QA Tester",
         role=UserRole.TESTER,
-        is_active=True
+        is_active=True,
+        is_approved=True
     )
     db_session.add(user)
     await db_session.commit()
@@ -112,7 +114,8 @@ async def viewer_user(db_session: AsyncSession) -> User:
         hashed_password=get_password_hash("ViewerSecret123!"),
         full_name="Guest Viewer",
         role=UserRole.VIEWER,
-        is_active=True
+        is_active=True,
+        is_approved=True
     )
     db_session.add(user)
     await db_session.commit()
