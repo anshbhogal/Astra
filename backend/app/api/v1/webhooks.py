@@ -36,7 +36,7 @@ async def handle_github_webhook(
 ):
     """Secure public webhook gateway receiving GitHub push, pull_request, and check_run events."""
     raw_body = await request.body()
-    secret = getattr(settings, "GITHUB_WEBHOOK_SECRET", "astra_webhook_secret_key_2026")
+    secret = settings.GITHUB_WEBHOOK_SECRET
 
     # 1. HMAC Signature Verification BEFORE JSON Parsing
     if not HMACValidator.verify_github_signature(raw_body, x_hub_signature_256, secret):

@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days for development/testing convenience
+    GITHUB_WEBHOOK_SECRET: str = Field(
+        default="astra_secure_webhook_key_64chars_dev_environment_2026",
+        description="GitHub Webhook HMAC SHA-256 secret key."
+    )
+
+    @field_validator("GITHUB_WEBHOOK_SECRET")
+    def validate_webhook_secret(cls, v: str) -> str:
+        if not v or v.strip() == "astra_webhook_secret_key_2026":
+            raise ValueError(
+                "GITHUB_WEBHOOK_SECRET must be configured and cannot use the insecure default 'astra_webhook_secret_key_2026'."
+            )
+        return v
 
     # CORS
     CORS_ORIGINS: List[str] = [

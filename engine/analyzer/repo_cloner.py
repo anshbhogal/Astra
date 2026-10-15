@@ -39,7 +39,8 @@ class GitRepoCloner:
 
         clone_env = os.environ.copy()
         clone_env["GIT_TERMINAL_PROMPT"] = "0"
-        clone_env["GIT_SSL_NO_VERIFY"] = "true"
+        if "GIT_SSL_CAINFO" in os.environ:
+            clone_env["GIT_SSL_CAINFO"] = os.environ["GIT_SSL_CAINFO"]
 
         try:
             repo = git.Repo.clone_from(
