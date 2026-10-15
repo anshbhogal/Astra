@@ -111,5 +111,19 @@ services:
     depends_on:
       - backend
 
+  sandbox_runner:
+    build:
+      context: ./sandbox_runner
+      dockerfile: Dockerfile
+    container_name: astra_sandbox_runner
+    restart: unless-stopped
+    environment:
+      - SANDBOX_SERVICE_TOKEN=${SANDBOX_SERVICE_TOKEN:-astra_sandbox_runner_internal_token_2026}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./scratch:/app/scratch
+    ports: []
+
 volumes:
   postgres_data:
+
