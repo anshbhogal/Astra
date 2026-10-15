@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Any, Dict
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -14,6 +14,7 @@ from sqlalchemy import select
 from app.db.session import get_db
 from app.models.domain import User, UserRole, Project, ProjectMember, FailureAnalysisModel
 from app.core.security import get_current_user
+from app.core.rate_limit import limiter
 from app.services.project_service import get_project_by_id
 
 router = APIRouter(prefix="/projects/{project_id}/code", tags=["Code Studio / IDE"])
@@ -322,7 +323,9 @@ async def delete_file_or_dir(
 
 
 @router.post("/run-tests", response_model=TestRunResultResponse)
+@limiter.limit("10/hour")
 async def run_developer_tests(
+    request: Request,
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)

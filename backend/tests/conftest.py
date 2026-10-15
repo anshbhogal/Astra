@@ -36,6 +36,18 @@ def event_loop():
     loop.close()
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    try:
+        from app.core.rate_limit import limiter
+        limiter.reset()
+        yield
+        limiter.reset()
+    except Exception:
+        yield
+
+
+
 @pytest_asyncio.fixture(scope="function")
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     async with test_engine.begin() as conn:

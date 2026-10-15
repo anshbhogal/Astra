@@ -1,10 +1,11 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import select
 from app.db.session import get_db
+from app.core.rate_limit import limiter
 from app.schemas.execution import (
     TestSuiteGenerateRequest,
     TestSuiteResponse,
@@ -59,7 +60,9 @@ async def list_project_test_suites(
 
 
 @router.post("/projects/{project_id}/test-runs", response_model=TestRunResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("10/hour")
 async def dispatch_test_run(
+    request: Request,
     project_id: uuid.UUID,
     payload: TestRunCreateRequest,
     db: AsyncSession = Depends(get_db),
@@ -177,7 +180,9 @@ from app.core.permissions import get_project_or_403
 
 
 @router.post("/projects/{project_id}/sandbox/start")
+@limiter.limit("10/hour")
 async def start_sandbox_server(
+    request: Request,
     project_id: uuid.UUID,
     payload: SandboxStartRequest,
     db: AsyncSession = Depends(get_db),
