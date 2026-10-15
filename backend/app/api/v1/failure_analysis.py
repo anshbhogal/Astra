@@ -19,16 +19,7 @@ from app.tasks.analysis_tasks import analyze_test_run_failures_task
 router = APIRouter(prefix="/projects", tags=["Failure Analysis & Defects"])
 
 
-async def _verify_project_access(project_id: uuid.UUID, db: AsyncSession) -> Project:
-    stmt = select(Project).where(Project.id == project_id)
-    res = await db.execute(stmt)
-    project = res.scalar_one_or_none()
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project with ID {project_id} not found"
-        )
-    return project
+from app.core.permissions import get_project_or_403
 
 
 @router.post(
@@ -49,7 +40,7 @@ async def analyze_run_failures(
     Analyzes failed test results for a test run and persists diagnostic failure reports & defect clusters.
     If async_mode=True, dispatches background Celery task and returns 202 Accepted.
     """
-    await _verify_project_access(project_id, db)
+    await get_project_or_403(project_id, current_user, db)
 
     if async_mode:
         task = analyze_test_run_failures_task.delay(str(project_id), str(run_id), commit_sha)
@@ -79,7 +70,7 @@ async def get_run_failure_analysis(
     current_user: User = Depends(get_current_user),
 ):
     """Fetches diagnostic failure analysis reports for a specific test run."""
-    await _verify_project_access(project_id, db)
+    await get_project_or_403(project_id, current_user, db)
     service = FailureAnalysisService(db)
     reports = await service.get_run_failure_analyses(project_id, run_id)
     return reports
@@ -95,7 +86,7 @@ async def get_project_defects(
     current_user: User = Depends(get_current_user),
 ):
     """Fetches active defect clusters for a project."""
-    await _verify_project_access(project_id, db)
+    await get_project_or_403(project_id, current_user, db)
     service = FailureAnalysisService(db)
     defects = await service.get_project_defects(project_id)
     return defects
@@ -140,7 +131,7 @@ async def get_defect_comments(
     current_user: User = Depends(get_current_user),
 ):
     """Fetches collaboration thread notes and status history between Tester and Developer."""
-    await _verify_project_access(project_id, db)
+    await get_project_or_403(project_id, current_user, db)
     stmt = (
         select(DefectComment)
         .options(selectinload(DefectComment.user))
@@ -176,7 +167,7 @@ async def post_defect_comment(
     current_user: User = Depends(get_current_user),
 ):
     """Tester and Developer collaboration: post a bug note, fix suggestion, or status update."""
-    await _verify_project_access(project_id, db)
+    await get_project_or_403(project_id, current_user, db)
     if current_user.role == UserRole.VIEWER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Viewer role is restricted to read-only access.")
 
@@ -227,7 +218,7 @@ async def update_defect_status(
     current_user: User = Depends(get_current_user),
 ):
     """Update defect remediation status (OPEN, UNDER_INVESTIGATION, FIX_IN_PROGRESS, FIXED, VERIFIED)."""
-    await _verify_project_access(project_id, db)
+    await get_project_or_403(project_id, current_user, db)
     if current_user.role == UserRole.VIEWER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Viewer role is restricted to read-only access.")
 

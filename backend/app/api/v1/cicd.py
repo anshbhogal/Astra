@@ -22,30 +22,15 @@ class CreateNotificationChannelRequest(BaseModel):
     events_filter: Optional[List[str]] = Field(default_factory=lambda: ["ALL"])
 
 
+from app.core.permissions import get_project_or_403
+
 async def _verify_project_access(project_id: uuid.UUID, current_user: User, db: AsyncSession, require_admin: bool = False) -> Project:
-    stmt = select(Project).where(Project.id == project_id)
-    res = await db.execute(stmt)
-    project = res.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project with ID '{project_id}' not found.",
-        )
-
-    if require_admin and current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: Admin role required for managing CI/CD notification channels.",
-        )
-
-    if current_user.role != UserRole.ADMIN and project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: You do not have permission to access this project.",
-        )
-
-    return project
+    return await get_project_or_403(
+        project_id=project_id,
+        current_user=current_user,
+        db=db,
+        min_role=UserRole.ADMIN if require_admin else None
+    )
 
 
 @router.get("/projects/{project_id}/webhooks/logs")

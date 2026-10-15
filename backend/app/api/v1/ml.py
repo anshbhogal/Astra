@@ -22,24 +22,11 @@ from app.tasks.ml_tasks import (
 router = APIRouter()
 
 
+from app.core.permissions import get_project_or_403
+
+
 async def _verify_project_access(project_id: uuid.UUID, current_user: User, db: AsyncSession) -> Project:
-    stmt = select(Project).where(Project.id == project_id)
-    res = await db.execute(stmt)
-    project = res.scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project with ID '{project_id}' not found.",
-        )
-
-    if current_user.role != UserRole.ADMIN and project.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: You do not have permission to access this project.",
-        )
-
-    return project
+    return await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
 
 
 @router.post("/projects/{project_id}/ml/train")

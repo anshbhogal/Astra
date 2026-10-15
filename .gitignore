@@ -43,3 +43,7 @@ htmlcov/
 # Celery
 celerybeat-schedule
 celerybeat.pid
+
+# Workspace Scratch
+scratch/
+

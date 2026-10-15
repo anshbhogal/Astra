@@ -80,32 +80,8 @@ async def get_accessible_projects(
 async def get_project_by_id(
     db: AsyncSession, project_id: uuid.UUID, current_user: User
 ) -> Project:
-    stmt = (
-        select(Project)
-        .options(
-            selectinload(Project.owner),
-            selectinload(Project.members).selectinload(ProjectMember.user)
-        )
-        .where(Project.id == project_id)
-    )
-    project = (await db.execute(stmt)).scalar_one_or_none()
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
-        )
-
-    # Check project visibility/membership policy
-    if current_user.role != UserRole.ADMIN:
-        is_member = any(m.user_id == current_user.id for m in project.members)
-        if not is_member and project.owner_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found or you are not an assigned team member"
-            )
-
-    return project
+    from app.core.permissions import get_project_or_403
+    return await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
 
 
 async def update_existing_project(

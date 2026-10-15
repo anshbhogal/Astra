@@ -120,6 +120,7 @@ def ensure_workspace(project: Project) -> Path:
         return scratch_dir
     except Exception:
         # If clone fails (e.g. offline dummy git URL), create standard scaffold
+        scratch_dir.mkdir(parents=True, exist_ok=True)
         readme = scratch_dir / "README.md"
         if not readme.exists():
             readme.write_text(
@@ -203,12 +204,14 @@ async def get_project_file_tree(
 @router.get("/file", response_model=FileContentResponse)
 async def get_file_content(
     project_id: uuid.UUID,
-    path: str = Query(..., description="Relative file path"),
+    path: Optional[str] = Query(None, description="Relative file path"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Read file content to display in Monaco code editor."""
     project = await get_project_by_id(db, project_id, current_user)
+    if not path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Path parameter is required.")
     ws_dir = ensure_workspace(project)
     file_path = safe_resolve(ws_dir, path)
 

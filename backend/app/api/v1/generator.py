@@ -37,10 +37,14 @@ async def dispatch_advanced_suite_generation(
     Triggers an asynchronous advanced rule-based test suite generation job.
     Returns HTTP 202 Accepted with job metadata.
     """
-    stmt_project = select(Project).where(Project.id == project_id)
-    project = (await db.execute(stmt_project)).scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    from app.core.permissions import get_project_or_403
+
+    project = await get_project_or_403(
+        project_id=project_id,
+        current_user=current_user,
+        db=db,
+        allowed_roles=[UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER]
+    )
 
     stmt_analysis = (
         select(ProjectAnalysis)
@@ -127,6 +131,8 @@ async def get_generation_job_details(
     job = (await db.execute(stmt)).scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="GenerationJob not found")
+
+    await get_project_or_403(job.project_id, current_user, db)
 
     return GenerationJobResponse(
         id=str(job.id),

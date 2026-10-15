@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.core.security import get_current_user
+from app.core.permissions import get_project_or_403
 from app.models.domain import User, Project, DiscoveredEndpoint, ProjectAnalysis, RequirementDocument, RequirementSpecModel
 from app.schemas.intelligence import (
     RequirementUploadRequest, RequirementSpecResponse, RequirementReviewRequest, TraceabilityMatrixItem
@@ -31,10 +32,7 @@ async def upload_requirement_document(
 ):
     """Uploads a requirement document (Markdown PRD, Gherkin Feature, OpenAPI), parses specs, and maps endpoints."""
     # Verify project
-    proj_stmt = select(Project).where(Project.id == project_id)
-    project = (await db.execute(proj_stmt)).scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    project = await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
 
     # 1. Save Document
     doc_id = uuid.uuid4()
@@ -118,6 +116,7 @@ async def list_project_requirements(
     current_user: User = Depends(get_current_user)
 ):
     """Lists parsed requirement specifications for a project."""
+    await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
     stmt = select(RequirementSpecModel).where(RequirementSpecModel.project_id == project_id)
     if status_filter:
         stmt = stmt.where(RequirementSpecModel.status == status_filter.upper())
@@ -152,6 +151,7 @@ async def review_requirement(
     current_user: User = Depends(get_current_user)
 ):
     """Human review endpoint to approve, reject, or update endpoint mappings for a requirement."""
+    await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
     stmt = select(RequirementSpecModel).where(RequirementSpecModel.id == requirement_id, RequirementSpecModel.project_id == project_id)
     spec = (await db.execute(stmt)).scalar_one_or_none()
     if not spec:
@@ -188,6 +188,7 @@ async def get_traceability_matrix(
     current_user: User = Depends(get_current_user)
 ):
     """Fetches Requirement Coverage Traceability Matrix for a project."""
+    await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
     stmt = select(RequirementSpecModel).where(RequirementSpecModel.project_id == project_id)
     specs = (await db.execute(stmt)).scalars().all()
 

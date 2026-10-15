@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.domain import (
     Project,
+    ProjectAnalysis,
     TestRun,
     TestResult,
     TestSuite,

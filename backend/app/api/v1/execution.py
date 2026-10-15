@@ -162,19 +162,18 @@ async def get_sandbox_available_port(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Scan and retrieve a free open port and server configuration suggestion."""
+    proj = await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
     port = SandboxServerService.get_suggested_port()
-    stmt_p = select(Project).where(Project.id == project_id)
-    res = await db.execute(stmt_p)
-    proj = res.scalar_one_or_none()
-    proj_name = proj.name if proj else "Target App"
     return {
         "project_id": project_id,
         "suggested_port": port,
-        "project_name": proj_name,
+        "project_name": proj.name,
         "suggested_mode": "HYBRID",
         "health_check_path": "/health"
     }
+
+
+from app.core.permissions import get_project_or_403
 
 
 @router.post("/projects/{project_id}/sandbox/start")
@@ -185,6 +184,12 @@ async def start_sandbox_server(
     current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
     """Launch the application sandbox server on an allocated free port."""
+    await get_project_or_403(
+        project_id=project_id,
+        current_user=current_user,
+        db=db,
+        allowed_roles=[UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER]
+    )
     status_info = await SandboxServerService.start_server(
         db=db,
         project_id=project_id,
@@ -198,17 +203,26 @@ async def start_sandbox_server(
 @router.get("/projects/{project_id}/sandbox/status")
 async def get_sandbox_server_status(
     project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Check the real-time operational status of the project's sandbox server."""
+    await get_project_or_403(project_id=project_id, current_user=current_user, db=db)
     return SandboxServerService.get_server_status(str(project_id))
 
 
 @router.post("/projects/{project_id}/sandbox/stop")
 async def stop_sandbox_server(
     project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
     current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
     """Terminate and turn off the active sandbox server."""
+    await get_project_or_403(
+        project_id=project_id,
+        current_user=current_user,
+        db=db,
+        allowed_roles=[UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER]
+    )
     return await SandboxServerService.stop_server(str(project_id))
 
