@@ -91,7 +91,12 @@ class ChangePasswordRequest(BaseModel):
         return validate_strong_password(v)
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
     user: UserResponse

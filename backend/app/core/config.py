@@ -26,7 +26,27 @@ class Settings(BaseSettings):
         default="super_secure_astra_jwt_secret_key_change_in_production_2026"
     )
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days for development/testing convenience
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # Strict 15-minute access token TTL
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 7-day refresh token TTL
+    REFRESH_TOKEN_COOKIE_NAME: str = "astra_refresh_token"
+
+    @field_validator("JWT_SECRET")
+    def validate_jwt_secret(cls, v: str) -> str:
+        if not v or len(v.strip()) < 32:
+            raise ValueError(
+                "JWT_SECRET must be at least 32 characters in length for cryptographic security."
+            )
+        insecure_keys = {
+            "secret",
+            "password",
+            "changeme",
+            "12345678901234567890123456789012",
+            "super_secret_jwt_key_here_please_change"
+        }
+        if v.strip().lower() in insecure_keys:
+            raise ValueError("JWT_SECRET cannot use a known insecure default value.")
+        return v
+
     GITHUB_WEBHOOK_SECRET: str = Field(
         default="astra_secure_webhook_key_64chars_dev_environment_2026",
         description="GitHub Webhook HMAC SHA-256 secret key."

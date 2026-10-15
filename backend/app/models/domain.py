@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 
-from sqlalchemy import String, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, Boolean, UniqueConstraint
+from sqlalchemy import String, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, Boolean, UniqueConstraint, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -82,6 +82,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, nullable=False
     )
