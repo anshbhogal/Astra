@@ -45,6 +45,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configure Rate Limiting via slowapi
+from app.core.rate_limit import limiter, RateLimitExceeded, _rate_limit_exceeded_handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):

@@ -1,6 +1,6 @@
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, status, Query
+from fastapi import APIRouter, Depends, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -11,13 +11,16 @@ from app.schemas.project import (
 from app.services import project_service
 from app.core.security import get_current_user
 from app.core.rbac import require_roles
+from app.core.rate_limit import limiter
 from app.models.domain import User, UserRole
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/hour")
 async def create_project(
+    request: Request,
     payload: ProjectCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = require_roles([UserRole.ADMIN])

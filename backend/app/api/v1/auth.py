@@ -21,6 +21,7 @@ from app.core.security import (
     oauth2_scheme
 )
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.models.domain import User
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -37,7 +38,9 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     payload: UserLogin,
     response: Response,
     db: AsyncSession = Depends(get_db)
