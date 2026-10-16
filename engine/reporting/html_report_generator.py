@@ -711,7 +711,7 @@ class HTMLReportGenerator:
                     </svg>
                 </div>
                 <div style="border-left: 2px solid #334155; padding-left: 18px;">
-                    <h1 class="brand-title" style="font-size: 20px; margin: 0; line-height: 1.2;">SOFTWARE QUALITY AUDIT</h1>
+                    <h1 class="brand-title" style="font-size: 20px; margin: 0; line-height: 1.2;">ASTRA QUALITY AUDIT</h1>
                     <p class="meta-text" style="margin: 4px 0 0 0;">Target System: <strong>{safe_project}</strong> &bull; Generated: {timestamp}</p>
                 </div>
             </div>
