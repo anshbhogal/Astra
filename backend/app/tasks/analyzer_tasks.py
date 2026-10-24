@@ -15,6 +15,7 @@ from engine.analyzer.repo_cloner import GitRepoCloner
 from engine.analyzer.file_scanner import FileScanner
 from engine.analyzer.language_detector import LanguageDetector
 from engine.analyzer.framework_detector import FrameworkDetector
+from engine.analyzer.parsers import ParserRegistry
 from engine.analyzer.parsers.python_ast import PythonASTParser
 from engine.analyzer.endpoint_extractor import EndpointExtractor
 from engine.analyzer.knowledge_graph import ProjectKnowledgeGraph
@@ -77,15 +78,17 @@ async def execute_analysis_pipeline(analysis_id_str: str) -> None:
                 analysis.progress_percent = 50
                 await db.commit()
 
-                python_parser = PythonASTParser()
+                parser_registry = ParserRegistry()
                 parsed_count = 0
                 all_functions = []
 
                 for sf in source_files:
-                    if sf.language == "Python":
-                        parsed_file = python_parser.parse(sf)
-                        parsed_count += 1
-                        all_functions.extend(parsed_file)
+                    parser = parser_registry.get_parser(sf.language)
+                    if parser:
+                        parsed_file = parser.parse(sf)
+                        if parsed_file:
+                            parsed_count += 1
+                            all_functions.extend(parsed_file)
 
                 analysis.parsed_files_count = parsed_count
 
