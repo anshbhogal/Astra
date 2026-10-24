@@ -81,7 +81,7 @@ class UnitTestExecutor:
         # 2. Write synthesized unit tests
         suite_code = UnitTestSynthesizer.synthesize_suite_for_contracts(
             contracts=contracts,
-            module_name="lecture_rag",
+            module_name=root_path.name,
             repo_root=str(root_path)
         )
         test_file = tests_dir / "test_unit_astra.py"
