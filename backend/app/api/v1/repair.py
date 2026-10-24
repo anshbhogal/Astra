@@ -3,6 +3,7 @@ ASTRA Backend - Gen 2 Phase 2 (Phase 12) Automated Program Repair (APR) API Rout
 """
 
 import uuid
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -88,6 +89,45 @@ class PullRequestResponse(BaseModel):
 
 
 
+async def _get_or_sync_defect(defect_id: uuid.UUID, db: AsyncSession) -> Optional[G2Defect]:
+    """Retrieve defect from G2Defect, or bridge/sync from FailureAnalysisModel if present."""
+    res = await db.execute(select(G2Defect).where(G2Defect.id == defect_id))
+    defect = res.scalar_one_or_none()
+    if defect:
+        return defect
+
+    # Fallback to FailureAnalysisModel
+    from app.models.domain import FailureAnalysisModel
+    fa_res = await db.execute(select(FailureAnalysisModel).where(FailureAnalysisModel.id == defect_id))
+    fa = fa_res.scalar_one_or_none()
+    if not fa:
+        return None
+
+    defect_key = f"DEF-{str(fa.id)[:8].upper()}"
+    desc = f"{fa.error_message}\nLocation: {fa.failing_file or ''}:{fa.failing_line or ''} in {fa.failing_function or ''}"
+    severity = "CRITICAL" if fa.category == "SECURITY" else "MAJOR"
+    priority = "P1" if fa.category == "SECURITY" else "P2"
+
+    defect = G2Defect(
+        id=fa.id,
+        project_id=fa.project_id,
+        defect_key=defect_key,
+        title=fa.summary[:255] if fa.summary else "Automated Failure Analysis Defect",
+        description=desc,
+        severity=severity,
+        priority=priority,
+        status="NEW",
+        fingerprint=fa.fingerprint,
+        source="AUTOMATED_ANALYSIS",
+        actor_type="SYSTEM",
+        created_at=utc_now(),
+        updated_at=utc_now(),
+    )
+    db.add(defect)
+    await db.flush()
+    return defect
+
+
 @router.post("/defects/{defect_id}/trigger", response_model=RepairJobResponse, status_code=status.HTTP_201_CREATED)
 async def trigger_defect_repair(
     defect_id: uuid.UUID,
@@ -104,9 +144,8 @@ async def trigger_defect_repair(
             detail="Only Administrators and Developers can trigger program repair."
         )
 
-    # 1. Fetch Defect
-    res = await db.execute(select(G2Defect).where(G2Defect.id == defect_id))
-    defect = res.scalar_one_or_none()
+    # 1. Fetch Defect (with automatic FailureAnalysis bridge fallback)
+    defect = await _get_or_sync_defect(defect_id, db)
     if not defect:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -117,9 +156,17 @@ async def trigger_defect_repair(
     await get_project_or_403(project_id=defect.project_id, current_user=current_user, db=db)
 
     # 2. Check Eligibility
+    target_file = "app/service.py"
+    if defect.description:
+        loc_match = re.search(r"Location:\s*([^\s:]+\.[a-zA-Z0-9]+)", defect.description)
+        if loc_match:
+            target_file = loc_match.group(1)
+        elif any(defect.description.strip().endswith(ext) for ext in (".py", ".ts", ".js", ".go", ".java")):
+            target_file = defect.description.strip()
+
     eligible, reason = RepairEligibilityPolicy.evaluate(
         severity=defect.severity,
-        file_path=defect.description or "app/service.py",
+        file_path=target_file,
     )
 
     # 3. Create Repair Job Record
@@ -240,8 +287,7 @@ async def list_defect_candidates(
     current_user: User = Depends(get_current_user)
 ):
     """Lists all candidate patches generated for a defect, ranked by score."""
-    res = await db.execute(select(G2Defect).where(G2Defect.id == defect_id))
-    defect = res.scalar_one_or_none()
+    defect = await _get_or_sync_defect(defect_id, db)
     if not defect:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

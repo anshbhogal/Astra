@@ -103,6 +103,25 @@ class FailureAnalysisService:
             self.db.add(db_model)
             analyses_to_db.append(db_model)
 
+            # Mirror each failure analysis into G2Defect for APR pipeline accessibility
+            from app.models.canonical import G2Defect
+            defect_key = f"DEF-{str(db_model.id)[:8].upper()}"
+            desc = f"{db_model.error_message}\nLocation: {db_model.failing_file or ''}:{db_model.failing_line or ''} in {db_model.failing_function or ''}"
+            g2_def = G2Defect(
+                id=db_model.id,
+                project_id=project_id,
+                defect_key=defect_key,
+                title=db_model.summary[:255] if db_model.summary else "Automated Failure Analysis Defect",
+                description=desc,
+                severity="CRITICAL" if db_model.category == "SECURITY" else "MAJOR",
+                priority="P1" if db_model.category == "SECURITY" else "P2",
+                status="NEW",
+                fingerprint=db_model.fingerprint,
+                source="AUTOMATED_ANALYSIS",
+                actor_type="SYSTEM",
+            )
+            self.db.add(g2_def)
+
         # 2. Defect Clustering Persistence
         if domain_analyses:
             clusters = self.fingerprint_engine.cluster_failures(domain_analyses, run_id=str(run_id))
