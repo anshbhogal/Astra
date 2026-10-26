@@ -120,7 +120,7 @@ class TestPatchValidator:
             "-    items = payload[\"items\"]\n"
             "+    items = payload.get(\"items\", [])\n"
         )
-        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "c0ffee")
+        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1f")
         assert res.is_valid is True
         assert res.syntax_valid is True
         assert res.candidate_hash is not None
@@ -138,7 +138,7 @@ class TestPatchValidator:
             "-    assert res == 200\n"
             "+    assert True\n"
         )
-        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "c0ffee")
+        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1f")
         assert res.is_valid is False
         assert "Anti-tampering violation" in res.rejection_reason
 
@@ -154,7 +154,7 @@ class TestPatchValidator:
             "-    items = payload[\"items\"]\n"
             "+    items = payload[\"items\"]  \n"
         )
-        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "c0ffee")
+        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1f")
         assert res.is_valid is False
         assert "No-op" in res.rejection_reason
 
@@ -170,7 +170,7 @@ class TestPatchValidator:
             "-    items = payload[\"items\"]\n"
             "+    # just a comment\n"
         )
-        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "c0ffee")
+        res = PatchValidator.validate(diff, SAMPLE_DICT_CODE, ctx, "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1f")
         assert res.is_valid is False
 
 

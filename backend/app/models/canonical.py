@@ -820,8 +820,8 @@ class G2RepairPullRequest(Base):
     defect_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("g2_defects.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    github_pr_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    github_pr_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    github_pr_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    github_pr_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     branch_name: Mapped[str] = mapped_column(String(255), nullable=False)
     base_branch: Mapped[str] = mapped_column(String(100), default="main", nullable=False)
     commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
