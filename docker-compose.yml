@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-astra_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-astra_secret_password}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     container_name: astra_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -57,6 +57,7 @@ services:
       - ./ml:/app/ml
       - ./scratch:/app/scratch
       - ./benchmark_apps:/app/benchmark_apps
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
     depends_on:
       postgres:
         condition: service_healthy
