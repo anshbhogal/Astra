@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.db.session import get_db
 from app.core.security import get_current_user
+from app.core.permissions import get_project_or_403
 from app.core.rbac import require_roles
 from app.models.domain import User, UserRole, Project, ProjectAnalysis, GenerationJob, GenerationJobStatus
 from app.schemas.generator import (

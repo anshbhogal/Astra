@@ -4,7 +4,8 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 
 from app.db.session import async_session_factory
-from app.models.domain import FailureAnalysisModel
+from app.models.domain import User, UserRole, FailureAnalysisModel
+from app.core.security import create_access_token, get_password_hash
 
 @pytest.mark.asyncio
 async def test_admin_governance_and_rbac_flow():
@@ -68,13 +69,30 @@ async def test_admin_governance_and_rbac_flow():
         dev_token = login_approved.json()["access_token"]
         dev_headers = {"Authorization": f"Bearer {dev_token}"}
 
-        # 6. Verify non-admin Developer CANNOT add a repository
-        dev_create_repo = await client.post("/api/v1/projects/", json={
+        # 6. Verify Viewer CANNOT add a repository (only Admin, Developer, Tester)
+        viewer_id = uuid.uuid4()
+        async with async_session_factory() as session:
+            viewer_user = User(
+                id=viewer_id,
+                email=f"viewer_{rand_id}@example.com",
+                full_name="Viewer User",
+                hashed_password=get_password_hash("Password123!"),
+                role=UserRole.VIEWER,
+                is_active=True,
+                is_approved=True,
+                token_version=1,
+            )
+            session.add(viewer_user)
+            await session.commit()
+
+        viewer_token = create_access_token(subject=str(viewer_id))
+        viewer_headers = {"Authorization": f"Bearer {viewer_token}"}
+        viewer_create_repo = await client.post("/api/v1/projects/", json={
             "name": f"Unauthorized Repo {rand_id}",
             "repository_url": "https://github.com/test/repo",
             "language_framework": "PYTHON_FASTAPI"
-        }, headers=dev_headers)
-        assert dev_create_repo.status_code == 403
+        }, headers=viewer_headers)
+        assert viewer_create_repo.status_code == 403
 
         # 7. Admin directly generates a Tester ID
         tester_email = f"tester_{rand_id}@example.com"

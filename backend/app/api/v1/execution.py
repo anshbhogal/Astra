@@ -33,7 +33,7 @@ async def generate_synthetic_test_suite(
     project_id: uuid.UUID,
     payload: Optional[TestSuiteGenerateRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = require_roles([UserRole.ADMIN, UserRole.TESTER])
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
     """Generate a synthetic test suite from AST static analysis endpoints."""
     custom_name = payload.name if payload else None
@@ -66,7 +66,7 @@ async def dispatch_test_run(
     project_id: uuid.UUID,
     payload: TestRunCreateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = require_roles([UserRole.ADMIN, UserRole.TESTER])
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
     """Dispatch an asynchronous test suite execution run."""
     test_run = await execution_service.trigger_test_run(

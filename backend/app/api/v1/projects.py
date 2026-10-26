@@ -23,9 +23,9 @@ async def create_project(
     request: Request,
     payload: ProjectCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = require_roles([UserRole.ADMIN])
+    current_user: User = require_roles([UserRole.ADMIN, UserRole.DEVELOPER, UserRole.TESTER])
 ):
-    """Create a new software project (Admin only)."""
+    """Create a new software project (Admin, Developer, and Tester)."""
     return await project_service.create_new_project(db, payload, current_user)
 
 
@@ -62,9 +62,9 @@ async def update_project(
     project_id: uuid.UUID,
     payload: ProjectUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = require_roles([UserRole.ADMIN])
+    current_user: User = Depends(get_current_user)
 ):
-    """Update project details (Admin only)."""
+    """Update project details (Admin or project owner)."""
     return await project_service.update_existing_project(db, project_id, payload, current_user)
 
 
@@ -72,9 +72,9 @@ async def update_project(
 async def delete_project(
     project_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = require_roles([UserRole.ADMIN])
+    current_user: User = Depends(get_current_user)
 ):
-    """Delete a project (Admin only)."""
+    """Delete a project (Admin or project owner)."""
     await project_service.delete_project_by_id(db, project_id, current_user)
     return None
 
