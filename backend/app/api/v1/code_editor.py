@@ -2,6 +2,7 @@ import os
 import shutil
 import uuid
 import mimetypes
+import git
 from pathlib import Path
 from typing import List, Optional, Any, Dict
 from datetime import datetime, timezone
@@ -59,6 +60,44 @@ class TestRunResultResponse(BaseModel):
     duration_ms: float
 
 
+class GitStatusResponse(BaseModel):
+    branch: str
+    is_clean: bool
+    modified_files: List[str]
+    untracked_files: List[str]
+    staged_files: List[str]
+
+
+class GitCommitRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=500)
+    files: Optional[List[str]] = None
+
+
+class GitCommitResponse(BaseModel):
+    commit_sha: str
+    branch: str
+    message: str
+    author_name: str
+    author_email: str
+    committed_at: str
+    files_changed: int
+
+
+class GitBranchRequest(BaseModel):
+    branch_name: str = Field(..., min_length=1, max_length=100)
+    create_and_checkout: bool = True
+
+
+class GitBranchResponse(BaseModel):
+    current_branch: str
+    branches: List[str]
+
+
+class GitDiffResponse(BaseModel):
+    diff: str
+    files_changed: List[str]
+
+
 def detect_language(file_path: str) -> str:
     ext = os.path.splitext(file_path)[1].lower()
     mapping = {
@@ -99,6 +138,26 @@ def safe_resolve(base_dir: Path, rel_path: str) -> Path:
     return resolved
 
 
+def get_git_repo(ws_dir: Path, default_branch: str = "main") -> git.Repo:
+    try:
+        repo = git.Repo(ws_dir)
+    except (git.exc.InvalidGitRepositoryError, git.exc.NoSuchPathError):
+        repo = git.Repo.init(ws_dir, initial_branch=default_branch)
+        with repo.config_writer() as config:
+            if not config.has_section("user"):
+                config.add_section("user")
+            config.set_value("user", "name", "ASTRA Developer")
+            config.set_value("user", "email", "dev@astra.local")
+        
+        entries = [e for e in ws_dir.iterdir() if e.name != ".git"]
+        if entries:
+            repo.git.add(A=True)
+            if repo.is_dirty() or repo.untracked_files:
+                author = git.Actor("ASTRA Developer", "dev@astra.local")
+                repo.index.commit("Initial repository scaffold", author=author, committer=author)
+    return repo
+
+
 def ensure_workspace(project: Project) -> Path:
     candidates = [
         Path(f"/app/scratch/{project.id}"),
@@ -109,6 +168,7 @@ def ensure_workspace(project: Project) -> Path:
 
     for c in candidates:
         if c.exists() and any(c.iterdir()):
+            get_git_repo(c, project.default_branch)
             return c
 
     # Clone or scaffold
@@ -118,6 +178,7 @@ def ensure_workspace(project: Project) -> Path:
         from engine.analyzer.repo_cloner import GitRepoCloner
         cloner = GitRepoCloner()
         cloner.clone(project.repository_url, scratch_dir, branch=project.default_branch)
+        get_git_repo(scratch_dir, project.default_branch)
         return scratch_dir
     except Exception:
         # If clone fails (e.g. offline dummy git URL), create standard scaffold
@@ -145,6 +206,7 @@ def ensure_workspace(project: Project) -> Path:
                 '    return len(user_token) >= 10\n',
                 encoding="utf-8"
             )
+        get_git_repo(scratch_dir, project.default_branch)
         return scratch_dir
 
 
@@ -416,3 +478,191 @@ async def get_editor_defects(
         }
         for d in defects
     ]
+
+
+@router.get("/git/status", response_model=GitStatusResponse)
+async def get_git_status(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve git status of the project workspace."""
+    project = await get_project_by_id(db, project_id, current_user)
+    ws_dir = ensure_workspace(project)
+    repo = get_git_repo(ws_dir, project.default_branch)
+
+    try:
+        current_branch = repo.active_branch.name
+    except TypeError:
+        current_branch = "HEAD"
+
+    # Changed files compared to index
+    modified = [item.a_path for item in repo.index.diff(None)]
+    # Staged files compared to HEAD
+    try:
+        staged = [item.a_path for item in repo.index.diff("HEAD")]
+    except Exception:
+        staged = []
+    untracked = list(repo.untracked_files)
+
+    is_clean = not bool(modified or staged or untracked)
+
+    return GitStatusResponse(
+        branch=current_branch,
+        is_clean=is_clean,
+        modified_files=modified,
+        untracked_files=untracked,
+        staged_files=staged
+    )
+
+
+@router.get("/git/diff", response_model=GitDiffResponse)
+async def get_git_diff(
+    project_id: uuid.UUID,
+    path: Optional[str] = Query(None, description="Optional relative file path to diff"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Retrieve unified git diff for working tree or specific file."""
+    project = await get_project_by_id(db, project_id, current_user)
+    ws_dir = ensure_workspace(project)
+    repo = get_git_repo(ws_dir, project.default_branch)
+
+    files_changed: List[str] = []
+    diff_text = ""
+
+    try:
+        if path:
+            file_path = safe_resolve(ws_dir, path)
+            rel_path = str(file_path.relative_to(ws_dir)).replace("\\", "/")
+            diff_text = repo.git.diff("HEAD", rel_path)
+            if diff_text:
+                files_changed = [rel_path]
+        else:
+            diff_text = repo.git.diff("HEAD")
+            diff_index = repo.index.diff(None)
+            files_changed = [d.a_path for d in diff_index]
+    except Exception:
+        diff_text = repo.git.diff()
+
+    return GitDiffResponse(diff=diff_text, files_changed=files_changed)
+
+
+@router.get("/git/branches", response_model=GitBranchResponse)
+async def list_git_branches(
+    project_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """List all local git branches in the workspace."""
+    project = await get_project_by_id(db, project_id, current_user)
+    ws_dir = ensure_workspace(project)
+    repo = get_git_repo(ws_dir, project.default_branch)
+
+    try:
+        current_branch = repo.active_branch.name
+    except TypeError:
+        current_branch = "HEAD"
+
+    branches = [h.name for h in repo.heads]
+    if not branches and current_branch:
+        branches = [current_branch]
+
+    return GitBranchResponse(current_branch=current_branch, branches=branches)
+
+
+@router.post("/git/branches", response_model=GitBranchResponse)
+async def create_or_checkout_branch(
+    project_id: uuid.UUID,
+    payload: GitBranchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Create or switch to a branch (Developer & Admin only)."""
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEVELOPER]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Developers and Administrators can manage branches.")
+
+    project = await get_project_by_id(db, project_id, current_user)
+    ws_dir = ensure_workspace(project)
+    repo = get_git_repo(ws_dir, project.default_branch)
+
+    branch_name = payload.branch_name.strip()
+    if not branch_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Branch name cannot be empty.")
+
+    try:
+        existing_heads = [h.name for h in repo.heads]
+        if branch_name in existing_heads:
+            repo.git.checkout(branch_name)
+        else:
+            repo.git.checkout("-b", branch_name)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to switch/create branch: {exc}")
+
+    try:
+        current_branch = repo.active_branch.name
+    except TypeError:
+        current_branch = branch_name
+
+    branches = [h.name for h in repo.heads]
+    return GitBranchResponse(current_branch=current_branch, branches=branches)
+
+
+@router.post("/git/commit", response_model=GitCommitResponse)
+async def commit_changes(
+    project_id: uuid.UUID,
+    payload: GitCommitRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Commit changes to the workspace repository with authenticated author attribution (Developer & Admin only)."""
+    if current_user.role not in [UserRole.ADMIN, UserRole.DEVELOPER]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Developers and Administrators can commit changes.")
+
+    project = await get_project_by_id(db, project_id, current_user)
+    ws_dir = ensure_workspace(project)
+    repo = get_git_repo(ws_dir, project.default_branch)
+
+    if payload.files:
+        for f in payload.files:
+            file_path = safe_resolve(ws_dir, f)
+            rel_path = str(file_path.relative_to(ws_dir)).replace("\\", "/")
+            repo.git.add(rel_path)
+    else:
+        repo.git.add(A=True)
+
+    if not repo.is_dirty() and not repo.untracked_files:
+        try:
+            if not repo.index.diff("HEAD"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No changes to commit (working tree clean).")
+        except Exception:
+            pass
+
+    author = git.Actor(
+        current_user.full_name or "ASTRA Developer",
+        current_user.email or "dev@astra.local"
+    )
+
+    try:
+        commit = repo.index.commit(
+            payload.message,
+            author=author,
+            committer=author
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Git commit failed: {exc}")
+
+    try:
+        current_branch = repo.active_branch.name
+    except TypeError:
+        current_branch = "HEAD"
+
+    return GitCommitResponse(
+        commit_sha=commit.hexsha,
+        branch=current_branch,
+        message=commit.message.strip(),
+        author_name=author.name,
+        author_email=author.email,
+        committed_at=datetime.fromtimestamp(commit.committed_date, timezone.utc).isoformat(),
+        files_changed=len(commit.stats.files)
+    )
