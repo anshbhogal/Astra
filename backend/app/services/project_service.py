@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,8 +61,8 @@ async def get_accessible_projects(
     base_stmt = select(Project).options(
         selectinload(Project.owner),
         selectinload(Project.members).selectinload(ProjectMember.user)
-    )
-    count_stmt = select(func.count(Project.id))
+    ).where(Project.is_deleted == False)
+    count_stmt = select(func.count(Project.id)).where(Project.is_deleted == False)
 
     if current_user.role != UserRole.ADMIN:
         subq = select(ProjectMember.project_id).where(ProjectMember.user_id == current_user.id)
@@ -133,7 +134,8 @@ async def delete_project_by_id(
         details={"name": project.name}
     )
     db.add(audit_entry)
-    await db.delete(project)
+    project.is_deleted = True
+    project.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
 

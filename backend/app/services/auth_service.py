@@ -52,7 +52,7 @@ async def register_new_user(db: AsyncSession, payload: UserRegister) -> User:
 
 
 async def authenticate_user(db: AsyncSession, payload: UserLogin) -> User:
-    stmt = select(User).where(User.email == payload.email)
+    stmt = select(User).where(User.email == payload.email, User.is_deleted == False)
     user = (await db.execute(stmt)).scalar_one_or_none()
 
     valid_password = False
