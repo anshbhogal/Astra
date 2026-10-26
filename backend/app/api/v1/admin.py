@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +45,7 @@ async def list_all_users(
     stmt = (
         select(User)
         .options(selectinload(User.memberships).selectinload(ProjectMember.project))
+        .where(User.is_deleted == False)
         .order_by(User.created_at.desc())
     )
     users = (await db.execute(stmt)).scalars().all()
@@ -77,7 +79,7 @@ async def list_pending_users(
     """List all self-registered users awaiting administrator approval."""
     stmt = (
         select(User)
-        .where(User.is_approved == False, User.role != UserRole.ADMIN)
+        .where(User.is_approved == False, User.role != UserRole.ADMIN, User.is_deleted == False)
         .order_by(User.created_at.desc())
     )
     users = (await db.execute(stmt)).scalars().all()
@@ -169,7 +171,7 @@ async def approve_user(
     current_user: User = require_roles([UserRole.ADMIN])
 ):
     """Approve a self-registered user and assign their official role and repositories (Admin only)."""
-    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    target = (await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))).scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -181,7 +183,7 @@ async def approve_user(
     assigned = []
     if payload and payload.project_ids:
         for pid in payload.project_ids:
-            proj = (await db.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+            proj = (await db.execute(select(Project).where(Project.id == pid, Project.is_deleted == False))).scalar_one_or_none()
             if proj:
                 # Check existing membership
                 stmt_m = select(ProjectMember).where(ProjectMember.project_id == pid, ProjectMember.user_id == target.id)
@@ -220,8 +222,8 @@ async def reject_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = require_roles([UserRole.ADMIN])
 ):
-    """Reject and delete a pending user registration (Admin only)."""
-    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    """Reject and soft-delete a pending user registration (Admin only)."""
+    target = (await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))).scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -236,7 +238,9 @@ async def reject_user(
         details={"email": target.email}
     )
     db.add(audit_entry)
-    await db.delete(target)
+    target.is_deleted = True
+    target.deleted_at = datetime.now(timezone.utc)
+    target.is_active = False
     await db.commit()
     return {"message": f"User {target.email} registration rejected and removed."}
 
@@ -247,11 +251,11 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = require_roles([UserRole.ADMIN])
 ):
-    """Permanently delete a user account (Admin only)."""
+    """Soft delete a user account (Admin only). Preserves relational integrity and audit trails."""
     if user_id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own active admin account.")
 
-    target = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    target = (await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))).scalar_one_or_none()
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -266,6 +270,8 @@ async def delete_user(
         details={"email": target.email}
     )
     db.add(audit_entry)
-    await db.delete(target)
+    target.is_deleted = True
+    target.deleted_at = datetime.now(timezone.utc)
+    target.is_active = False
     await db.commit()
     return None

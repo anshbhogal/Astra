@@ -35,7 +35,7 @@ async def get_project_or_403(
             selectinload(Project.owner),
             selectinload(Project.members).selectinload(ProjectMember.user)
         )
-        .where(Project.id == project_id)
+        .where(Project.id == project_id, Project.is_deleted == False)
     )
     result = await db.execute(stmt)
     project = result.scalar_one_or_none()
