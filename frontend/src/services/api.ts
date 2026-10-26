@@ -89,14 +89,17 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
-        useAuthStore.getState().logout();
-        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.href = '/login';
-        }
+        // Do NOT destroy unsaved developer work with unconditional window.location.href = '/login'.
+        // Hard page unloads immediately wipe out open Code Studio editor tabs and unsaved buffers.
+        useAuthStore.getState().setSessionExpired(true);
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
       }
+    }
+
+    if (error.response?.status === 401 && !isAuthRoute && useAuthStore.getState().token) {
+      useAuthStore.getState().setSessionExpired(true);
     }
 
     return Promise.reject(error);

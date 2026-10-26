@@ -15,15 +15,17 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { CodeStudio } from './pages/CodeStudio';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FirstTimePasswordModal } from './components/FirstTimePasswordModal';
+import { SessionExpiredModal } from './components/common/SessionExpiredModal';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuthStore();
-  if (!token) {
+  const { token, isSessionExpired } = useAuthStore();
+  if (!token && !isSessionExpired) {
     return <Navigate to="/login" replace />;
   }
   return (
     <>
       <FirstTimePasswordModal />
+      <SessionExpiredModal />
       <Layout>
         <ErrorBoundary>{children}</ErrorBoundary>
       </Layout>
