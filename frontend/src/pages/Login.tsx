@@ -128,8 +128,8 @@ export const Login: React.FC = () => {
           </button>
         </div>
 
-        {/* Quick Test Credential Presets (Development Only) */}
-        {!isRegister && import.meta.env.DEV && (
+        {/* Quick Test Credential Presets (Strictly Disabled by Default; Dev-Opt-In Only) */}
+        {!isRegister && import.meta.env.DEV && import.meta.env.VITE_ENABLE_PRESETS === 'true' && (
           <div className="p-3 rounded-xl bg-field border border-border-card space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Quick Test Presets</p>
