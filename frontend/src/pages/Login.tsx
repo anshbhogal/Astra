@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, User as UserIcon, Shield, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, Shield, ArrowRight, Sparkles, CheckCircle, FlaskConical, Code2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore, UserRole } from '../store/authStore';
 import { Button } from '../components/common/Button';
@@ -84,6 +84,22 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handleQuickLogin = async (presetEmail: string) => {
+    setEmail(presetEmail);
+    setPassword('Password123!');
+    setLoading(true);
+    setError(null);
+    try {
+      const loginRes = await api.post('/auth/login', { email: presetEmail, password: 'Password123!' });
+      setAuth(loginRes.data.user, loginRes.data.access_token);
+      navigate('/');
+    } catch (err: any) {
+      setError(extractErrorMessage(err.response?.data?.detail));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-app flex items-center justify-center p-4 selection:bg-brand selection:text-on-brand relative overflow-hidden transition-colors duration-150">
       {/* Subtle background ambient accents */}
@@ -128,41 +144,62 @@ export const Login: React.FC = () => {
           </button>
         </div>
 
-        {/* Quick Test Credential Presets (Strictly Disabled by Default; Dev-Opt-In Only) */}
-        {!isRegister && import.meta.env.DEV && import.meta.env.VITE_ENABLE_PRESETS === 'true' && (
-          <div className="p-3 rounded-xl bg-field border border-border-card space-y-2">
+        {/* 3 Quick Login Buttons for Testing Phase */}
+        {!isRegister && (
+          <div className="p-3.5 rounded-2xl bg-field/80 border border-border-card space-y-2.5 shadow-sm">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Quick Test Presets</p>
-              <span className="text-[10px] text-muted font-mono">Password: Password123!</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-brand" />
+                Quick Login &bull; Testing Phase
+              </span>
+              <span className="text-[10px] text-muted font-mono bg-card px-2 py-0.5 rounded-md border border-border-card">
+                1-Click Auth
+              </span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
+              {/* 1. Admin Quick Login */}
               <button
                 type="button"
-                onClick={() => { setEmail('admin@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-status-failed-bg text-status-failed border border-status-failed/30 text-[11px] font-semibold hover:opacity-85 transition-opacity"
+                disabled={loading}
+                onClick={() => handleQuickLogin('admin@astra.local')}
+                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 text-primary transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-50"
+                title="Quick login as System Administrator (admin@astra.local)"
               >
-                Admin
+                <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-inner">
+                  <Shield className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-rose-600 dark:text-rose-400">Admin</span>
+                <span className="text-[9px] text-muted font-mono truncate max-w-full">admin@</span>
               </button>
+
+              {/* 2. Tester Quick Login */}
               <button
                 type="button"
-                onClick={() => { setEmail('dev@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-brand/10 text-brand border border-brand/30 text-[11px] font-semibold hover:bg-brand/20 transition-colors"
+                disabled={loading}
+                onClick={() => handleQuickLogin('tester@astra.local')}
+                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10 text-primary transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-50"
+                title="Quick login as Quality Assurance Tester (tester@astra.local)"
               >
-                Developer
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-inner">
+                  <FlaskConical className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Tester</span>
+                <span className="text-[9px] text-muted font-mono truncate max-w-full">tester@</span>
               </button>
+
+              {/* 3. Developer Quick Login */}
               <button
                 type="button"
-                onClick={() => { setEmail('tester@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-status-flaky-bg text-status-flaky border border-status-flaky/30 text-[11px] font-semibold hover:opacity-85 transition-opacity"
+                disabled={loading}
+                onClick={() => handleQuickLogin('dev@astra.local')}
+                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-sky-500/30 hover:border-sky-500 hover:bg-sky-500/10 text-primary transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-50"
+                title="Quick login as Software Developer (dev@astra.local)"
               >
-                Tester
-              </button>
-              <button
-                type="button"
-                onClick={() => { setEmail('viewer@astra.local'); setPassword('Password123!'); }}
-                className="px-2.5 py-1 rounded-lg bg-card text-secondary border border-border-field text-[11px] font-semibold hover:text-primary transition-colors"
-              >
-                Viewer
+                <div className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-inner">
+                  <Code2 className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-sky-600 dark:text-sky-400">Developer</span>
+                <span className="text-[9px] text-muted font-mono truncate max-w-full">dev@</span>
               </button>
             </div>
           </div>
