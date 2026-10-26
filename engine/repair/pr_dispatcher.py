@@ -131,7 +131,7 @@ def create_git_commit(
         f"{commit_message}\n{patch_diff}"
     )
     header = f"commit {len(raw_content.encode('utf-8'))}\0"
-    return hashlib.sha1((header + raw_content).encode("utf-8")).hexdigest()
+    return hashlib.sha1((header + raw_content).encode("utf-8"), usedforsecurity=False).hexdigest()
 
 
 class AutonomousPRDispatcher:

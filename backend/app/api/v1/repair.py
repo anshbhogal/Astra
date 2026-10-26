@@ -175,7 +175,7 @@ async def trigger_defect_repair(
     honest_commit_sha = (
         defect.fingerprint
         if (defect.fingerprint and len(defect.fingerprint) == 40)
-        else hashlib.sha1(f"defect:{defect.id}:{defect.defect_key}".encode()).hexdigest()
+        else hashlib.sha1(f"defect:{defect.id}:{defect.defect_key}".encode(), usedforsecurity=False).hexdigest()
     )
     job = G2RepairJob(
         id=uuid.uuid4(),
