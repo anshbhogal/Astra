@@ -129,14 +129,29 @@ def detect_language(file_path: str) -> str:
 
 
 def safe_resolve(base_dir: Path, rel_path: str) -> Path:
-    clean_rel = rel_path.lstrip("/\\")
-    resolved = (base_dir / clean_rel).resolve()
-    base_resolved = base_dir.resolve()
-    if not str(resolved).startswith(str(base_resolved)):
+    if not rel_path or "\x00" in rel_path:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Forbidden: path escapes project workspace."
+            detail="Forbidden: invalid path syntax or null byte detected."
         )
+
+    base_resolved = base_dir.resolve()
+    clean_rel = rel_path.lstrip("/\\")
+    resolved = (base_dir / clean_rel).resolve()
+
+    try:
+        if not resolved.is_relative_to(base_resolved):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Forbidden: path escapes project workspace."
+            )
+    except AttributeError:
+        if resolved != base_resolved and base_resolved not in resolved.parents:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Forbidden: path escapes project workspace."
+            )
+
     return resolved
 
 
