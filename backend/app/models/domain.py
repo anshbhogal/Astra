@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
 
-from sqlalchemy import String, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, Boolean, UniqueConstraint, Integer
+from sqlalchemy import String, DateTime, ForeignKey, Enum as SQLEnum, Text, JSON, Boolean, UniqueConstraint, Integer, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -255,6 +255,10 @@ class DiscoveredEndpoint(Base):
 
     analysis: Mapped["ProjectAnalysis"] = relationship("ProjectAnalysis", back_populates="endpoints")
 
+    __table_args__ = (
+        Index("idx_discovered_endpoints_analysis_method", "analysis_id", "method"),
+    )
+
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
@@ -274,6 +278,10 @@ class AuditLog(Base):
     )
 
     actor: Mapped[Optional["User"]] = relationship("User", back_populates="audit_logs")
+
+    __table_args__ = (
+        Index("idx_audit_logs_action_created", "action", "created_at"),
+    )
 
 
 class TestRunStatus(str, Enum):
@@ -400,6 +408,10 @@ class TestRun(Base):
     test_suite: Mapped["TestSuite"] = relationship("TestSuite", back_populates="test_runs")
     results: Mapped[List["TestResult"]] = relationship("TestResult", back_populates="test_run", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        Index("idx_test_runs_project_created", "project_id", "created_at"),
+    )
+
 
 class TestResult(Base):
     __tablename__ = "test_results"
@@ -434,6 +446,10 @@ class TestResult(Base):
 
     test_run: Mapped["TestRun"] = relationship("TestRun", back_populates="results")
     test_case: Mapped["TestCase"] = relationship("TestCase")
+
+    __table_args__ = (
+        Index("idx_test_results_run_outcome", "test_run_id", "outcome"),
+    )
 
 
 class GenerationJobStatus(str, Enum):
