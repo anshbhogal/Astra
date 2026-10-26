@@ -1,502 +1,220 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
-  ExternalLink,
-  GitBranch,
-  Shield,
-  Cpu,
-  Activity,
   Info,
   Code2,
-  Play,
-  CheckCircle2,
-  AlertTriangle,
-  RefreshCw,
-  Layers,
-  Network,
-  FileCode,
-  Sliders,
-  ChevronRight,
-  Zap,
-  Check,
   Sparkles,
-  Eye,
-  Server,
-  Users,
-  FlaskConical,
+  Network,
+  Activity,
+  CheckCircle2,
+  FileCode,
+  Cpu,
+  ChevronRight,
+  Play,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { TestGenerationDrawer } from '../components/TestGenerationDrawer';
 import { TestSuiteViewerDrawer } from '../components/TestSuiteViewerDrawer';
-import { SandboxServerControl } from '../components/SandboxServerControl';
 import { KnowledgeGraphVisualizer } from '../components/KnowledgeGraphVisualizer';
-import { TestStatusBadge, type TestStatus } from '../components/common/TestStatusBadge';
+import { TestStatusBadge } from '../components/common/TestStatusBadge';
 import { Button } from '../components/common/Button';
-import { Modal } from '../components/common/Modal';
-import { Input } from '../components/common/Input';
 
-const mapRunStatusToBadge = (status?: string): TestStatus => {
-  switch ((status || '').toUpperCase()) {
-    case 'COMPLETED':
-    case 'PASSED':
-    case 'PASS':
-      return 'passed';
-    case 'FAILED':
-    case 'FAIL':
-      return 'failed';
-    case 'RUNNING':
-    case 'STARTING':
-    case 'QUEUED':
-      return 'running';
-    case 'ERROR':
-    case 'ENVIRONMENT_ERROR':
-      return 'error';
-    case 'FLAKY':
-      return 'flaky';
-    default:
-      return 'skipped';
-  }
-};
+import {
+  Project,
+  Analysis,
+  DiscoveredEndpoint,
+  TestSuite,
+  TestRun,
+  KnowledgeGraph,
+  DiscoveredFunction,
+  UnitTestRunResult,
+  ProjectMember,
+  formatFrameworkName,
+} from '../components/project/types';
 
-interface Project {
-  id: string;
-  name: string;
-  description: string | null;
-  repository_url: string;
-  default_branch: string;
-  language_framework: string;
-  owner_id: string;
-  owner?: { full_name: string; email: string };
-  created_at: string;
-  updated_at: string;
-}
-
-interface Analysis {
-  id: string;
-  project_id: string;
-  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'COMPLETED_WITH_WARNINGS' | 'FAILED' | 'CANCELLED';
-  current_stage: 'CLONING' | 'SCANNING' | 'AST_PARSING' | 'GRAPH_BUILDING' | 'PERSISTING' | 'FINISHED';
-  progress_percent: number;
-  repository_url: string;
-  branch: string;
-  commit_sha: string | null;
-  detected_language: string | null;
-  detected_framework: string | null;
-  framework_confidence: number;
-  scanned_files_count: number;
-  parsed_files_count: number;
-  endpoint_count: number;
-  graph_node_count: number;
-  graph_edge_count: number;
-  error_message: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-}
-
-interface DiscoveredEndpoint {
-  id: string;
-  method: string;
-  path: string;
-  function_name: string;
-  parameters: Array<{ name: string; type?: string; default?: string }>;
-  request_model: string | null;
-  response_model: string | null;
-  framework: string;
-  confidence: number;
-  file_path: string;
-  line_number: number;
-}
-
-interface TestSuite {
-  id: string;
-  name: string;
-  total_cases: number;
-  version: string;
-  created_at: string;
-}
-
-interface TestRun {
-  id: string;
-  status: string;
-  total_tests: number;
-  passed_tests: number;
-  failed_tests: number;
-  error_tests: number;
-  duration_ms: number;
-  created_at: string;
-}
-
-interface KnowledgeGraph {
-  nodes: Array<{ id: string; label: string; type: string; properties: any }>;
-  edges: Array<{ source: string; target: string; type: string; properties: any }>;
-}
-
-interface DiscoveredFunction {
-  function_id: string;
-  qualified_name: string;
-  file_path: string;
-  line_number: number;
-  parameters: Array<{ name: string; type_annotation?: string; has_default?: boolean }>;
-  return_schema: string;
-  docstring: string | null;
-  side_effects: string[];
-  called_functions: string[];
-  purity_estimate: number;
-  cyclomatic_complexity: number;
-  is_async: boolean;
-}
-
-interface UnitTestOutcome {
-  nodeid: string;
-  outcome: string;
-  duration: number;
-  message?: string;
-}
-
-interface UnitTestRunResult {
-  total_tests: number;
-  passed_tests: number;
-  failed_tests: number;
-  skipped_tests: number;
-  duration_ms: number;
-  coverage_percent: number;
-  test_outcomes: UnitTestOutcome[];
-  raw_stdout: string;
-  exit_code: number;
-}
-
-const PIPELINE_STAGES = [
-  { key: 'CLONING', label: '1. Git Clone', desc: 'Fetch source tree & branch' },
-  { key: 'SCANNING', label: '2. File Scan', desc: 'Scan files & detect language' },
-  { key: 'AST_PARSING', label: '3. AST Parsing', desc: 'Parse AST & extract endpoints' },
-  { key: 'GRAPH_BUILDING', label: '4. Knowledge Graph', desc: 'Build code dependency graph' },
-  { key: 'PERSISTING', label: '5. Database Index', desc: 'Persist endpoints & graph nodes' },
-];
-
-const getStageInfo = (stage?: string, status?: string) => {
-  if (!status) {
-    return { title: 'Pipeline Idle', desc: 'Ready to clone repository and begin static AST analysis.', step: 0 };
-  }
-  if (status === 'COMPLETED' || status === 'COMPLETED_WITH_WARNINGS') {
-    return { title: 'Analysis Complete', desc: 'Static analysis pipeline completed and knowledge graph indexed.', step: 6 };
-  }
-  if (status === 'FAILED') {
-    return { title: 'Analysis Failed', desc: 'The analysis pipeline encountered an error.', step: 0 };
-  }
-  switch (stage) {
-    case 'CLONING':
-      return { title: 'Cloning Repository', desc: 'Fetching repository files and verifying git tree...', step: 1 };
-    case 'SCANNING':
-      return { title: 'Scanning Source Code', desc: 'Detecting languages, frameworks, and project structure...', step: 2 };
-    case 'AST_PARSING':
-      return { title: 'Parsing Abstract Syntax Trees', desc: 'Extracting route handlers, parameter schemas, and decorators...', step: 3 };
-    case 'GRAPH_BUILDING':
-      return { title: 'Building Knowledge Graph', desc: 'Resolving dependency graphs, controller links, and schema nodes...', step: 4 };
-    case 'PERSISTING':
-      return { title: 'Indexing & Saving Records', desc: 'Persisting discovered endpoints and graph nodes into database...', step: 5 };
-    case 'FINISHED':
-      return { title: 'Analysis Complete', desc: 'All static analysis stages completed successfully.', step: 6 };
-    default:
-      return { title: 'Queued in Pipeline', desc: 'Worker queued, preparing workspace sandbox...', step: 0 };
-  }
-};
-
-const getStageStatus = (stageKey: string, currentStage?: string, overallStatus?: string) => {
-  if (!overallStatus) {
-    return 'pending';
-  }
-  if (overallStatus === 'COMPLETED' || overallStatus === 'COMPLETED_WITH_WARNINGS') {
-    return 'completed';
-  }
-  const stageOrder = ['CLONING', 'SCANNING', 'AST_PARSING', 'GRAPH_BUILDING', 'PERSISTING', 'FINISHED'];
-  const currentIndex = currentStage ? stageOrder.indexOf(currentStage) : -1;
-  const targetIndex = stageOrder.indexOf(stageKey);
-
-  if (overallStatus === 'FAILED') {
-    if (targetIndex < currentIndex) return 'completed';
-    if (targetIndex === currentIndex) return 'failed';
-    return 'pending';
-  }
-
-  if (targetIndex < currentIndex) {
-    return 'completed';
-  } else if (targetIndex === currentIndex) {
-    return 'active';
-  } else {
-    return 'pending';
-  }
-};
-
-const formatFrameworkName = (raw?: string | null): string => {
-  if (!raw) return 'Not Detected';
-  const MAP: Record<string, string> = {
-    PYTHON_FASTAPI: 'FastAPI',
-    PYTHON_FLASK: 'Flask',
-    PYTHON_DJANGO: 'Django',
-    PYTHON_TORNADO: 'Tornado',
-    PYTHON_SANIC: 'Sanic',
-    PYTHON_PYSIDE_QT: 'PySide / Qt (Desktop GUI)',
-    PYTHON_TKINTER: 'Tkinter (Desktop GUI)',
-    PYTHON_KIVY: 'Kivy (GUI)',
-    PYTHON_STREAMLIT: 'Streamlit (Data App)',
-    PYTHON_GRADIO: 'Gradio (ML App)',
-    PYTHON_ML_HUGGINGFACE: 'HuggingFace / PyTorch (ML)',
-    PYTHON_ML_PYTORCH: 'PyTorch (Deep Learning)',
-    PYTHON_ML_TENSORFLOW: 'TensorFlow / Keras',
-    PYTHON_CELERY: 'Celery (Worker)',
-    PYTHON_GENERIC: 'Python (Generic)',
-    JAVA_SPRING: 'Spring Boot',
-    JAVA_QUARKUS: 'Quarkus',
-    JAVA_MICRONAUT: 'Micronaut',
-    JAVA_JAKARTA: 'Jakarta EE / JAX-RS',
-    JAVA_PLAY: 'Play Framework',
-    JAVA_VERTX: 'Eclipse Vert.x',
-    JAVA_GENERIC: 'Java (Generic)',
-    CPP_DROGON: 'Drogon (C++ Web)',
-    CPP_CROW: 'Crow (C++ Micro)',
-    CPP_OATPP: 'Oat++ (C++ Web)',
-    CPP_PISTACHE: 'Pistache (C++ REST)',
-    CPP_BOOST_BEAST: 'Boost.Beast (C++)',
-    CPP_GRPC: 'gRPC (C++)',
-    CPP_QT: 'Qt (C++ Desktop)',
-    CPP_WXWIDGETS: 'wxWidgets (C++ GUI)',
-    CPP_IMGUI: 'Dear ImGui (C++)',
-    CPP_CMAKE_NATIVE: 'CMake (Native C++)',
-    CPP_GENERIC: 'C/C++ (Generic)',
-    REACT: 'React',
-    NEXTJS: 'Next.js',
-    VUE: 'Vue.js',
-    NUXT: 'Nuxt.js',
-    ANGULAR: 'Angular',
-    SVELTE: 'Svelte',
-    SVELTEKIT: 'SvelteKit',
-    NODE_EXPRESS: 'Express.js',
-    NODE_NESTJS: 'NestJS',
-    NODE_FASTIFY: 'Fastify',
-    ELECTRON: 'Electron (Desktop)',
-    TAURI: 'Tauri (Desktop)',
-    REACT_NATIVE: 'React Native',
-    OTHER: 'Other / Custom Stack',
-  };
-  return MAP[raw] || raw;
-};
+import { ProjectHeaderBanner } from '../components/project/ProjectHeaderBanner';
+import { AnalysisStageCard } from '../components/project/AnalysisStageCard';
+import { DiscoveredEndpointsTable } from '../components/project/DiscoveredEndpointsTable';
+import { DiscoveredFunctionsTable } from '../components/project/DiscoveredFunctionsTable';
+import { TestSuitesRunsPanel } from '../components/project/TestSuitesRunsPanel';
 
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'ADMIN';
-  const isTester = user?.role === 'TESTER';
-  const canRunTests = isAdmin || isTester;
 
   const [project, setProject] = useState<Project | null>(null);
-  const [members, setMembers] = useState<any[]>([]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [endpoints, setEndpoints] = useState<DiscoveredEndpoint[]>([]);
   const [suites, setSuites] = useState<TestSuite[]>([]);
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [graph, setGraph] = useState<KnowledgeGraph | null>(null);
   const [functions, setFunctions] = useState<DiscoveredFunction[]>([]);
-  const [functionSearch, setFunctionSearch] = useState('');
-  const [unitTestResult, setUnitTestResult] = useState<UnitTestRunResult | null>(null);
-  const [runningUnitTests, setRunningUnitTests] = useState(false);
-  const [showStdout, setShowStdout] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingSuite, setGeneratingSuite] = useState(false);
-  const [dispatchingRun, setDispatchingRun] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'functions' | 'graph' | 'testruns'>('overview');
-  const [selectedSuiteForRun, setSelectedSuiteForRun] = useState<TestSuite | null>(null);
+  const [runningUnitTests, setRunningUnitTests] = useState(false);
+  const [unitTestResult, setUnitTestResult] = useState<UnitTestRunResult | null>(null);
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [viewingSuite, setViewingSuite] = useState<TestSuite | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'endpoints' | 'functions' | 'graph' | 'testruns'>('overview');
+
+  // Execution dispatch states
+  const [selectedSuiteForRun, setSelectedSuiteForRun] = useState<TestSuite | null>(null);
+  const [targetBaseUrl, setTargetBaseUrl] = useState('http://localhost:5000');
+  const [healthCheckPath, setHealthCheckPath] = useState('/health');
+  const [dispatchingRun, setDispatchingRun] = useState(false);
+
+  // Target sandbox server port tracker
   const [serverIsRunning, setServerIsRunning] = useState(false);
   const [serverPort, setServerPort] = useState<number | null>(null);
   const [serverWarningModalOpen, setServerWarningModalOpen] = useState(false);
   const [pendingRunSuite, setPendingRunSuite] = useState<TestSuite | null>(null);
-  const [targetBaseUrl, setTargetBaseUrl] = useState('http://localhost:5000');
-  const [healthCheckPath, setHealthCheckPath] = useState('/health');
 
-  useEffect(() => {
-    if (!id) return;
+  const isOwner = user && project && (user.id === project.owner_id || user.role === 'ADMIN');
+  const isAdmin = user?.role === 'ADMIN';
+  const isTester = user?.role === 'TESTER';
+  const canRunTests = isOwner || isAdmin || isTester;
 
-    let isMounted = true;
-    const loadProject = async () => {
+  const fetchProjectDetails = async () => {
+    try {
       setLoading(true);
       setError(null);
-      try {
-        const [res, memRes] = await Promise.all([
-          api.get(`/projects/${id}`),
-          api.get(`/projects/${id}/members`).catch(() => ({ data: [] }))
-        ]);
-        if (!isMounted) return;
-        setProject(res.data);
-        setMembers(memRes.data || []);
-        loadChildResources();
-      } catch (err: any) {
-        if (!isMounted) return;
-        setError(err.response?.data?.detail || 'Project not found or accessible.');
-        setProject(null);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadProject();
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
-
-  const loadChildResources = () => {
-    fetchLatestAnalysis();
-    fetchFunctions();
-    fetchTestSuites();
-    fetchTestRuns();
+      const res = await api.get(`/projects/${id}`);
+      setProject(res.data);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to fetch project details.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-    if (analysis && (analysis.status === 'QUEUED' || analysis.status === 'RUNNING')) {
-      timer = setInterval(() => {
-        fetchLatestAnalysis();
-      }, 1000);
+  const fetchMembers = async () => {
+    try {
+      const res = await api.get(`/projects/${id}/members`);
+      setMembers(res.data || []);
+    } catch {
+      // Non-blocking
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [analysis?.status, id]);
+  };
 
-  useEffect(() => {
-    const hasRunningTests = testRuns.some(
-      (r) => r.status === 'RUNNING' || r.status === 'STARTING' || r.status === 'PENDING'
-    );
-    if (!hasRunningTests) return;
-
-    const timer = setInterval(() => {
-      fetchTestRuns();
-    }, 1200);
-
-    return () => clearInterval(timer);
-  }, [testRuns, id]);
-
-  const fetchLatestAnalysis = async () => {
-    if (!id) return;
+  const fetchAnalysis = async () => {
     try {
       const res = await api.get(`/projects/${id}/analysis`);
       setAnalysis(res.data);
-
-      if (res.data && (res.data.status === 'COMPLETED' || res.data.status === 'COMPLETED_WITH_WARNINGS')) {
-        fetchEndpoints();
-        fetchFunctions();
-        fetchGraph();
-        fetchTestSuites();
-        fetchTestRuns();
+      if (res.data?.status === 'RUNNING' || res.data?.status === 'QUEUED') {
+        setAnalyzing(true);
+      } else {
+        setAnalyzing(false);
       }
-    } catch (err) {
+    } catch {
       setAnalysis(null);
-    }
-  };
-
-  const fetchFunctions = async () => {
-    if (!id) return;
-    try {
-      const res = await api.get(`/projects/${id}/functions`);
-      setFunctions(res.data.items || []);
-    } catch (err) {
-      setFunctions([]);
-    }
-  };
-
-  const runUnitTests = async () => {
-    if (!id) return;
-    setRunningUnitTests(true);
-    try {
-      const res = await api.post(`/projects/${id}/unit-tests/run`);
-      setUnitTestResult(res.data);
-      setActiveTab('testruns');
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to execute unit tests.');
-    } finally {
-      setRunningUnitTests(false);
+      setAnalyzing(false);
     }
   };
 
   const fetchEndpoints = async () => {
-    if (!id) return;
     try {
-      const res = await api.get(`/projects/${id}/endpoints?page_size=100`);
-      setEndpoints(res.data.items || []);
-    } catch (err) {
+      const res = await api.get(`/projects/${id}/endpoints`);
+      setEndpoints(res.data || []);
+    } catch {
       setEndpoints([]);
     }
   };
 
-  const fetchGraph = async () => {
-    if (!id) return;
-    try {
-      const res = await api.get(`/projects/${id}/graph`);
-      setGraph(res.data);
-    } catch (err) {
-      setGraph(null);
-    }
-  };
-
   const fetchTestSuites = async () => {
-    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/test-suites`);
-      setSuites(res.data.items || []);
-    } catch (err) {
+      setSuites(res.data || []);
+    } catch {
       setSuites([]);
     }
   };
 
   const fetchTestRuns = async () => {
-    if (!id) return;
     try {
       const res = await api.get(`/projects/${id}/test-runs`);
-      setTestRuns(res.data.items || []);
-    } catch (err) {
+      setTestRuns(res.data || []);
+    } catch {
       setTestRuns([]);
     }
   };
 
+  const fetchKnowledgeGraph = async () => {
+    try {
+      const res = await api.get(`/projects/${id}/graph`);
+      setGraph(res.data);
+    } catch {
+      setGraph(null);
+    }
+  };
+
+  const fetchFunctions = async () => {
+    try {
+      const res = await api.get(`/projects/${id}/functions`);
+      setFunctions(res.data?.functions || []);
+    } catch {
+      setFunctions([]);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchProjectDetails();
+      fetchAnalysis();
+      fetchEndpoints();
+      fetchTestSuites();
+      fetchTestRuns();
+      fetchKnowledgeGraph();
+      fetchFunctions();
+      fetchMembers();
+    }
+  }, [id]);
+
+  // Polling mechanism during analysis pipeline run
+  useEffect(() => {
+    let interval: any = null;
+    if (analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED') {
+      interval = setInterval(() => {
+        fetchAnalysis();
+        fetchEndpoints();
+        fetchKnowledgeGraph();
+        fetchFunctions();
+      }, 2500);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [analyzing, analysis?.status]);
+
   const triggerAnalysis = async () => {
     setAnalyzing(true);
-    setAnalysis((prev) => ({
-      id: prev?.id || '',
-      project_id: id || '',
-      status: 'RUNNING',
-      current_stage: 'CLONING',
-      progress_percent: 15,
-      repository_url: project?.repository_url || '',
-      branch: project?.default_branch || 'main',
-      commit_sha: null,
-      detected_language: null,
-      detected_framework: null,
-      framework_confidence: 0,
-      scanned_files_count: 0,
-      parsed_files_count: 0,
-      endpoint_count: 0,
-      graph_node_count: 0,
-      graph_edge_count: 0,
-      error_message: null,
-      started_at: new Date().toISOString(),
-      completed_at: null,
-    }));
     try {
-      const res = await api.post(`/projects/${id}/analyze`);
-      setAnalysis(res.data);
+      await api.post(`/projects/${id}/analyze`);
+      fetchAnalysis();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to start repository analysis.');
-    } finally {
+      alert(err.response?.data?.detail || 'Failed to trigger static analysis.');
       setAnalyzing(false);
+    }
+  };
+
+  const runUnitTests = async () => {
+    setRunningUnitTests(true);
+    try {
+      const res = await api.post(`/projects/${id}/code/run-tests`, {
+        generate_if_missing: true,
+      });
+      setUnitTestResult(res.data);
+      setActiveTab('testruns');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to execute unit test suite.');
+    } finally {
+      setRunningUnitTests(false);
     }
   };
 
@@ -582,428 +300,32 @@ export const ProjectDetail: React.FC = () => {
     );
   }
 
-  const getMethodBadgeClass = (method: string) => {
-    switch (method.toUpperCase()) {
-      case 'GET':
-        return 'bg-status-passed-bg text-status-passed border border-status-passed/30';
-      case 'POST':
-        return 'bg-brand/10 text-brand border border-brand/30';
-      case 'PUT':
-        return 'bg-status-flaky-bg text-status-flaky border border-status-flaky/30';
-      case 'DELETE':
-        return 'bg-status-failed-bg text-status-failed border border-status-failed/30';
-      default:
-        return 'bg-status-skipped-bg text-status-skipped border border-status-skipped/30';
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Top Breadcrumb Header */}
-      <div className="flex items-center gap-2 text-xs text-muted">
-        <Link to="/projects" className="hover:text-primary transition-colors flex items-center gap-1 font-medium">
-          <ArrowLeft className="w-3.5 h-3.5" /> Projects
-        </Link>
-        <span>/</span>
-        <span className="text-primary font-semibold">{project.name}</span>
-      </div>
+      {/* 1. Project Banner, Actions & Team Governance */}
+      <ProjectHeaderBanner
+        project={project}
+        analysis={analysis}
+        endpoints={endpoints}
+        members={members}
+        canRunTests={canRunTests}
+        analyzing={analyzing}
+        isAdmin={isAdmin}
+        onTriggerAnalysis={triggerAnalysis}
+        onOpenAdvancedDrawer={() => setIsDrawerOpen(true)}
+      />
 
-      {/* Project Banner Card */}
-      <div className="glass-card border-t-4 border-t-brand rounded-2xl p-6 shadow-glass space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-bold text-primary tracking-tight">{project.name}</h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
-                {formatFrameworkName(project.language_framework)}
-              </span>
-            </div>
-            <p className="text-xs text-secondary">{project.description || 'No description provided.'}</p>
-          </div>
+      {/* 2. Repository Static Analysis Pipeline */}
+      <AnalysisStageCard
+        analysis={analysis}
+        analyzing={analyzing}
+        functionsCount={functions.length}
+        graphNodesCount={analysis?.graph_node_count || 0}
+        onTriggerAnalysis={triggerAnalysis}
+        onSelectFunctionsTab={() => setActiveTab('functions')}
+      />
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="primary"
-              size="md"
-              onClick={triggerAnalysis}
-              disabled={!canRunTests || analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
-              isLoading={analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED'}
-              leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
-              title={!canRunTests ? "Only Testers and Admins can trigger repository analysis" : undefined}
-            >
-              {analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED'
-                ? `Analyzing (${analysis?.progress_percent ?? 0}%)`
-                : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                ? 'Re-run Analysis'
-                : 'Analyze Repository'}
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => navigate(`/projects/${id}/ide`)}
-              leftIcon={<Code2 className="w-3.5 h-3.5 text-sky-400" />}
-              className="border-sky-500/30 text-sky-400 hover:border-sky-500"
-            >
-              Open in Code Studio (IDE)
-            </Button>
-
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => setIsDrawerOpen(true)}
-              disabled={!canRunTests || !analysis || endpoints.length === 0}
-              leftIcon={<Sliders className="w-3.5 h-3.5 text-brand" />}
-              title={!canRunTests ? "Only Testers and Admins can generate synthetic suites" : undefined}
-            >
-              Advanced Suite Generator
-            </Button>
-
-            <a
-              href={project.repository_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 h-10 rounded-lg bg-card border border-border-field hover:bg-hover text-xs font-semibold text-primary transition-colors shrink-0"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-brand" /> View Repository
-            </a>
-          </div>
-        </div>
-
-        {/* Metadata Strip with 32px Icon Chips */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-border-card text-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
-              <GitBranch className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-muted block text-[10px] uppercase font-semibold">Default Branch</span>
-              <span className="text-primary font-semibold truncate block mt-0.5">{project.default_branch}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent shrink-0">
-              <Shield className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-muted block text-[10px] uppercase font-semibold">Project Owner</span>
-              <span className="text-primary font-semibold truncate block mt-0.5">
-                {project.owner?.full_name || 'System Admin'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
-              <FileCode className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-muted block text-[10px] uppercase font-semibold">Latest Analysis SHA</span>
-              <span className="text-primary font-mono text-[11px] font-semibold truncate block mt-0.5">
-                {analysis?.commit_sha ? analysis.commit_sha.substring(0, 8) : 'Not Analyzed'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-secondaryAccent/10 border border-secondaryAccent/20 flex items-center justify-center text-secondaryAccent shrink-0">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <span className="text-muted block text-[10px] uppercase font-semibold">Detected Stack</span>
-              <span className="text-primary font-semibold truncate block mt-0.5">
-                {formatFrameworkName(analysis?.detected_framework)}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Repository Team Governance Strip */}
-      <div className="glass-card rounded-2xl p-4 shadow-card border border-border-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              <Users className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted">Assigned Team</span>
-              <span className="text-xs font-semibold text-primary block">{members.length} Member(s)</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 text-xs flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                <FlaskConical className="w-3 h-3" /> Testers ({members.filter(m => m.role === 'TESTER').length})
-              </span>
-              <span className="text-secondary font-medium">
-                {members.filter(m => m.role === 'TESTER').map(m => m.user?.full_name).join(', ') || <span className="text-muted italic">None</span>}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 flex items-center gap-1">
-                <Code2 className="w-3 h-3" /> Developers ({members.filter(m => m.role === 'DEVELOPER').length})
-              </span>
-              <span className="text-secondary font-medium">
-                {members.filter(m => m.role === 'DEVELOPER').map(m => m.user?.full_name).join(', ') || <span className="text-muted italic">None</span>}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                <Eye className="w-3 h-3" /> Viewers ({members.filter(m => m.role === 'VIEWER').length})
-              </span>
-              <span className="text-secondary font-medium">
-                {members.filter(m => m.role === 'VIEWER').map(m => m.user?.full_name).join(', ') || <span className="text-muted italic">None</span>}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {isAdmin && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => navigate('/admin')}
-            leftIcon={<Shield className="w-3.5 h-3.5 text-purple-400" />}
-          >
-            Manage Team
-          </Button>
-        )}
-      </div>
-      <div className={`glass-card rounded-2xl p-6 shadow-card transition-all duration-200 relative overflow-hidden border ${
-        analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing
-          ? 'border-brand/40 ring-1 ring-brand/20'
-          : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-          ? 'border-emerald-500/25'
-          : analysis?.status === 'FAILED'
-          ? 'border-rose-500/30'
-          : 'border-border-card'
-      }`}>
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
-          <div className="flex items-center gap-3">
-            {analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED' || analyzing ? (
-              <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              </div>
-            ) : analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 stroke-[2.5]" />
-              </div>
-            ) : analysis?.status === 'FAILED' ? (
-              <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/50 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
-            ) : (
-              <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0">
-                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-              </div>
-            )}
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h3 className="text-base font-semibold text-primary tracking-tight">
-                  Repository Static Analysis Pipeline
-                </h3>
-                {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    COMPLETED
-                  </span>
-                ) : analysis?.status === 'RUNNING' || analyzing ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand/10 text-brand border border-brand/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand animate-ping" />
-                    RUNNING
-                  </span>
-                ) : analysis?.status === 'FAILED' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                    FAILED
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-field text-secondary border border-border-card">
-                    IDLE • READY
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-secondary mt-0.5">
-                {getStageInfo(analysis?.current_stage, analysis?.status).desc}
-              </p>
-            </div>
-          </div>
-
-          {/* Percentage & Action Button */}
-          <div className="flex items-center gap-4 self-start sm:self-auto">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[11px] uppercase font-semibold text-muted tracking-wider">Progress</span>
-              <span className="text-2xl font-bold font-mono text-primary">
-                {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                  ? 100
-                  : analysis?.progress_percent || (analyzing ? 15 : 0)}%
-              </span>
-            </div>
-
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={triggerAnalysis}
-              disabled={analyzing || (analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED')}
-              isLoading={analyzing || analysis?.status === 'RUNNING' || analysis?.status === 'QUEUED'}
-              leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${analyzing ? 'animate-spin' : ''}`} />}
-            >
-              {analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                ? 'Re-run Analysis'
-                : 'Start Analysis'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Clean Sleek Progress Bar */}
-        <div className="relative z-10 space-y-1 mt-4">
-          <div className="w-full bg-field rounded-full h-2 overflow-hidden border border-border-card">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ease-out ${
-                analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                  ? 'bg-emerald-500'
-                  : 'bg-brand'
-              }`}
-              style={{
-                width: `${
-                  analysis?.status === 'COMPLETED' || analysis?.status === 'COMPLETED_WITH_WARNINGS'
-                    ? 100
-                    : Math.max(analysis?.progress_percent || 0, analyzing ? 15 : 0)}%`,
-              }}
-            />
-          </div>
-        </div>
-
-        {/* 5-Stage Stepper Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-4 relative z-10">
-          {PIPELINE_STAGES.map((stg, idx) => {
-            const stageStatus = getStageStatus(stg.key, analysis?.current_stage, analysis?.status);
-            const isCompleted = stageStatus === 'completed';
-            const isActive = stageStatus === 'active';
-
-            return (
-              <div
-                key={stg.key}
-                className={`rounded-xl p-3 border transition-colors ${
-                  isActive
-                    ? 'bg-brand/5 border-brand/40 shadow-sm ring-1 ring-brand/20'
-                    : isCompleted
-                    ? 'bg-card border-emerald-500/25 dark:border-emerald-500/20 shadow-sm'
-                    : 'bg-field/50 border-border-card opacity-60'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  {isCompleted ? (
-                    <div className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Check className="w-2.5 h-2.5 stroke-[3]" />
-                    </div>
-                  ) : isActive ? (
-                    <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin shrink-0" />
-                  ) : (
-                    <div className="w-4 h-4 rounded-full border border-border-field bg-card flex items-center justify-center text-[9px] font-semibold text-muted shrink-0">
-                      {idx + 1}
-                    </div>
-                  )}
-                  <span
-                    className={`text-xs font-medium truncate ${
-                      isActive ? 'text-brand font-semibold' : isCompleted ? 'text-primary' : 'text-secondary'
-                    }`}
-                  >
-                    {stg.label}
-                  </span>
-                </div>
-                <p className="text-[10px] text-muted leading-tight truncate">
-                  {stg.desc}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Live Discovered Telemetry Counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-border-card relative z-10 text-xs">
-          {/* Scanned Files */}
-          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-              <FileCode className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-muted block text-[10px] uppercase font-semibold">Scanned Files</span>
-              <span className="text-primary font-bold text-base mt-0.5 block font-mono">
-                {analysis?.scanned_files_count || 0}
-              </span>
-            </div>
-          </div>
-
-          {/* Parsed Modules */}
-          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-              <Code2 className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-muted block text-[10px] uppercase font-semibold">Parsed Modules</span>
-              <span className="text-primary font-bold text-base mt-0.5 block font-mono">
-                {analysis?.parsed_files_count || 0}
-              </span>
-            </div>
-          </div>
-
-          {/* Discovered Endpoints */}
-          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Cpu className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-muted block text-[10px] uppercase font-semibold">Discovered Endpoints</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold text-base mt-0.5 block font-mono">
-                {analysis?.endpoint_count || 0}
-              </span>
-            </div>
-          </div>
-
-          {/* Discovered Functions */}
-          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors cursor-pointer" onClick={() => setActiveTab('functions')}>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-muted block text-[10px] uppercase font-semibold">Functions Discovered</span>
-              <span className="text-amber-600 dark:text-amber-400 font-bold text-base mt-0.5 block font-mono">
-                {functions.length}
-              </span>
-            </div>
-          </div>
-
-          {/* Knowledge Graph Nodes */}
-          <div className="p-3 rounded-xl bg-field/60 border border-border-card flex items-center gap-3 hover:bg-field transition-colors">
-            <div className="w-8 h-8 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
-              <Network className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-muted block text-[10px] uppercase font-semibold">Knowledge Graph Nodes</span>
-              <span className="text-primary font-bold text-base mt-0.5 block font-mono">
-                {analysis?.graph_node_count || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Failure message if FAILED */}
-        {analysis?.status === 'FAILED' && analysis?.error_message && (
-          <div className="mt-4 p-3.5 rounded-xl bg-status-failed-bg border border-status-failed/30 text-xs text-status-failed">
-            <span className="font-bold block mb-1">Execution Failure:</span>
-            <pre className="font-mono whitespace-pre-wrap">{analysis.error_message}</pre>
-          </div>
-        )}
-      </div>
-
-      {/* Segmented Solid Tabs Navigation */}
+      {/* 3. Segmented Navigation Tabs */}
       <div className="p-1.5 rounded-2xl bg-field border border-border-card flex flex-wrap gap-1 text-xs font-semibold shadow-inner">
         <button
           onClick={() => setActiveTab('overview')}
@@ -1057,7 +379,7 @@ export const ProjectDetail: React.FC = () => {
         </button>
       </div>
 
-      {/* Tab Content */}
+      {/* 4. Tab Content */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {analysis && (analysis.status === 'COMPLETED' || analysis.status === 'COMPLETED_WITH_WARNINGS') && (
@@ -1164,166 +486,15 @@ export const ProjectDetail: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'endpoints' && (
-        <div className="space-y-4">
-          {endpoints.length === 0 ? (
-            <div className="bg-card rounded-2xl p-8 text-center space-y-3 border border-border-card shadow-card">
-              <Cpu className="w-10 h-10 text-muted mx-auto" />
-              <h3 className="text-base font-bold text-primary">No Endpoints Discovered Yet</h3>
-              <p className="text-xs text-secondary">Run analysis on this repository to extract route endpoints.</p>
-            </div>
-          ) : (
-            <div className="bg-card rounded-2xl border border-border-card shadow-card overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
-                  <tr>
-                    <th className="px-5 py-3">Method</th>
-                    <th className="px-5 py-3">Path</th>
-                    <th className="px-5 py-3">Handler Function</th>
-                    <th className="px-5 py-3">Source Location</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-card text-secondary">
-                  {endpoints.map((ep) => (
-                    <tr key={ep.id} className="hover:bg-hover transition-colors">
-                      <td className="px-5 py-3 font-mono">
-                        <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold ${getMethodBadgeClass(ep.method)}`}>
-                          {ep.method}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-primary font-mono font-semibold">{ep.path}</td>
-                      <td className="px-5 py-3 text-brand font-mono">{ep.function_name}()</td>
-                      <td className="px-5 py-3 text-muted font-mono flex items-center gap-1.5">
-                        <FileCode className="w-3.5 h-3.5 text-muted" />
-                        {ep.file_path}:{ep.line_number}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+      {activeTab === 'endpoints' && <DiscoveredEndpointsTable endpoints={endpoints} />}
 
       {activeTab === 'functions' && (
-        <div className="space-y-4">
-          <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-base font-bold text-primary flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-brand" />
-                  Discovered Functions ({functions.length})
-                </h3>
-                <p className="text-xs text-secondary">
-                  Functions extracted via AST analysis with cyclomatic complexity, purity estimation, and side-effect detection.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Search function or file..."
-                  value={functionSearch}
-                  onChange={(e) => setFunctionSearch(e.target.value)}
-                  className="w-64 text-xs"
-                />
-                <Button
-                  variant="primary"
-                  onClick={runUnitTests}
-                  disabled={!canRunTests || runningUnitTests || functions.length === 0}
-                  isLoading={runningUnitTests}
-                  leftIcon={<Sparkles className="w-3.5 h-3.5 fill-current" />}
-                  title={!canRunTests ? "Only Testers and Admins can execute unit test suites" : undefined}
-                >
-                  Generate & Run Suite
-                </Button>
-              </div>
-            </div>
-
-            {functions.length === 0 ? (
-              <div className="p-8 text-center space-y-3">
-                <Code2 className="w-10 h-10 text-muted mx-auto" />
-                <h3 className="text-base font-bold text-primary">No Functions Discovered Yet</h3>
-                <p className="text-xs text-secondary">Run analysis on this repository to extract callable functions.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-border-card">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
-                    <tr>
-                      <th className="px-5 py-3">Function Signature</th>
-                      <th className="px-5 py-3">File Location</th>
-                      <th className="px-5 py-3">Complexity</th>
-                      <th className="px-5 py-3">Purity</th>
-                      <th className="px-5 py-3">Side Effects</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-card text-secondary">
-                    {functions
-                      .filter((fn) =>
-                        fn.qualified_name.toLowerCase().includes(functionSearch.toLowerCase()) ||
-                        fn.file_path.toLowerCase().includes(functionSearch.toLowerCase())
-                      )
-                      .map((fn) => {
-                        const isHighComp = fn.cyclomatic_complexity > 5;
-                        const isPure = fn.purity_estimate >= 0.9;
-                        return (
-                          <tr key={fn.function_id} className="hover:bg-hover transition-colors">
-                            <td className="px-5 py-3 font-mono">
-                              <span className="text-primary font-bold">{fn.qualified_name}</span>
-                              <span className="text-muted text-[11px]">
-                                ({fn.parameters.map((p) => `${p.name}${p.type_annotation ? ': ' + p.type_annotation : ''}`).join(', ')})
-                              </span>
-                              {fn.return_schema && fn.return_schema !== 'Any' && (
-                                <span className="text-brand text-[11px]"> → {fn.return_schema}</span>
-                              )}
-                            </td>
-                            <td className="px-5 py-3 text-muted font-mono flex items-center gap-1.5">
-                              <FileCode className="w-3.5 h-3.5 text-muted" />
-                              {fn.file_path}:{fn.line_number}
-                            </td>
-                            <td className="px-5 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                                fn.cyclomatic_complexity <= 3
-                                  ? 'bg-status-passed-bg text-status-passed'
-                                  : isHighComp
-                                  ? 'bg-status-failed-bg text-status-failed'
-                                  : 'bg-amber-500/10 text-amber-500'
-                              }`}>
-                                CC: {fn.cyclomatic_complexity}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                isPure
-                                  ? 'bg-status-passed-bg text-status-passed'
-                                  : 'bg-field text-secondary border border-border-card'
-                              }`}>
-                                {isPure ? 'Pure Function' : `${Math.round(fn.purity_estimate * 100)}% Pure`}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3">
-                              <div className="flex flex-wrap gap-1">
-                                {fn.side_effects && fn.side_effects.length > 0 ? (
-                                  fn.side_effects.map((se) => (
-                                    <span key={se} className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-field border border-border-card text-muted">
-                                      {se}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="text-muted text-[11px]">None (Deterministic)</span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
+        <DiscoveredFunctionsTable
+          functions={functions}
+          canRunTests={canRunTests}
+          runningUnitTests={runningUnitTests}
+          onRunUnitTests={runUnitTests}
+        />
       )}
 
       {activeTab === 'graph' && (
@@ -1337,273 +508,42 @@ export const ProjectDetail: React.FC = () => {
               </p>
             </div>
           ) : (
-            <KnowledgeGraphVisualizer
-              graph={graph}
-              projectName={project?.name}
-            />
+            <KnowledgeGraphVisualizer graph={graph} projectName={project?.name} />
           )}
         </div>
       )}
 
       {activeTab === 'testruns' && (
-        <div className="space-y-6">
-          {/* Controls Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-base font-bold text-primary">Test Suites & Execution Telemetry</h3>
-              <p className="text-xs text-secondary">Synthesize unit test suites or execute async HTTP API test runs.</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="primary"
-                onClick={runUnitTests}
-                disabled={runningUnitTests || functions.length === 0}
-                isLoading={runningUnitTests}
-                leftIcon={<Sparkles className="w-4 h-4 fill-current" />}
-              >
-                Generate & Run Unit Suite ({functions.length} funcs)
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={generateTestSuite}
-                disabled={generatingSuite || endpoints.length === 0}
-                isLoading={generatingSuite}
-                leftIcon={<Zap className="w-4 h-4 fill-current" />}
-              >
-                Generate Synthetic API Suite
-              </Button>
-            </div>
-          </div>
-
-          {/* Unit Test Execution Telemetry Card */}
-          {unitTestResult && (
-            <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-card">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-primary flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-brand" />
-                      Multi-Layer Unit Suite Execution
-                    </h4>
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                      unitTestResult.exit_code === 0
-                        ? 'bg-status-passed-bg text-status-passed border border-status-passed/30'
-                        : 'bg-status-failed-bg text-status-failed border border-status-failed/30'
-                    }`}>
-                      {unitTestResult.exit_code === 0 ? 'PASSED (Exit 0)' : `FAILED (Exit ${unitTestResult.exit_code})`}
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-field text-secondary border border-border-card">
-                      100% Offline • $0 Cost • AI Mocks Active
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted mt-0.5">
-                    Spec-grounded invariant and boundary tests executed in isolated runner sandbox.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowStdout(!showStdout)}
-                  >
-                    {showStdout ? 'Hide Logs' : 'View Pytest Stdout'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Stat Counters */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <div className="p-3 rounded-xl bg-field border border-border-card text-center">
-                  <span className="text-[10px] font-semibold uppercase text-muted block">Total Tests</span>
-                  <span className="text-lg font-bold text-primary font-mono block mt-0.5">{unitTestResult.total_tests}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-status-passed-bg/30 border border-status-passed/20 text-center">
-                  <span className="text-[10px] font-semibold uppercase text-status-passed block">Passed</span>
-                  <span className="text-lg font-bold text-status-passed font-mono block mt-0.5">{unitTestResult.passed_tests}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-status-failed-bg/30 border border-status-failed/20 text-center">
-                  <span className="text-[10px] font-semibold uppercase text-status-failed block">Failed</span>
-                  <span className="text-lg font-bold text-status-failed font-mono block mt-0.5">{unitTestResult.failed_tests}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-field border border-border-card text-center">
-                  <span className="text-[10px] font-semibold uppercase text-muted block">Execution Time</span>
-                  <span className="text-lg font-bold text-brand font-mono block mt-0.5">{unitTestResult.duration_ms} ms</span>
-                </div>
-                <div className="p-3 rounded-xl bg-field border border-border-card text-center">
-                  <span className="text-[10px] font-semibold uppercase text-muted block">Pass Rate</span>
-                  <span className="text-lg font-bold text-primary font-mono block mt-0.5">
-                    {unitTestResult.total_tests > 0 ? Math.round((unitTestResult.passed_tests / unitTestResult.total_tests) * 100) : 0}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Individual Test Cases List */}
-              {unitTestResult.test_outcomes && unitTestResult.test_outcomes.length > 0 && (
-                <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                  {unitTestResult.test_outcomes.map((t, idx) => (
-                    <div key={idx} className="p-2.5 rounded-lg bg-field border border-border-card flex items-center justify-between text-xs font-mono">
-                      <div className="flex items-center gap-2 truncate pr-2">
-                        <span className={`w-2 h-2 rounded-full ${t.outcome === 'passed' ? 'bg-status-passed' : 'bg-status-failed'}`} />
-                        <span className="text-primary truncate">{t.nodeid.split('::').pop()}</span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-muted text-[11px]">{(t.duration * 1000).toFixed(1)} ms</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                          t.outcome === 'passed' ? 'text-status-passed bg-status-passed-bg' : 'text-status-failed bg-status-failed-bg'
-                        }`}>
-                          {t.outcome}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Stdout Console */}
-              {showStdout && (
-                <div className="mt-3 p-3 rounded-xl bg-black/80 border border-border-card text-[11px] font-mono text-zinc-300 max-h-60 overflow-y-auto whitespace-pre-wrap">
-                  {unitTestResult.raw_stdout}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 1: Target Sandbox Server Lifecycle Controller */}
-          {id && project && (
-            <SandboxServerControl
-              projectId={id}
-              projectName={project.name}
-              onServerStateChange={handleServerStateChange}
-            />
-          )}
-
-          {/* Generated Test Suites */}
-          <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-bold text-primary">Generated Test Suites ({suites.length})</h4>
-                <p className="text-xs text-muted">Inspect specifications, endpoints & assertions before executing</p>
-              </div>
-            </div>
-            {suites.length === 0 ? (
-              <p className="text-xs text-muted">No test suites generated yet. Click "Generate Synthetic Suite" above.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {suites.map((s) => (
-                  <div key={s.id} className="p-4 rounded-xl bg-field border border-border-card flex items-center justify-between text-xs">
-                    <div className="space-y-1">
-                      <span className="text-primary font-bold block">{s.name}</span>
-                      <span className="text-muted text-[11px] block">{s.total_cases} test cases • v{s.version}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setViewingSuite(s)}
-                        leftIcon={<Eye className="w-3.5 h-3.5" />}
-                      >
-                        View Tests ({s.total_cases})
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleInitiateRun(s)}
-                        disabled={dispatchingRun}
-                        leftIcon={<Play className="w-3 h-3 fill-current" />}
-                      >
-                        Run Suite
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Past Execution Runs Table */}
-          <div className="bg-card rounded-2xl border border-border-card shadow-card overflow-hidden space-y-3 p-5">
-            <h4 className="text-sm font-bold text-primary">Execution History ({testRuns.length})</h4>
-            {testRuns.length === 0 ? (
-              <p className="text-xs text-muted">No test runs executed yet.</p>
-            ) : (
-              <table className="w-full text-left text-xs">
-                <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Run ID</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Tests Passed / Total</th>
-                    <th className="px-4 py-3">Duration</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-card text-secondary">
-                  {testRuns.map((run) => (
-                    <tr key={run.id} className="hover:bg-hover transition-colors">
-                      <td className="px-4 py-3 font-bold text-primary font-mono">#{run.id.substring(0, 8)}</td>
-                      <td className="px-4 py-3">
-                        <TestStatusBadge
-                          status={mapRunStatusToBadge(run.status)}
-                          label={run.status}
-                        />
-                      </td>
-                      <td className="px-4 py-3 text-primary font-bold">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span><span className="text-status-passed">{run.passed_tests}</span> / {run.total_tests}</span>
-                            {run.total_tests > 0 && (
-                              <span className="text-[10px] text-muted font-mono">
-                                ({Math.round(((run.passed_tests + run.failed_tests + run.error_tests) / run.total_tests) * 100)}%)
-                              </span>
-                            )}
-                          </div>
-                          {run.total_tests > 0 && (
-                            <div className="w-24 h-1.5 bg-field rounded-full overflow-hidden border border-border-field">
-                              <div
-                                className={`h-full ${
-                                  run.status === 'RUNNING' || run.status === 'STARTING' || run.status === 'PENDING'
-                                    ? 'bg-brand animate-pulse'
-                                    : run.failed_tests > 0
-                                    ? 'bg-status-failed'
-                                    : 'bg-status-passed'
-                                }`}
-                                style={{
-                                  width: `${Math.min(100, Math.round(((run.passed_tests + run.failed_tests + run.error_tests) / run.total_tests) * 100))}%`
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-secondary font-mono">{Number(run.duration_ms ?? 0).toFixed(0)} ms</td>
-                      <td className="px-4 py-3 text-muted">{new Date(run.created_at).toLocaleTimeString()}</td>
-                      <td className="px-4 py-3">
-                        <Link
-                          to={`/projects/${project.id}/test-runs/${run.id}`}
-                          className="inline-flex items-center gap-1.5 text-brand hover:text-brand-hover font-semibold transition-colors"
-                        >
-                          {run.status === 'RUNNING' || run.status === 'STARTING' || run.status === 'PENDING' ? (
-                            <>
-                              <span className="w-2 h-2 rounded-full bg-brand animate-ping" />
-                              View Live <ChevronRight className="w-3.5 h-3.5" />
-                            </>
-                          ) : (
-                            <>
-                              View Results <ChevronRight className="w-3.5 h-3.5" />
-                            </>
-                          )}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+        <TestSuitesRunsPanel
+          projectId={id!}
+          project={project}
+          suites={suites}
+          testRuns={testRuns}
+          functionsCount={functions.length}
+          endpointsCount={endpoints.length}
+          unitTestResult={unitTestResult}
+          runningUnitTests={runningUnitTests}
+          generatingSuite={generatingSuite}
+          dispatchingRun={dispatchingRun}
+          serverIsRunning={serverIsRunning}
+          serverPort={serverPort}
+          onRunUnitTests={runUnitTests}
+          onGenerateSuite={generateTestSuite}
+          onServerStateChange={handleServerStateChange}
+          onViewSuite={(s) => setViewingSuite(s)}
+          onInitiateRun={handleInitiateRun}
+          onDispatchRun={dispatchRun}
+          targetBaseUrl={targetBaseUrl}
+          setTargetBaseUrl={setTargetBaseUrl}
+          healthCheckPath={healthCheckPath}
+          setHealthCheckPath={setHealthCheckPath}
+          selectedSuiteForRun={selectedSuiteForRun}
+          setSelectedSuiteForRun={setSelectedSuiteForRun}
+          serverWarningModalOpen={serverWarningModalOpen}
+          setServerWarningModalOpen={setServerWarningModalOpen}
+          pendingRunSuite={pendingRunSuite}
+          setPendingRunSuite={setPendingRunSuite}
+        />
       )}
 
       {/* Advanced Test Suite Generation Drawer */}
@@ -1620,7 +560,7 @@ export const ProjectDetail: React.FC = () => {
         />
       )}
 
-      {/* Step 2: Test Suite Case Inspector Drawer */}
+      {/* Test Suite Case Inspector Drawer */}
       <TestSuiteViewerDrawer
         isOpen={!!viewingSuite}
         onClose={() => setViewingSuite(null)}
@@ -1641,175 +581,6 @@ export const ProjectDetail: React.FC = () => {
           window.scrollTo({ top: 300, behavior: 'smooth' });
         }}
       />
-
-      {/* Target Server Warning Modal */}
-      {serverWarningModalOpen && pendingRunSuite && (
-        <Modal
-          isOpen={serverWarningModalOpen}
-          onClose={() => {
-            setServerWarningModalOpen(false);
-            setPendingRunSuite(null);
-          }}
-          title="Target Server Not Running"
-        >
-          <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 space-y-2">
-              <div className="flex items-center gap-2 font-bold">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>Target Server Offline</span>
-              </div>
-              <p className="text-[11px] text-secondary leading-relaxed">
-                You are about to execute test suite <strong className="text-primary font-semibold">{pendingRunSuite.name}</strong>, but the target sandbox server is currently <strong>NOT RUNNING</strong>.
-                Running tests without an active server will result in connection failures.
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-field border border-border-card space-y-2">
-              <span className="font-bold text-primary block">Step 1: Start Target Server</span>
-              <p className="text-secondary text-[11px]">
-                Please start the target server above using the <strong>"Start Target Server"</strong> button. The system will auto-allocate a free port (e.g. 5000) and emulate your scanned endpoints.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t border-border-card">
-              <button
-                type="button"
-                onClick={() => {
-                  setServerWarningModalOpen(false);
-                  const st = pendingRunSuite;
-                  setPendingRunSuite(null);
-                  if (st) setSelectedSuiteForRun(st);
-                }}
-                className="text-[11px] text-muted hover:text-primary underline"
-              >
-                Continue Anyway with External URL &rarr;
-              </button>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setServerWarningModalOpen(false);
-                    setPendingRunSuite(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    setServerWarningModalOpen(false);
-                    setPendingRunSuite(null);
-                    window.scrollTo({ top: 300, behavior: 'smooth' });
-                  }}
-                  leftIcon={<Server className="w-3.5 h-3.5" />}
-                >
-                  Go to Start Server
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Target Sandbox Configuration Modal */}
-      {selectedSuiteForRun && (
-        <Modal
-          isOpen={!!selectedSuiteForRun}
-          onClose={() => setSelectedSuiteForRun(null)}
-          title="Dispatch Test Suite Execution"
-        >
-          <div className="space-y-4 text-xs">
-            <div className="p-3.5 rounded-xl bg-field border border-border-card space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-primary block text-sm">{selectedSuiteForRun.name}</span>
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                    serverIsRunning
-                      ? 'bg-status-passed-bg text-status-passed border-status-passed/30'
-                      : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                  }`}
-                >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      serverIsRunning ? 'bg-status-passed animate-ping' : 'bg-amber-500'
-                    }`}
-                  />
-                  {serverIsRunning ? `Server Running (Port ${serverPort})` : 'Server Not Running'}
-                </span>
-              </div>
-              <p className="text-secondary text-[11px]">
-                {selectedSuiteForRun.total_cases} test cases will be executed asynchronously against your target environment.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="font-semibold text-primary block">Target Application Base URL</label>
-              <Input
-                value={targetBaseUrl}
-                onChange={(e) => setTargetBaseUrl(e.target.value)}
-                placeholder="http://localhost:5000"
-              />
-              <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                <span className="text-[10px] text-muted">Presets:</span>
-                {[
-                  ...(serverPort ? [{ label: `Active Sandbox (:${serverPort})`, url: `http://localhost:${serverPort}` }] : []),
-                  { label: 'Flask (:5000)', url: 'http://localhost:5000' },
-                  { label: 'Node (:3000)', url: 'http://localhost:3000' },
-                  { label: 'Spring (:8080)', url: 'http://localhost:8080' },
-                  { label: 'Astra API (:8000)', url: 'http://localhost:8000' },
-                ].map((preset) => (
-                  <button
-                    key={`${preset.label}-${preset.url}`}
-                    type="button"
-                    onClick={() => setTargetBaseUrl(preset.url)}
-                    className="px-2 py-0.5 rounded text-[10px] bg-card border border-border-card text-secondary hover:text-primary hover:border-brand transition-colors"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted leading-relaxed">
-                Provide the address where your scanned application server is listening. Astra will send all HTTP test specifications directly to this target.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="font-semibold text-primary block">Pre-flight Liveness Health Path</label>
-              <Input
-                value={healthCheckPath}
-                onChange={(e) => setHealthCheckPath(e.target.value)}
-                placeholder="/health or /"
-              />
-              <p className="text-[11px] text-muted">
-                Initial ping to verify that the application sandbox is reachable before initiating execution.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-card">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedSuiteForRun(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => dispatchRun(selectedSuiteForRun.id)}
-                disabled={dispatchingRun || !targetBaseUrl.trim()}
-                isLoading={dispatchingRun}
-                leftIcon={<Play className="w-3 h-3 fill-current" />}
-              >
-                Start Execution
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 };
