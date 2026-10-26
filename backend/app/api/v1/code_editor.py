@@ -3,6 +3,8 @@ import shutil
 import uuid
 import mimetypes
 import git
+import asyncio
+import time
 from pathlib import Path
 from typing import List, Optional, Any, Dict
 from datetime import datetime, timezone
@@ -401,9 +403,21 @@ async def run_developer_tests(
     import time
 
     start_time = time.time()
+
+    def _sync_extract_and_execute():
+        extracted = FunctionExtractor.extract_from_directory(str(ws_dir))
+        if not extracted:
+            return None, []
+        res = UnitTestExecutor.execute_for_repo(str(ws_dir), extracted)
+        return res, extracted
+
     try:
-        contracts = FunctionExtractor.extract_from_directory(str(ws_dir))
-        if not contracts:
+        exec_result, contracts = await asyncio.wait_for(
+            asyncio.to_thread(_sync_extract_and_execute),
+            timeout=30.0
+        )
+
+        if not contracts or exec_result is None:
             return TestRunResultResponse(
                 status="NO_TESTS_FOUND",
                 total_tests=0,
@@ -413,7 +427,6 @@ async def run_developer_tests(
                 duration_ms=round((time.time() - start_time) * 1000, 2)
             )
 
-        exec_result = UnitTestExecutor.execute_for_repo(str(ws_dir), contracts)
         duration_ms = round((time.time() - start_time) * 1000, 2)
 
         output_lines = [
@@ -439,6 +452,16 @@ async def run_developer_tests(
             passed_tests=exec_result.passed_tests,
             failed_tests=exec_result.failed_tests,
             output="\n".join(output_lines),
+            duration_ms=duration_ms
+        )
+    except asyncio.TimeoutError:
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+        return TestRunResultResponse(
+            status="TIMEOUT",
+            total_tests=0,
+            passed_tests=0,
+            failed_tests=1,
+            output="Test execution exceeded maximum timeout of 30.0s.",
             duration_ms=duration_ms
         )
     except Exception as exc:
