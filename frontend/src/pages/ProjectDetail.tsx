@@ -130,7 +130,7 @@ export const ProjectDetail: React.FC = () => {
   const fetchTestSuites = async () => {
     try {
       const res = await api.get(`/projects/${id}/test-suites`);
-      setSuites(res.data || []);
+      setSuites(Array.isArray(res.data) ? res.data : res.data?.items || []);
     } catch {
       setSuites([]);
     }
@@ -139,7 +139,7 @@ export const ProjectDetail: React.FC = () => {
   const fetchTestRuns = async () => {
     try {
       const res = await api.get(`/projects/${id}/test-runs`);
-      setTestRuns(res.data || []);
+      setTestRuns(Array.isArray(res.data) ? res.data : res.data?.items || []);
     } catch {
       setTestRuns([]);
     }
