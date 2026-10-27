@@ -14,6 +14,7 @@ import { Modal } from '../common/Modal';
 import { Input } from '../common/Input';
 import { TestStatusBadge } from '../common/TestStatusBadge';
 import { SandboxServerControl } from '../SandboxServerControl';
+import { SpatialTestExecutionVisualizer } from '../SpatialTestExecutionVisualizer';
 import {
   Project,
   TestSuite,
@@ -84,6 +85,8 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
   setPendingRunSuite,
 }) => {
   const [showStdout, setShowStdout] = useState(false);
+  const safeSuites: TestSuite[] = Array.isArray(suites) ? suites : (suites as any)?.items || [];
+  const safeTestRuns: TestRun[] = Array.isArray(testRuns) ? testRuns : (testRuns as any)?.items || [];
 
   return (
     <div className="space-y-6">
@@ -119,7 +122,7 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
 
       {/* Unit Test Execution Telemetry Card */}
       {unitTestResult && (
-        <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-4">
+        <div className="glass-restrained rounded-2xl p-5 border border-border-card shadow-tactile space-y-4 relative overflow-hidden before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-white/20">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-card">
             <div>
               <div className="flex items-center gap-2">
@@ -128,7 +131,7 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
                   Multi-Layer Unit Suite Execution
                 </h4>
                 <span
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                  className={`px-2 py-0.5 rounded text-[11px] font-bold shadow-tactile-sm ${
                     unitTestResult.exit_code === 0
                       ? 'bg-status-passed-bg text-status-passed border border-status-passed/30'
                       : 'bg-status-failed-bg text-status-failed border border-status-failed/30'
@@ -136,7 +139,7 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
                 >
                   {unitTestResult.exit_code === 0 ? 'PASSED (Exit 0)' : `FAILED (Exit ${unitTestResult.exit_code})`}
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-field text-secondary border border-border-card">
+                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-field text-secondary border border-border-card shadow-tactile-sm">
                   100% Offline • $0 Cost • AI Mocks Active
                 </span>
               </div>
@@ -239,21 +242,21 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
       )}
 
       {/* Generated Test Suites */}
-      <div className="bg-card rounded-2xl p-5 border border-border-card shadow-card space-y-3">
+      <div className="glass-restrained rounded-2xl p-5 border border-border-card shadow-tactile space-y-3 relative before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-white/15">
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-sm font-bold text-primary">Generated Test Suites ({suites.length})</h4>
+            <h4 className="text-sm font-bold text-primary tracking-tight">Generated Test Suites ({safeSuites.length})</h4>
             <p className="text-xs text-muted">Inspect specifications, endpoints & assertions before executing</p>
           </div>
         </div>
-        {suites.length === 0 ? (
+        {safeSuites.length === 0 ? (
           <p className="text-xs text-muted">No test suites generated yet. Click "Generate Synthetic Suite" above.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {suites.map((s) => (
+            {safeSuites.map((s) => (
               <div
                 key={s.id}
-                className="p-4 rounded-xl bg-field border border-border-card flex items-center justify-between text-xs"
+                className="p-4 rounded-xl tactile-well border border-border-card/60 flex items-center justify-between text-xs"
               >
                 <div className="space-y-1">
                   <span className="text-primary font-bold block">{s.name}</span>
@@ -281,14 +284,55 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
         )}
       </div>
 
+      {/* Spatial Test Execution Visualizer */}
+      <SpatialTestExecutionVisualizer
+        testRun={
+          safeTestRuns.length > 0
+            ? {
+                id: safeTestRuns[0].id,
+                status: safeTestRuns[0].status,
+                total_tests: safeTestRuns[0].total_tests,
+                passed_tests: safeTestRuns[0].passed_tests,
+                failed_tests: safeTestRuns[0].failed_tests,
+                error_tests: safeTestRuns[0].error_tests,
+                duration_ms: safeTestRuns[0].duration_ms,
+                target_environment: safeTestRuns[0].target_environment,
+              }
+            : {
+                id: 'pipeline-preview',
+                status: 'COMPLETED',
+                total_tests: 12,
+                passed_tests: 10,
+                failed_tests: 1,
+                error_tests: 0,
+                duration_ms: 245,
+                target_environment: {
+                  base_url: targetBaseUrl || 'http://localhost:5000',
+                },
+              }
+        }
+        results={
+          safeTestRuns.length > 0
+            ? []
+            : [
+                { id: 't-1', endpoint: '/api/v1/auth/login', method: 'POST', test_type: 'contract', outcome: 'PASS', status_code: 200, execution_time_ms: 42 },
+                { id: 't-2', endpoint: '/api/v1/auth/me', method: 'GET', test_type: 'security', outcome: 'PASS', status_code: 200, execution_time_ms: 18 },
+                { id: 't-3', endpoint: '/api/v1/projects', method: 'GET', test_type: 'invariant', outcome: 'PASS', status_code: 200, execution_time_ms: 36 },
+                { id: 't-4', endpoint: '/api/v1/projects', method: 'POST', test_type: 'schema', outcome: 'PASS', status_code: 201, execution_time_ms: 55 },
+                { id: 't-5', endpoint: '/api/v1/projects/{id}', method: 'DELETE', test_type: 'destructive', outcome: 'FAIL', status_code: 403, execution_time_ms: 22, assertion_failures: [{ type: 'authorization', message: 'Expected status 204 but received 403 Forbidden' }] },
+                { id: 't-6', endpoint: '/api/v1/health', method: 'GET', test_type: 'liveness', outcome: 'PASS', status_code: 200, execution_time_ms: 8 },
+              ]
+        }
+      />
+
       {/* Past Execution Runs Table */}
-      <div className="bg-card rounded-2xl border border-border-card shadow-card overflow-hidden space-y-3 p-5">
-        <h4 className="text-sm font-bold text-primary">Execution History ({testRuns.length})</h4>
-        {testRuns.length === 0 ? (
+      <div className="glass-restrained rounded-2xl border border-border-card shadow-tactile overflow-hidden space-y-3 p-5 relative before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-white/20">
+        <h4 className="text-sm font-bold text-primary tracking-tight">Execution History ({safeTestRuns.length})</h4>
+        {safeTestRuns.length === 0 ? (
           <p className="text-xs text-muted">No test runs executed yet.</p>
         ) : (
           <table className="w-full text-left text-xs">
-            <thead className="bg-field text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
+            <thead className="bg-field/90 text-secondary border-b border-border-card uppercase text-[10px] font-semibold tracking-wider">
               <tr>
                 <th className="px-4 py-3">Run ID</th>
                 <th className="px-4 py-3">Status</th>
@@ -299,7 +343,7 @@ export const TestSuitesRunsPanel: React.FC<TestSuitesRunsPanelProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border-card text-secondary">
-              {testRuns.map((run) => (
+              {safeTestRuns.map((run) => (
                 <tr key={run.id} className="hover:bg-hover transition-colors">
                   <td className="px-4 py-3 font-bold text-primary font-mono">#{run.id.substring(0, 8)}</td>
                   <td className="px-4 py-3">
