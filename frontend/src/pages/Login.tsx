@@ -103,10 +103,10 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-app flex items-center justify-center p-4 selection:bg-brand selection:text-on-brand relative overflow-hidden transition-colors duration-150">
       {/* Subtle background ambient accents */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-brand/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-secondaryAccent/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-brand/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-secondaryAccent/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md glass-card-elevated border-t-4 border-t-brand rounded-3xl p-8 border border-border-glass shadow-glass-elevated space-y-6 z-10">
+      <div className="relative w-full max-w-md glass-restrained rounded-3xl p-8 border border-border-card shadow-tactile space-y-6 z-10 before:absolute before:inset-x-8 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-transparent before:via-brand before:to-transparent before:opacity-70">
         {/* Header */}
         <div className="text-center space-y-3">
           <div className="flex justify-center mb-1">
@@ -121,24 +121,24 @@ export const Login: React.FC = () => {
               className="h-14 w-auto object-contain hidden dark:block drop-shadow-sm"
             />
           </div>
-          <p className="text-xs text-secondary">
+          <p className="text-xs text-secondary tracking-tight">
             {isRegister ? 'Enroll your credentials to manage software pipelines' : 'Authenticate to access the autonomous quality cockpit'}
           </p>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="grid grid-cols-2 p-1 bg-field rounded-xl border border-border-card text-xs font-semibold">
+        {/* Tab Toggle (Recessed Tactile Well) */}
+        <div className="grid grid-cols-2 p-1 tactile-well text-xs font-semibold">
           <button
             type="button"
             onClick={() => { setIsRegister(false); setError(null); }}
-            className={`py-2 rounded-lg transition-all ${!isRegister ? 'bg-brand text-on-brand shadow-sm' : 'text-secondary hover:text-primary'}`}
+            className={`py-2 rounded-lg transition-all ${!isRegister ? 'bg-brand text-on-brand shadow-tactile-sm relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/25 before:rounded-t-lg' : 'text-secondary hover:text-primary'}`}
           >
             Sign In
           </button>
           <button
             type="button"
             onClick={() => { setIsRegister(true); setError(null); }}
-            className={`py-2 rounded-lg transition-all ${isRegister ? 'bg-brand text-on-brand shadow-sm' : 'text-secondary hover:text-primary'}`}
+            className={`py-2 rounded-lg transition-all ${isRegister ? 'bg-brand text-on-brand shadow-tactile-sm relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/25 before:rounded-t-lg' : 'text-secondary hover:text-primary'}`}
           >
             Register
           </button>
@@ -146,13 +146,13 @@ export const Login: React.FC = () => {
 
         {/* 3 Quick Login Buttons for Testing Phase */}
         {!isRegister && (
-          <div className="p-3.5 rounded-2xl bg-field/80 border border-border-card space-y-2.5 shadow-sm">
+          <div className="p-3.5 rounded-2xl tactile-well space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-brand" />
                 Quick Login &bull; Testing Phase
               </span>
-              <span className="text-[10px] text-muted font-mono bg-card px-2 py-0.5 rounded-md border border-border-card">
+              <span className="text-[10px] text-muted font-mono bg-card px-2 py-0.5 rounded-md border border-border-card shadow-tactile-sm">
                 1-Click Auth
               </span>
             </div>
@@ -162,10 +162,10 @@ export const Login: React.FC = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleQuickLogin('admin@astra.local')}
-                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 text-primary transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-50"
+                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-rose-500/25 hover:border-rose-500 hover:bg-rose-500/10 text-primary transition-all duration-150 shadow-tactile-sm active:translate-y-px active:shadow-tactile-pressed disabled:opacity-50 overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20"
                 title="Quick login as System Administrator (admin@astra.local)"
               >
-                <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-inner">
+                <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shadow-inner">
                   <Shield className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-rose-600 dark:text-rose-400">Admin</span>
@@ -177,10 +177,10 @@ export const Login: React.FC = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleQuickLogin('tester@astra.local')}
-                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-emerald-500/30 hover:border-emerald-500 hover:bg-emerald-500/10 text-primary transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-50"
+                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-emerald-500/25 hover:border-emerald-500 hover:bg-emerald-500/10 text-primary transition-all duration-150 shadow-tactile-sm active:translate-y-px active:shadow-tactile-pressed disabled:opacity-50 overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20"
                 title="Quick login as Quality Assurance Tester (tester@astra.local)"
               >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-inner">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shadow-inner">
                   <FlaskConical className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Tester</span>
@@ -192,10 +192,10 @@ export const Login: React.FC = () => {
                 type="button"
                 disabled={loading}
                 onClick={() => handleQuickLogin('dev@astra.local')}
-                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-sky-500/30 hover:border-sky-500 hover:bg-sky-500/10 text-primary transition-all duration-150 shadow-sm active:scale-95 disabled:opacity-50"
+                className="group relative flex flex-col items-center justify-center p-2.5 rounded-xl bg-card border border-sky-500/25 hover:border-sky-500 hover:bg-sky-500/10 text-primary transition-all duration-150 shadow-tactile-sm active:translate-y-px active:shadow-tactile-pressed disabled:opacity-50 overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20"
                 title="Quick login as Software Developer (dev@astra.local)"
               >
-                <div className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform shadow-inner">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/15 text-sky-500 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shadow-inner">
                   <Code2 className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold text-sky-600 dark:text-sky-400">Developer</span>
