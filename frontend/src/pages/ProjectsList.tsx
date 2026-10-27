@@ -154,8 +154,8 @@ export const ProjectsList: React.FC = () => {
         </div>
       )}
 
-      {/* Search & Filter Bar - Glassmorphism Container */}
-      <div className="glass-card p-2 rounded-2xl shadow-glass flex items-center gap-4">
+      {/* Search & Filter Bar - Restrained Glass Container */}
+      <div className="glass-restrained p-2 rounded-xl shadow-tactile-sm border border-border-card/70 dark:border-white/10 flex items-center gap-4 relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/15">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
           <input
@@ -163,7 +163,7 @@ export const ProjectsList: React.FC = () => {
             placeholder="Search repositories by name, language, or URL..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-11 bg-field text-primary text-sm rounded-xl border border-border-field pl-10 pr-4 placeholder-muted focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-all"
+            className="w-full h-10 tactile-well text-primary text-xs rounded-lg border border-border-card/80 dark:border-white/10 pl-10 pr-4 placeholder-muted focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-white/30 transition-all font-mono"
           />
         </div>
       </div>
@@ -171,13 +171,13 @@ export const ProjectsList: React.FC = () => {
       {/* Repositories Grid */}
       {loading ? (
         <div className="text-center py-16 text-muted text-sm flex flex-col items-center gap-2">
-          <div className="w-8 h-8 border-3 border-brand border-t-transparent rounded-full animate-spin" />
-          <span className="font-medium">Loading workspace repositories...</span>
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+          <span className="font-mono text-xs">Loading workspace repositories...</span>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="glass-card rounded-2xl p-12 text-center space-y-3 shadow-glass">
+        <div className="glass-restrained rounded-xl p-12 text-center space-y-3 shadow-tactile-sm relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <FolderGit2 className="w-12 h-12 text-muted mx-auto opacity-50" />
-          <h3 className="text-base font-bold text-primary">No Repositories Found</h3>
+          <h3 className="text-base font-semibold text-primary">No Repositories Found</h3>
           <p className="text-xs text-secondary max-w-sm mx-auto">
             {search
               ? 'No repositories match your search query. Try clearing the filter.'
@@ -189,50 +189,41 @@ export const ProjectsList: React.FC = () => {
               variant="primary"
               size="sm"
               leftIcon={<Plus className="w-4 h-4" />}
-              className="mt-2"
+              className="mt-2 shadow-tactile active:translate-y-px"
             >
               Add First Repository
             </Button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((project) => {
-            const lang = project.language_framework?.toUpperCase() || '';
-            const railColor = lang.includes('PYTHON')
-              ? 'border-t-indigo-500'
-              : lang.includes('NODE') || lang.includes('EXPRESS')
-              ? 'border-t-emerald-500'
-              : lang.includes('JAVA')
-              ? 'border-t-amber-500'
-              : 'border-t-sky-500';
-
             return (
               <Link
                 key={project.id}
                 to={`/projects/${project.id}`}
-                className={`glass-card-interactive ${railColor} border-t-4 rounded-2xl p-6 shadow-glass flex flex-col justify-between space-y-5 group overflow-hidden`}
+                className="glass-restrained-interactive tactile-card rounded-xl p-5 shadow-tactile-sm flex flex-col justify-between space-y-4 group overflow-hidden relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20 active:translate-y-px transition-all duration-150"
               >
-                <div className="space-y-3.5">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/25">
+                    <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded tactile-well text-brand border border-brand/20 shadow-tactile-sm">
                       {project.language_framework}
                     </span>
                     {!isViewer && (
                       <button
                         onClick={(e) => handleDeleteProject(project.id, e)}
-                        className="p-1.5 text-muted hover:text-status-failed hover:bg-status-failed-bg rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 text-muted hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 active:translate-y-px"
                         title="Delete Repository"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
 
-                  <div className="space-y-1.5">
-                    <h3 className="text-base font-bold text-primary group-hover:text-brand transition-colors flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-semibold text-primary group-hover:text-brand transition-colors flex items-center justify-between">
                       <span className="truncate">{project.name}</span>
-                      <ArrowUpRight className="w-4 h-4 text-muted group-hover:text-brand transition-colors shrink-0 ml-1" />
+                      <ArrowUpRight className="w-3.5 h-3.5 text-muted group-hover:text-brand transition-colors shrink-0 ml-1" />
                     </h3>
                     <p className="text-xs text-secondary line-clamp-2 leading-relaxed">
                       {project.description || 'No description provided.'}
@@ -240,17 +231,17 @@ export const ProjectsList: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Solid Structure Card Footer Band */}
-                <div className="pt-3.5 border-t border-border-card text-xs text-secondary space-y-2 bg-field/40 -mx-6 -mb-6 px-6 pb-4">
+                {/* Tactile Well Card Footer */}
+                <div className="tactile-well -mx-5 -mb-5 px-5 py-3 border-t border-border-card/70 dark:border-white/10 text-xs text-secondary space-y-1.5 shadow-tactile-sm">
                   <div className="flex items-center gap-1.5 truncate">
                     <ExternalLink className="w-3.5 h-3.5 text-brand shrink-0" />
                     <span className="truncate text-muted font-mono text-[11px]">{project.repository_url}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-muted">
-                    <span className="flex items-center gap-1 font-medium">
-                      <GitBranch className="w-3.5 h-3.5 text-secondary" /> <span className="font-mono text-primary">{project.default_branch}</span>
+                  <div className="flex items-center justify-between text-[11px] text-muted">
+                    <span className="flex items-center gap-1 font-mono">
+                      <GitBranch className="w-3 h-3 text-secondary" /> <span className="text-primary">{project.default_branch}</span>
                     </span>
-                    <span className="font-medium">Owner: <span className="text-primary">{project.owner?.full_name?.split(' ')[0] || 'Admin'}</span></span>
+                    <span className="font-mono">Owner: <span className="text-primary">{project.owner?.full_name?.split(' ')[0] || 'Admin'}</span></span>
                   </div>
                 </div>
               </Link>
