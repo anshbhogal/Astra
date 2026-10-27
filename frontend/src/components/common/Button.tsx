@@ -22,14 +22,19 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-card disabled:opacity-45 disabled:cursor-not-allowed select-none';
+    'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 focus:ring-offset-card disabled:opacity-45 disabled:cursor-not-allowed select-none active:translate-y-px tracking-tight';
 
   const variants = {
-    primary: 'bg-brand text-on-brand hover:bg-brand-hover shadow-sm font-semibold',
-    secondary: 'bg-card text-primary border border-border-field hover:bg-hover font-medium',
-    danger: 'bg-status-failed text-white hover:opacity-90 font-medium',
-    outline: 'border border-border-field text-primary hover:bg-hover bg-transparent',
-    ghost: 'text-secondary hover:text-primary hover:bg-hover bg-transparent',
+    primary:
+      'bg-brand text-on-brand hover:bg-brand-hover shadow-tactile border border-brand-hover/40 font-semibold active:shadow-tactile-pressed relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/25 before:rounded-t-lg',
+    secondary:
+      'bg-card text-primary border border-border-card hover:bg-hover shadow-tactile-sm font-medium active:shadow-tactile-pressed relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/10 before:rounded-t-lg',
+    danger:
+      'bg-status-failed text-white hover:opacity-95 shadow-tactile border border-status-failed/40 font-medium active:shadow-tactile-pressed relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20 before:rounded-t-lg',
+    outline:
+      'border border-border-card text-primary hover:bg-hover hover:border-border-field bg-transparent active:bg-field',
+    ghost:
+      'text-secondary hover:text-primary hover:bg-hover bg-transparent active:bg-field',
   };
 
   const sizes = {
