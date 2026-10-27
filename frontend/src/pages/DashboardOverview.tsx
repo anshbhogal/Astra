@@ -93,21 +93,21 @@ export const DashboardOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Overview Hero Banner with vibrant gradient, specular reflection, and glass controls */}
-      <div className="rounded-2xl p-7 bg-gradient-to-r from-[#4E32DF] via-[#6345F8] to-[#805BFB] text-white shadow-lg border border-white/20 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        {/* Subtle decorative background light */}
-        <div className="absolute -top-16 -right-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-16 left-1/3 w-64 h-64 bg-cyan-400/10 rounded-full blur-2xl pointer-events-none" />
+      {/* Overview Hero Banner with restrained glass, specular highlight, and subtle ambient depth */}
+      <div className="rounded-2xl p-7 glass-restrained shadow-tactile relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
+        {/* Subtle decorative background ambient glow */}
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-1/3 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="space-y-2 max-w-2xl relative z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white backdrop-blur-md border border-white/20 shadow-sm">
-            <Zap className="w-3.5 h-3.5 fill-current text-amber-300" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium tactile-well text-zinc-300 border border-white/10 shadow-tactile-sm">
+            <Zap className="w-3.5 h-3.5 fill-current text-amber-400" />
             Autonomous QA Cockpit
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-sm">
+          <h1 className="text-3xl font-semibold tracking-tight text-primary drop-shadow-sm">
             Welcome back, {user?.full_name?.split(' ')[0] || 'Tester'}
           </h1>
-          <p className="text-sm text-white/90 leading-relaxed max-w-xl">
+          <p className="text-sm text-secondary leading-relaxed max-w-xl">
             ASTRA autonomous defect detection, code intelligence, and self-healing test pipelines are actively running.
           </p>
         </div>
@@ -118,16 +118,16 @@ export const DashboardOverview: React.FC = () => {
             size="md"
             onClick={fetchDashboardData}
             isLoading={loading}
-            className="bg-white/15 hover:bg-white/25 text-white border-white/25 backdrop-blur-md shadow-sm"
+            className="shadow-tactile active:translate-y-px"
             leftIcon={<RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />}
           >
             Refresh Telemetry
           </Button>
           <Link to="/projects">
             <Button
-              variant="secondary"
+              variant="primary"
               size="md"
-              className="bg-white text-primary hover:bg-white/95 border-transparent shadow-md font-semibold"
+              className="shadow-tactile active:translate-y-px"
               rightIcon={<ArrowUpRight className="w-4 h-4" />}
             >
               Browse Repositories
@@ -136,16 +136,16 @@ export const DashboardOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Reassurance Status Banner - Glass Card with Solid Emerald Left Anchor */}
-      <div className="glass-card p-4 rounded-xl border-l-4 border-l-status-passed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-glass">
+      {/* Reassurance Status Banner - Restrained Glass with Tactile Pass Indicator */}
+      <div className="glass-restrained p-4 rounded-xl border border-border-card/70 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-tactile-sm relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/15">
         <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-status-passed-bg border border-status-passed/30 flex items-center justify-center text-status-passed shrink-0 shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 shadow-tactile-sm">
             <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div>
-            <p className="text-sm font-bold text-primary flex items-center gap-2">
+            <p className="text-sm font-semibold text-primary flex items-center gap-2">
               All QA Engines Nominal
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-status-passed-bg text-status-passed border border-status-passed/20">
+              <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-tactile-sm">
                 {totalProjects} Repositories Online
               </span>
             </p>
@@ -167,19 +167,19 @@ export const DashboardOverview: React.FC = () => {
       <div className="pt-2">
         <div className="flex items-center justify-between mb-3">
           <div className="section-header-band">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary">Core Metrics & Telemetry</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Core Metrics & Telemetry</span>
           </div>
           <span className="text-xs text-muted font-medium">Aggregated Platform Health</span>
         </div>
       </div>
 
-      {/* 4 Stat Cards with Solid Colored Top Rails & Specular Glassmorphism */}
+      {/* 4 Stat Cards with Tactile Elevation & Specular Highlights */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Card 1: Repositories */}
-        <div className="glass-card-interactive border-t-4 border-t-indigo-500 rounded-2xl p-5 shadow-glass space-y-3">
+        <div className="glass-restrained-interactive tactile-card shadow-tactile-sm rounded-xl p-5 space-y-3 relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">Tracked Repositories</span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted font-mono">Tracked Repositories</span>
+            <div className="w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shadow-tactile-sm">
               <FolderGit2 className="w-4 h-4" />
             </div>
           </div>
@@ -195,17 +195,17 @@ export const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Card 2: Pass Rate */}
-        <div className="glass-card-interactive border-t-4 border-t-emerald-500 rounded-2xl p-5 shadow-glass space-y-3">
+        <div className="glass-restrained-interactive tactile-card shadow-tactile-sm rounded-xl p-5 space-y-3 relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">Overall Pass Rate</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted font-mono">Overall Pass Rate</span>
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shadow-tactile-sm">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div>
             <p className="text-[32px] font-bold text-primary tracking-tight leading-none flex items-baseline gap-2">
               <span>{loading ? '...' : `${passRate}%`}</span>
-              <span className="text-xs font-semibold text-status-passed flex items-center gap-0.5">
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
                 <TrendingUp className="w-3.5 h-3.5" /> High
               </span>
             </p>
@@ -217,10 +217,10 @@ export const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Card 3: Tests Executed */}
-        <div className="glass-card-interactive border-t-4 border-t-sky-500 rounded-2xl p-5 shadow-glass space-y-3">
+        <div className="glass-restrained-interactive tactile-card shadow-tactile-sm rounded-xl p-5 space-y-3 relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">Tests Executed</span>
-            <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 flex items-center justify-center shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted font-mono">Tests Executed</span>
+            <div className="w-9 h-9 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 flex items-center justify-center shadow-tactile-sm">
               <Layers className="w-4 h-4" />
             </div>
           </div>
@@ -236,10 +236,10 @@ export const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Card 4: Task Queue Worker */}
-        <div className="glass-card-interactive border-t-4 border-t-amber-500 rounded-2xl p-5 shadow-glass space-y-3">
+        <div className="glass-restrained-interactive tactile-card shadow-tactile-sm rounded-xl p-5 space-y-3 relative overflow-hidden before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">Worker Cluster</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shadow-sm">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted font-mono">Worker Cluster</span>
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shadow-tactile-sm">
               <Server className="w-4 h-4" />
             </div>
           </div>
@@ -247,8 +247,8 @@ export const DashboardOverview: React.FC = () => {
             <p className="text-[32px] font-bold text-primary tracking-tight leading-none">
               Redis 7
             </p>
-            <p className="text-xs text-status-passed font-semibold mt-1.5 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-status-passed animate-pulse" />
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1.5 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Active concurrency workers
             </p>
           </div>
@@ -261,22 +261,22 @@ export const DashboardOverview: React.FC = () => {
       {/* Main Grid: Projects List & Diagnostics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Monitored Repositories */}
-        <div className="lg:col-span-2 glass-card rounded-2xl overflow-hidden shadow-glass flex flex-col justify-between">
+        <div className="lg:col-span-2 glass-restrained rounded-2xl overflow-hidden shadow-tactile flex flex-col justify-between relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <div>
-            {/* Solid Card Header */}
-            <div className="card-header-solid flex items-center justify-between">
+            {/* Card Header */}
+            <div className="p-4 px-6 border-b border-border-card/60 dark:border-white/10 flex items-center justify-between bg-surface/50 dark:bg-white/[0.02]">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center border border-indigo-500/20 shadow-tactile-sm">
                   <FolderGit2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-primary">Connected Repositories</h2>
+                  <h2 className="text-base font-semibold text-primary">Connected Repositories</h2>
                   <p className="text-[11px] text-muted">Codebases enrolled in static AST analysis and test generation</p>
                 </div>
               </div>
               <Link
                 to="/projects"
-                className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
+                className="text-xs font-medium text-brand hover:underline flex items-center gap-1"
               >
                 View all ({totalProjects}) <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
@@ -284,7 +284,7 @@ export const DashboardOverview: React.FC = () => {
 
             <div className="p-5 space-y-3">
               {projects.length === 0 && !loading && (
-                <div className="p-8 text-center rounded-xl bg-field border border-border-card">
+                <div className="p-8 text-center rounded-xl tactile-well border border-border-card/60 dark:border-white/10 shadow-tactile-sm">
                   <FolderGit2 className="w-8 h-8 text-muted mx-auto mb-2 opacity-60" />
                   <p className="text-sm font-semibold text-primary">No repositories enrolled</p>
                   <p className="text-xs text-muted mt-1">Add your first repository to begin automated testing.</p>
@@ -298,15 +298,15 @@ export const DashboardOverview: React.FC = () => {
                 <Link
                   key={proj.id}
                   to={`/projects/${proj.id}`}
-                  className="group block p-4 rounded-xl bg-field border border-border-card hover:border-brand hover:shadow-sm hover:bg-hover transition-all duration-150"
+                  className="group block p-4 rounded-xl tactile-card border border-border-card/70 dark:border-white/10 hover:border-zinc-400 dark:hover:border-white/20 shadow-tactile-sm active:translate-y-px transition-all duration-150 relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/15"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-primary group-hover:text-brand transition-colors truncate">
+                        <span className="font-semibold text-sm text-primary group-hover:text-brand transition-colors truncate">
                           {proj.name}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-brand/10 text-brand border border-brand/20">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-brand/10 text-brand border border-brand/20 shadow-tactile-sm">
                           {proj.language_framework}
                         </span>
                       </div>
@@ -319,7 +319,7 @@ export const DashboardOverview: React.FC = () => {
                       <span className="text-xs text-muted hidden sm:inline">
                         Branch: <span className="font-mono">{proj.default_branch}</span>
                       </span>
-                      <span className="p-1.5 rounded-lg bg-card border border-border-card text-muted group-hover:text-brand group-hover:border-brand/40 shadow-sm transition-colors">
+                      <span className="p-1.5 rounded-lg bg-surface border border-border-card/70 dark:border-white/10 text-muted group-hover:text-brand group-hover:border-brand/40 shadow-tactile-sm transition-colors">
                         <ArrowUpRight className="w-4 h-4" />
                       </span>
                     </div>
@@ -331,35 +331,35 @@ export const DashboardOverview: React.FC = () => {
         </div>
 
         {/* Right Col: Async Worker Verification Card */}
-        <div className="glass-card rounded-2xl overflow-hidden shadow-glass flex flex-col justify-between space-y-4">
+        <div className="glass-restrained rounded-2xl overflow-hidden shadow-tactile flex flex-col justify-between space-y-4 relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/20">
           <div>
-            {/* Solid Card Header */}
-            <div className="card-header-solid flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-status-passed border border-status-passed/20 flex items-center justify-center">
+            {/* Card Header */}
+            <div className="p-4 px-6 border-b border-border-card/60 dark:border-white/10 flex items-center gap-3 bg-surface/50 dark:bg-white/[0.02]">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shadow-tactile-sm">
                 <Activity className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-primary">Worker Telemetry</h2>
+                <h2 className="text-base font-semibold text-primary">Worker Telemetry</h2>
                 <p className="text-[11px] text-muted">Background Celery worker health</p>
               </div>
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="p-4 rounded-xl bg-field border border-border-card space-y-3">
+              <div className="tactile-well p-4 rounded-xl border border-border-card/70 dark:border-white/10 space-y-3 shadow-tactile-sm">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-secondary font-medium">Message Broker</span>
-                  <span className="text-status-passed font-bold flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-status-passed" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     Online (Redis 6379)
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-secondary font-medium">Worker Concurrency</span>
-                  <span className="text-primary font-semibold">4 Threads (Prefork)</span>
+                  <span className="text-primary font-semibold font-mono">4 Threads (Prefork)</span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-secondary font-medium">SSRF Boundary</span>
-                  <span className="text-status-passed font-semibold">Protected Sandbox</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Protected Sandbox</span>
                 </div>
 
                 <Button
@@ -367,7 +367,7 @@ export const DashboardOverview: React.FC = () => {
                   isLoading={taskLoading}
                   variant="secondary"
                   size="sm"
-                  className="w-full mt-2"
+                  className="w-full mt-2 shadow-tactile active:translate-y-px"
                   leftIcon={<Play className="w-3.5 h-3.5 text-brand" />}
                 >
                   Dispatch Diagnostic Ping
@@ -375,8 +375,8 @@ export const DashboardOverview: React.FC = () => {
               </div>
 
               {taskResponse && (
-                <div className="p-3.5 rounded-xl bg-field border border-border-card text-xs space-y-2 animate-fade-in">
-                  <div className="flex items-center justify-between text-status-passed font-semibold">
+                <div className="p-3.5 rounded-xl tactile-well border border-border-card/70 dark:border-white/10 text-xs space-y-2 animate-fade-in shadow-tactile-sm">
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
                     <span className="flex items-center gap-1.5 text-xs">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Job Dispatched
                     </span>
@@ -384,20 +384,20 @@ export const DashboardOverview: React.FC = () => {
                       ID: {taskResponse.task_id?.slice(0, 8)}...
                     </span>
                   </div>
-                  <pre className="text-secondary text-[11px] overflow-x-auto p-2 bg-card rounded border border-border-card font-mono">
+                  <pre className="text-secondary text-[11px] overflow-x-auto p-2 bg-surface rounded border border-border-card/70 dark:border-white/10 font-mono shadow-tactile-sm">
                     {JSON.stringify(taskResponse, null, 2)}
                   </pre>
                 </div>
               )}
 
               {/* User & Security Session Box */}
-              <div className="p-4 rounded-xl bg-field border border-border-card space-y-2">
-                <span className="text-[10px] font-bold text-muted uppercase tracking-wider block">
+              <div className="tactile-well p-4 rounded-xl border border-border-card/70 dark:border-white/10 space-y-2 shadow-tactile-sm">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted block">
                   Active Operator Session
                 </span>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-primary font-bold">{user?.email}</span>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand/15 text-brand border border-brand/25">
+                  <span className="text-primary font-semibold font-mono">{user?.email}</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-brand/10 text-brand border border-brand/20 shadow-tactile-sm">
                     {user?.role}
                   </span>
                 </div>
