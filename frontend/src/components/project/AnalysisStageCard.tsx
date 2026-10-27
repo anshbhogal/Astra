@@ -43,7 +43,7 @@ export const AnalysisStageCard: React.FC<AnalysisStageCardProps> = ({
 
   return (
     <div
-      className={`glass-card rounded-2xl p-6 shadow-card transition-all duration-200 relative overflow-hidden border ${
+      className={`glass-restrained rounded-2xl p-6 shadow-tactile transition-all duration-200 relative overflow-hidden border before:absolute before:inset-x-8 before:top-0 before:h-px before:bg-white/20 ${
         isRunning
           ? 'border-brand/40 ring-1 ring-brand/20'
           : isCompleted
@@ -57,19 +57,19 @@ export const AnalysisStageCard: React.FC<AnalysisStageCardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
         <div className="flex items-center gap-3">
           {isRunning ? (
-            <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0 shadow-tactile-sm">
               <RefreshCw className="w-4 h-4 animate-spin" />
             </div>
           ) : isCompleted ? (
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/50 flex items-center justify-center shrink-0 shadow-tactile-sm">
               <Check className="w-4 h-4 stroke-[2.5]" />
             </div>
           ) : isFailed ? (
-            <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/50 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/50 flex items-center justify-center shrink-0 shadow-tactile-sm">
               <AlertTriangle className="w-4 h-4" />
             </div>
           ) : (
-            <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand border border-brand/25 flex items-center justify-center shrink-0 shadow-tactile-sm">
               <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
             </div>
           )}
@@ -125,19 +125,19 @@ export const AnalysisStageCard: React.FC<AnalysisStageCardProps> = ({
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar (Recessed Tactile Well) */}
       <div className="relative z-10 space-y-1 mt-4">
-        <div className="w-full bg-field rounded-full h-2 overflow-hidden border border-border-card">
+        <div className="w-full tactile-well rounded-full h-2.5 overflow-hidden p-0.5 border border-border-card/60">
           <div
-            className={`h-full rounded-full transition-all duration-500 ease-out ${
-              isCompleted ? 'bg-emerald-500' : 'bg-brand'
+            className={`h-full rounded-full transition-all duration-500 ease-out shadow-sm ${
+              isCompleted ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-brand to-secondary'
             }`}
             style={{ width: `${progressPercent}%` }}
           />
         </div>
       </div>
 
-      {/* 5-Stage Stepper Grid */}
+      {/* 5-Stage Stepper Grid with Tactile Specular Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-4 relative z-10">
         {PIPELINE_STAGES.map((stg, idx) => {
           const stageStatus = getStageStatus(stg.key, analysis?.current_stage, analysis?.status);
@@ -147,29 +147,29 @@ export const AnalysisStageCard: React.FC<AnalysisStageCardProps> = ({
           return (
             <div
               key={stg.key}
-              className={`rounded-xl p-3 border transition-colors ${
+              className={`rounded-xl p-3 border transition-all duration-200 relative overflow-hidden ${
                 isStgActive
-                  ? 'bg-brand/5 border-brand/40 shadow-sm ring-1 ring-brand/20'
+                  ? 'bg-brand/10 border-brand shadow-tactile ring-1 ring-brand/30 before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-white/25'
                   : isStgCompleted
-                  ? 'bg-card border-emerald-500/25 dark:border-emerald-500/20 shadow-sm'
-                  : 'bg-field/50 border-border-card opacity-60'
+                  ? 'bg-card border-emerald-500/25 shadow-tactile-sm before:absolute before:inset-x-2 before:top-0 before:h-px before:bg-white/15'
+                  : 'bg-card/40 border-border-card/60 opacity-60'
               }`}
             >
               <div className="flex items-center gap-2 mb-1">
                 {isStgCompleted ? (
-                  <div className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <div className="w-4 h-4 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-inner">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
                   </div>
                 ) : isStgActive ? (
                   <RefreshCw className="w-3.5 h-3.5 text-brand animate-spin shrink-0" />
                 ) : (
-                  <div className="w-4 h-4 rounded-full border border-border-field bg-card flex items-center justify-center text-[9px] font-semibold text-muted shrink-0">
+                  <div className="w-4 h-4 rounded-full border border-border-card bg-field flex items-center justify-center text-[9px] font-semibold text-muted shrink-0 shadow-inner">
                     {idx + 1}
                   </div>
                 )}
                 <span
-                  className={`text-xs font-medium truncate ${
-                    isStgActive ? 'text-brand font-semibold' : isStgCompleted ? 'text-primary' : 'text-secondary'
+                  className={`text-xs font-semibold tracking-tight truncate ${
+                    isStgActive ? 'text-brand' : isStgCompleted ? 'text-primary' : 'text-secondary'
                   }`}
                 >
                   {stg.label}
