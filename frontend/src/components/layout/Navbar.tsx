@@ -40,17 +40,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
   }, []);
 
   return (
-    <header className="h-16 bg-card/90 dark:bg-sidebar border-b border-border-card dark:border-white/10 px-6 flex items-center justify-between shrink-0 select-none z-10 shadow-sm backdrop-blur-md transition-colors duration-150">
+    <header className="h-16 glass-restrained border-b border-border-card/70 dark:border-white/10 px-6 flex items-center justify-between shrink-0 select-none z-10 shadow-tactile-sm transition-colors duration-150 relative before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-white/10">
       {/* Left: Quick Search / Command Launcher */}
       <div className="flex items-center gap-4 min-w-0">
         <button
           onClick={onOpenCommandPalette}
-          className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg bg-field hover:bg-hover border border-border-field/70 dark:bg-white/10 dark:hover:bg-white/15 dark:border-white/15 text-xs text-secondary hover:text-primary dark:text-white/90 dark:hover:text-white transition-all shadow-sm group"
+          className="tactile-well flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg border border-border-card/80 dark:border-white/10 text-xs text-secondary hover:text-primary dark:text-zinc-300 dark:hover:text-white transition-all shadow-tactile-sm hover:border-zinc-400/50 dark:hover:border-white/20 active:translate-y-px group"
           title="Open Command Palette (Ctrl+K, ⌘K, or click)"
         >
-          <Search className="w-4 h-4 text-muted group-hover:text-primary dark:text-white/70 dark:group-hover:text-white transition-colors" />
-          <span className="hidden sm:inline font-medium">Quick search or command...</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-card dark:bg-white/15 border border-border-card dark:border-white/20 text-[10px] font-mono text-muted dark:text-white/80">
+          <Search className="w-3.5 h-3.5 text-muted group-hover:text-primary dark:text-zinc-400 dark:group-hover:text-white transition-colors" />
+          <span className="hidden sm:inline font-medium tracking-tight">Quick search or command...</span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface dark:bg-white/10 border border-border-card dark:border-white/15 text-[10px] font-mono text-muted dark:text-zinc-300 shadow-tactile-sm">
             ⌘K
           </kbd>
         </button>
@@ -61,36 +61,36 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
         {/* System Health Indicators */}
         <div className="hidden md:flex items-center gap-2 text-xs font-sans">
           {/* PostgreSQL Status */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-field dark:bg-white/10 border border-border-card dark:border-white/15 text-secondary dark:text-white/80">
-            <Database className="w-3.5 h-3.5 text-muted dark:text-white/80" />
-            <span className="text-secondary dark:text-white/70 text-xs font-medium">Postgres:</span>
+          <div className="tactile-card flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-card/70 dark:border-white/10 text-secondary dark:text-zinc-300 shadow-tactile-sm relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/15">
+            <Database className="w-3.5 h-3.5 text-muted dark:text-zinc-400" />
+            <span className="text-secondary dark:text-zinc-400 text-xs font-medium">Postgres:</span>
             {dbReady ? (
-              <span className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
+              <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Healthy
               </span>
             ) : dbReady === false ? (
-              <span className="flex items-center gap-1 font-semibold text-rose-700 dark:text-rose-300">
+              <span className="flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
                 <XCircle className="w-3.5 h-3.5" /> Offline
               </span>
             ) : (
-              <span className="text-muted dark:text-white/60">Checking...</span>
+              <span className="text-muted dark:text-zinc-500">Checking...</span>
             )}
           </div>
 
           {/* Redis Status */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-field dark:bg-white/10 border border-border-card dark:border-white/15 text-secondary dark:text-white/80">
-            <Server className="w-3.5 h-3.5 text-muted dark:text-white/80" />
-            <span className="text-secondary dark:text-white/70 text-xs font-medium">Redis:</span>
+          <div className="tactile-card flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-card/70 dark:border-white/10 text-secondary dark:text-zinc-300 shadow-tactile-sm relative before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/15">
+            <Server className="w-3.5 h-3.5 text-muted dark:text-zinc-400" />
+            <span className="text-secondary dark:text-zinc-400 text-xs font-medium">Redis:</span>
             {redisReady ? (
-              <span className="flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
+              <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Healthy
               </span>
             ) : redisReady === false ? (
-              <span className="flex items-center gap-1 font-semibold text-rose-700 dark:text-rose-300">
+              <span className="flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400">
                 <XCircle className="w-3.5 h-3.5" /> Offline
               </span>
             ) : (
-              <span className="text-muted dark:text-white/60">Checking...</span>
+              <span className="text-muted dark:text-zinc-500">Checking...</span>
             )}
           </div>
 
@@ -98,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
           <button
             onClick={checkHealth}
             disabled={checking}
-            className="p-1.5 text-secondary hover:text-primary hover:bg-hover dark:text-white/70 dark:hover:text-white dark:hover:bg-white/10 rounded-lg transition-colors"
+            className="p-1.5 text-secondary hover:text-primary hover:bg-surface-elevated dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 rounded-lg border border-transparent hover:border-border-card/50 dark:hover:border-white/10 shadow-tactile-sm active:translate-y-px transition-all"
             title="Refresh health status"
             aria-label="Refresh status"
           >
@@ -106,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCommandPalette }) => {
           </button>
         </div>
 
-        {/* Section 6 Theme Toggle Button (36px, Sun in dark mode, Moon in light mode) */}
+        {/* Theme Toggle Button */}
         <ThemeToggle />
       </div>
     </header>
