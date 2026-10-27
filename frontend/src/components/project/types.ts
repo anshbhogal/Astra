@@ -89,6 +89,11 @@ export interface TestRun {
   error_tests: number;
   duration_ms: number;
   created_at: string;
+  target_environment?: {
+    base_url?: string;
+    environment_type?: string;
+    current_test?: any;
+  };
 }
 
 export interface KnowledgeGraph {
