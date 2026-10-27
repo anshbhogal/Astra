@@ -47,3 +47,9 @@ celerybeat.pid
 # Workspace Scratch
 scratch/
 
+# Container Mountpoint Overlays in backend
+backend/docker-compose.yml
+backend/engine/
+backend/ml/
+backend/scratch/
+backend/workspaces/
