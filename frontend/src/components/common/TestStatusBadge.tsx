@@ -146,7 +146,7 @@ export const TestStatusBadge: React.FC<TestStatusBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center rounded-full transition-colors select-none ${
+      className={`inline-flex items-center rounded-full transition-colors select-none shadow-tactile-sm relative overflow-hidden before:absolute before:inset-x-1 before:top-0 before:h-px before:bg-white/25 before:rounded-t-full ${
         config.pillClasses
       } ${sizeClasses[size]} ${className}`}
       role="status"
@@ -155,7 +155,7 @@ export const TestStatusBadge: React.FC<TestStatusBadgeProps> = ({
       <Icon className={`${iconSizes[size]} shrink-0 ${config.spin ? 'animate-spin' : ''}`} aria-hidden />
       <span>{label || config.label}</span>
       {count !== undefined && (
-        <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/10 text-[11px] font-mono">
+        <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-black/10 dark:bg-white/10 text-[11px] font-mono shadow-inner">
           {count}
         </span>
       )}
