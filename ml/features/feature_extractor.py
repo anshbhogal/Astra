@@ -34,9 +34,17 @@ class FeatureExtractor:
             return pd.DataFrame()
 
         df = pd.DataFrame(historical_results)
+        sort_cols = []
         if "created_at" in df.columns:
             df["created_at"] = pd.to_datetime(df["created_at"])
-            df = df.sort_values(by="created_at", ascending=True).reset_index(drop=True)
+            sort_cols.append("created_at")
+        if "cycle_id" in df.columns:
+            sort_cols.append("cycle_id")
+        elif "test_run_id" in df.columns:
+            sort_cols.append("test_run_id")
+
+        if sort_cols:
+            df = df.sort_values(by=sort_cols, ascending=True).reset_index(drop=True)
 
         rows = []
         # Group by test_case_id and compute rolling prior metrics for each run
@@ -46,11 +54,11 @@ class FeatureExtractor:
                 prior_runs = group_rows[:i]  # Strictly prior runs (prevents data leakage)
 
                 if not prior_runs:
-                    # Cold-Start defaults for the first run
+                    # Cold-Start defaults for the first run (strictly no lookahead to current_run latency)
                     hist_fail_rate = 0.0
                     recent_fail_rate = 0.0
                     transition_entropy = 0.0
-                    avg_latency = float(current_run.get("execution_time_ms", 100.0))
+                    avg_latency = 100.0  # Pre-execution static cold-start baseline
                     latency_std = 0.0
                 else:
                     outcomes = [r.get("outcome", "PASS") for r in prior_runs]
@@ -70,7 +78,14 @@ class FeatureExtractor:
                     avg_latency = float(np.mean(latencies))
                     latency_std = float(np.std(latencies)) if len(latencies) > 1 else 0.0
 
-                category = current_run.get("category", "UNKNOWN_FAILURE")
+                # Pre-execution category: use static test category or most recent historical failure category
+                # Prevents label leakage from post-failure triage of the current run
+                prior_categories = [r.get("category") for r in prior_runs if r.get("outcome") == "FAIL" and r.get("category")]
+                if prior_categories:
+                    category = prior_categories[-1]
+                else:
+                    category = current_run.get("static_test_category") or current_run.get("test_type") or "UNKNOWN_FAILURE"
+
                 severity_weight = CATEGORY_SEVERITY_MAP.get(category, 0.5)
                 code_churn = float(current_run.get("code_churn", 0.0))
                 target_failed = 1 if current_run.get("outcome") == "FAIL" else 0
