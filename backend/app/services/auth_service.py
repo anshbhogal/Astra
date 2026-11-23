@@ -72,7 +72,7 @@ async def authenticate_user(db: AsyncSession, payload: UserLogin) -> User:
             detail="Account has been deactivated. Contact your system administrator."
         )
 
-    if not user.is_approved and user.role != UserRole.ADMIN and user.email != "admin@astra.local":
+    if not user.is_approved and user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending administrator approval before you can access the platform."
