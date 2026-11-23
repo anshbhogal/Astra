@@ -147,7 +147,7 @@ async def verify_and_rotate_refresh_token(
             pass
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is inactive")
 
-    if not user.is_approved and user.role != UserRole.ADMIN and user.email != "admin@astra.local":
+    if not user.is_approved and user.role != UserRole.ADMIN:
         try:
             await redis.delete(key)
         except Exception:
@@ -257,7 +257,7 @@ async def get_current_user(
         )
 
     # Enforce is_approved
-    if not user.is_approved and user.role != UserRole.ADMIN and user.email != "admin@astra.local":
+    if not user.is_approved and user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending administrator approval before you can access the platform."
