@@ -7,11 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional, Union, Dict, Any
+from datetime import datetime, timezone
 import uuid
 
 from app.db.session import get_db
 from app.core.security import get_current_user
-from app.models.domain import User, Project
+from app.models.domain import User, Project, DefectClusterModel
+from app.models.canonical import G2Defect, G2DefectHistory
 from app.services.analysis_service import FailureAnalysisService
 from app.schemas.analysis import FailureAnalysisResponse, DefectClusterResponse
 from app.tasks.analysis_tasks import analyze_test_run_failures_task
@@ -90,6 +92,71 @@ async def get_project_defects(
     service = FailureAnalysisService(db)
     defects = await service.get_project_defects(project_id)
     return defects
+
+
+@router.get(
+    "/{project_id}/defects/{defect_id}",
+    response_model=FailureAnalysisResponse,
+)
+async def get_defect_detail(
+    project_id: uuid.UUID,
+    defect_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Fetches diagnostic failure analysis details for a defect or defect cluster."""
+    await get_project_or_403(project_id, current_user, db)
+
+    # 1. Try to find FailureAnalysisModel directly
+    stmt = select(FailureAnalysisModel).where(
+        FailureAnalysisModel.id == defect_id,
+        FailureAnalysisModel.project_id == project_id
+    )
+    fa = (await db.execute(stmt)).scalar_one_or_none()
+
+    # 2. If not found, check if defect_id is a DefectClusterModel
+    if not fa:
+        cl_stmt = select(DefectClusterModel).where(
+            DefectClusterModel.id == defect_id,
+            DefectClusterModel.project_id == project_id
+        )
+        cluster = (await db.execute(cl_stmt)).scalar_one_or_none()
+        if cluster and cluster.representative_failure_id:
+            try:
+                rep_id = uuid.UUID(cluster.representative_failure_id)
+                fa = (await db.execute(
+                    select(FailureAnalysisModel).where(FailureAnalysisModel.id == rep_id)
+                )).scalar_one_or_none()
+            except (ValueError, TypeError):
+                pass
+
+    # 3. If still not found, check G2Defect
+    if not fa:
+        g2_stmt = select(G2Defect).where(G2Defect.id == defect_id, G2Defect.project_id == project_id)
+        g2 = (await db.execute(g2_stmt)).scalar_one_or_none()
+        if g2:
+            return FailureAnalysisResponse(
+                id=g2.id,
+                project_id=g2.project_id,
+                test_result_id="g2-defect",
+                test_case_id=g2.defect_key,
+                category=g2.severity,
+                summary=g2.title,
+                error_message=g2.description or "",
+                fingerprint=g2.fingerprint or "",
+                classification_confidence=1.0,
+                attribution_confidence=1.0,
+                root_cause_confidence=1.0,
+                created_at=g2.created_at or datetime.now(timezone.utc),
+            )
+
+    if not fa:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Defect '{defect_id}' not found."
+        )
+
+    return fa
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +258,24 @@ async def post_defect_comment(
     if payload.status_change and defect:
         defect.status = payload.status_change
 
+    # Synchronize G2Defect & history if present
+    if payload.status_change:
+        g2_stmt = select(G2Defect).where(G2Defect.id == defect_id)
+        g2_def = (await db.execute(g2_stmt)).scalar_one_or_none()
+        if g2_def:
+            old_status = g2_def.status
+            g2_def.status = payload.status_change
+            hist = G2DefectHistory(
+                id=uuid.uuid4(),
+                defect_id=g2_def.id,
+                from_status=old_status,
+                to_status=payload.status_change,
+                actor_type="USER",
+                comment=f"Triage status transition to {payload.status_change} by {current_user.full_name}: {payload.message[:100]}",
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(hist)
+
     await db.commit()
     await db.refresh(comment)
 
@@ -228,6 +313,23 @@ async def update_defect_status(
         defect.status = payload.status
         if payload.assigned_to_id:
             defect.assigned_to_id = payload.assigned_to_id
-        await db.commit()
 
+    # Synchronize G2Defect & history if present
+    g2_stmt = select(G2Defect).where(G2Defect.id == defect_id)
+    g2_def = (await db.execute(g2_stmt)).scalar_one_or_none()
+    if g2_def:
+        old_status = g2_def.status
+        g2_def.status = payload.status
+        hist = G2DefectHistory(
+            id=uuid.uuid4(),
+            defect_id=g2_def.id,
+            from_status=old_status,
+            to_status=payload.status,
+            actor_type="USER",
+            comment=f"Remediation status updated to {payload.status} by {current_user.full_name} ({current_user.role.value})",
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(hist)
+
+    await db.commit()
     return {"status": payload.status, "defect_id": str(defect_id)}
