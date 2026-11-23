@@ -5,9 +5,10 @@ ASTRA Backend - Gen 2 Phase 2 (Phase 12) Automated Program Repair (APR) API Rout
 import uuid
 import re
 import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +30,7 @@ from engine.repair.context import compute_dict_hash, compute_sha256_text
 from engine.repair.eligibility_policy import RepairEligibilityPolicy
 from engine.repair.pr_dispatcher import AutonomousPRDispatcher, create_git_commit
 from engine.repair.regression_gate import CandidateVerificationReport
+from engine.cicd.hmac_validator import HMACValidator
 
 
 router = APIRouter(prefix="/repair", tags=["Automated Program Repair (Gen 2 Phase 12)"])
@@ -428,16 +430,50 @@ async def authorize_candidate_pr(
 
 @router.post("/webhooks/github/pr-merged", status_code=status.HTTP_200_OK)
 async def github_pr_merged_webhook(
-    payload: Dict[str, Any],
+    request: Request,
+    x_hub_signature_256: Optional[str] = Header(None, alias="X-Hub-Signature-256"),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Closed-Loop Post-Merge Verification Webhook:
-    When GitHub merges an ASTRA auto-repair PR, validates post-merge CI and transitions
-    the canonical defect to VERIFIED and CLOSED.
+    When GitHub merges an ASTRA auto-repair PR, validates cryptographic HMAC-SHA256 signature,
+    post-merge CI, and transitions the canonical defect to VERIFIED and CLOSED.
     """
-    pr_number = payload.get("pull_request", {}).get("number") or payload.get("pr_number")
-    merged = payload.get("pull_request", {}).get("merged", True) or payload.get("merged", True)
+    raw_body = await request.body()
+    secret = settings.GITHUB_WEBHOOK_SECRET
+
+    # 1. Cryptographic HMAC-SHA256 Signature Verification BEFORE parsing
+    if not HMACValidator.verify_github_signature(raw_body, x_hub_signature_256, secret):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing X-Hub-Signature-256 header signature.",
+        )
+
+    # 2. JSON Decoding & Malformed Payload Handling
+    try:
+        payload = json.loads(raw_body.decode("utf-8"))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON payload format.",
+        )
+
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payload must be a JSON object.",
+        )
+
+    pr_number = (
+        payload.get("pull_request", {}).get("number")
+        if isinstance(payload.get("pull_request"), dict)
+        else payload.get("pr_number")
+    )
+    merged = (
+        payload.get("pull_request", {}).get("merged", True)
+        if isinstance(payload.get("pull_request"), dict)
+        else payload.get("merged", True)
+    )
 
     if not pr_number:
         raise HTTPException(
@@ -451,6 +487,14 @@ async def github_pr_merged_webhook(
     pr_record = res.scalar_one_or_none()
     if not pr_record:
         return {"status": "ignored", "message": f"No ASTRA repair PR matching #{pr_number}"}
+
+    # 3. Idempotency Check: Gracefully handle duplicate/replay deliveries
+    if pr_record.pr_status == "MERGED" and pr_record.post_merge_verified:
+        return {
+            "status": "DUPLICATE_IGNORED",
+            "message": f"PR #{pr_number} has already been verified and processed.",
+            "pr_number": pr_number,
+        }
 
     if merged:
         pr_record.pr_status = "MERGED"
