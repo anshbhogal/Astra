@@ -51,7 +51,7 @@ class TraceabilityMatrixItem(BaseModel):
 
 
 class LLMConfigPayload(BaseModel):
-    provider: str = Field("gemini", description="gemini, ollama, openai, anthropic")
+    provider: str = Field("gemini", description="gemini (single external provider)")
     model: Optional[str] = None
     api_key_ref: Optional[str] = None
     temperature: float = 0.1
