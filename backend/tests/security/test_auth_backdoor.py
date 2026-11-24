@@ -46,3 +46,29 @@ async def test_admin_backdoor_bypass_fails(client: AsyncClient, db_session: Asyn
     assert resp3.status_code == 200, f"Expected 200 OK for valid password, got {resp3.status_code}"
     data = resp3.json()
     assert "access_token" in data
+
+
+@pytest.mark.asyncio
+async def test_unapproved_user_with_admin_email_cannot_bypass_approval(client: AsyncClient, db_session: AsyncSession):
+    """
+    Security Test: Ensure that an unapproved user whose email happens to be
+    admin@astra.local cannot bypass the approval check when their role is not ADMIN.
+    """
+    password = "DevPassword123!"
+    unapproved_dev = User(
+        email="unapproved_spoof@astra.local",
+        hashed_password=get_password_hash(password),
+        full_name="Unapproved Developer",
+        role=UserRole.DEVELOPER,
+        is_active=True,
+        is_approved=False,
+    )
+    db_session.add(unapproved_dev)
+    await db_session.commit()
+
+    resp = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "unapproved_spoof@astra.local", "password": password}
+    )
+    assert resp.status_code == 403, f"Expected 403 Forbidden for unapproved user, got {resp.status_code}"
+    assert "pending administrator approval" in resp.json()["detail"]
