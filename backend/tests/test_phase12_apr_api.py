@@ -76,6 +76,10 @@ async def test_trigger_repair_for_defect(client: AsyncClient, db_session: AsyncS
 
     # 5. Closed-Loop Post-Merge Webhook
     # Update PR record with a known github_pr_number to test webhook correlation
+    import hmac
+    import hashlib
+    import json
+    from app.core.config import settings
     from app.models.canonical import G2RepairPullRequest
     from sqlalchemy import select
     pr_q = await db_session.execute(select(G2RepairPullRequest).where(G2RepairPullRequest.id == uuid.UUID(pr_data["id"])))
@@ -83,9 +87,17 @@ async def test_trigger_repair_for_defect(client: AsyncClient, db_session: AsyncS
     pr_rec.github_pr_number = 101
     await db_session.commit()
 
+    hook_payload = {"pull_request": {"number": 101, "merged": True}}
+    raw_hook_body = json.dumps(hook_payload).encode("utf-8")
+    hook_sig = "sha256=" + hmac.new(settings.GITHUB_WEBHOOK_SECRET.encode("utf-8"), msg=raw_hook_body, digestmod=hashlib.sha256).hexdigest()
+
     hook_res = await client.post(
         "/api/v1/repair/webhooks/github/pr-merged",
-        json={"pull_request": {"number": 101, "merged": True}},
+        content=raw_hook_body,
+        headers={
+            "X-Hub-Signature-256": hook_sig,
+            "Content-Type": "application/json",
+        },
     )
     assert hook_res.status_code == 200
     hook_data = hook_res.json()
