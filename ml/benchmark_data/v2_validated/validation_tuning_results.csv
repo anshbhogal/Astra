@@ -1,0 +1,6 @@
+config_id,description,mean_validation_apfd,std_validation_apfd,hyperparameters,feature_columns
+cfg_shallow,"Shallow depth (max_depth=3, n_estimators=60, all features)",0.8902,0.1005,"{'max_depth': 3, 'learning_rate': 0.08, 'n_estimators': 60, 'subsample': 0.8}",all_7_features
+cfg_standard,"Standard configuration (max_depth=4, n_estimators=100, all features)",0.8851,0.0997,"{'max_depth': 4, 'learning_rate': 0.05, 'n_estimators': 100, 'subsample': 0.8}",all_7_features
+cfg_regularized,"Deeper regularized (max_depth=5, n_estimators=120, subsample=0.7, all features)",0.886,0.0945,"{'max_depth': 5, 'learning_rate': 0.03, 'n_estimators': 120, 'subsample': 0.7}",all_7_features
+ablation_history_only,Feature Ablation: Failure & Transition History Only (3 features),0.8676,0.0962,"{'max_depth': 4, 'learning_rate': 0.05, 'n_estimators': 100, 'subsample': 0.8}","['recent_failure_rate_5runs', 'historical_failure_rate_prev', 'transition_entropy_prev']"
+ablation_recent_only,Feature Ablation: Recent 5-Run Failure Rate Only (1 feature),0.8514,0.1172,"{'max_depth': 3, 'learning_rate': 0.05, 'n_estimators': 80, 'subsample': 0.8}",['recent_failure_rate_5runs']
