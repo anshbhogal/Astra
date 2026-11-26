@@ -29,39 +29,54 @@ class XGBoostTestPrioritizer:
         self.model: Optional[Any] = None
         self.is_trained: bool = False
         self.algorithm: str = "XGBClassifier"
+        self.active_feature_columns: List[str] = list(FEATURE_COLUMNS)
 
-    def train(self, train_df: pd.DataFrame) -> Dict[str, Any]:
+    def train(
+        self,
+        train_df: pd.DataFrame,
+        hyperparameters: Optional[Dict[str, Any]] = None,
+        feature_columns: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """
         Trains XGBClassifier or RandomForestClassifier on leakage-free training feature DataFrames.
+        Supports hyperparameter tuning and feature selection for validation/ablation studies.
         """
         if train_df.empty or len(train_df) < 10:
             return {"status": "INSUFFICIENT_DATA", "sample_count": len(train_df)}
 
-        X = train_df[FEATURE_COLUMNS].fillna(0.0)
+        cols = list(feature_columns) if feature_columns else list(FEATURE_COLUMNS)
+        self.active_feature_columns = cols
+
+        X = train_df[cols].fillna(0.0)
         y = train_df["target_failed"].astype(int)
 
         # Require at least one positive and one negative sample
         if len(y.unique()) < 2:
             return {"status": "SINGLE_CLASS_ONLY", "sample_count": len(train_df)}
 
+        xgb_params = {
+            "n_estimators": 100,
+            "max_depth": 4,
+            "learning_rate": 0.05,
+            "subsample": 0.8,
+            "random_state": 42,
+            "eval_metric": "logloss",
+        }
+        if hyperparameters:
+            xgb_params.update(hyperparameters)
+
         try:
-            self.model = xgb.XGBClassifier(
-                n_estimators=100,
-                max_depth=4,
-                learning_rate=0.05,
-                subsample=0.8,
-                random_state=42,
-                eval_metric="logloss",
-            )
+            self.model = xgb.XGBClassifier(**xgb_params)
             self.model.fit(X, y)
             self.algorithm = "XGBClassifier"
         except Exception:
             # Fallback to RandomForest if XGBoost fails or is missing C libraries
-            self.model = RandomForestClassifier(
-                n_estimators=100,
-                max_depth=4,
-                random_state=42,
-            )
+            rf_params = {
+                "n_estimators": xgb_params.get("n_estimators", 100),
+                "max_depth": xgb_params.get("max_depth", 4),
+                "random_state": 42,
+            }
+            self.model = RandomForestClassifier(**rf_params)
             self.model.fit(X, y)
             self.algorithm = "RandomForestClassifier"
 
@@ -70,7 +85,7 @@ class XGBoostTestPrioritizer:
         # Extract feature importances
         feature_importances = {}
         if hasattr(self.model, "feature_importances_"):
-            for col, imp in zip(FEATURE_COLUMNS, self.model.feature_importances_):
+            for col, imp in zip(cols, self.model.feature_importances_):
                 feature_importances[col] = float(np.round(imp, 4))
 
         return {
@@ -78,6 +93,8 @@ class XGBoostTestPrioritizer:
             "algorithm": self.algorithm,
             "sample_count": len(train_df),
             "feature_importances": feature_importances,
+            "hyperparameters": xgb_params,
+            "feature_columns": cols,
         }
 
     def save_model(self, project_id: str, version: str = "v1.0") -> str:
@@ -121,7 +138,8 @@ class XGBoostTestPrioritizer:
         if not self.is_trained or self.model is None:
             return HeuristicPrioritizerBaseline.rank_heuristic(features_df, strategy=strategy)
 
-        X = features_df[FEATURE_COLUMNS].fillna(0.0)
+        cols = getattr(self, "active_feature_columns", FEATURE_COLUMNS)
+        X = features_df[cols].fillna(0.0)
 
         try:
             probs = self.model.predict_proba(X)[:, 1]
